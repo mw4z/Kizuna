@@ -13,7 +13,7 @@ against the episode's own audio, and delivers a ready-to-watch file to Jellyfin,
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?logo=windows&logoColor=white)](#requirements)
 [![Jellyfin](https://img.shields.io/badge/Jellyfin-library-AA5CC3?logo=jellyfin&logoColor=white)](https://jellyfin.org/)
 [![Stremio](https://img.shields.io/badge/Stremio-add--ons-8A5AAB)](https://www.stremio.com/)
-[![Tests](https://img.shields.io/badge/tests-212%20passing-2EA44F)](#tests)
+[![Tests](https://img.shields.io/badge/tests-256%20passing-2EA44F)](#tests)
 
 [Highlights](#highlights) · [How it works](#how-it-works) · [Getting started](#getting-started) ·
 [Reliability](#reliability--safety) · [Tests](#tests) · [Operations guide](docs/OPERATIONS.md)
@@ -102,13 +102,16 @@ working directory. The watcher supervises itself and restarts its worker within 
 
 ### Configure
 
+Everything everyday is on the pages, no code edits needed:
+
 | What | Where |
 |---|---|
-| Followed shows and their Jellyfin folder names | `SHOWS` in [`agent.py`](agent.py) |
-| DKB subscriptions | `SHOWS` in [`dkb.py`](dkb.py) |
-| Subtitle policy per show (`fansub`, `fansub_first`, `official_ok`, `manual`) | [`subtitle_policy.json`](subtitle_policy.json) |
-| Air-time schedule (AniList ids) | `ANILIST` in [`status.py`](status.py) |
+| Follow, edit or stop following weekly shows (sources, numbering, subtitle rule, start episode) | **Weekly** page (`/weekly`) |
+| Audio languages and resolutions for weekly episodes, check interval, air-time clock, cleanup delay, notifications, default libraries | **Settings** page (`/settings`) |
+| Subtitle policy for shows outside the weekly list (e.g. a back catalogue) | [`subtitle_policy.json`](subtitle_policy.json) |
 | Stremio account (stored encrypted for your Windows user) | `python stremio_account.py --import-local` |
+
+Your show list (`shows.json`) and settings (`settings.json`) stay on your PC; both are git-ignored.
 
 The inbox folder and library paths are constants: `FOLDER` and `LIBRARY` in [`agent.py`](agent.py), `ANIME` in
 [`cleanup.py`](cleanup.py).
@@ -134,11 +137,11 @@ Kizuna runs unattended on a home PC, so it's built to fail safe:
 
 ```powershell
 python -m unittest test_agent test_audit test_audit_fixes test_dkb test_fansub test_fillers `
-    test_mandatory_processing test_robust test_stremio test_stremio_batch test_reliability
+    test_mandatory_processing test_robust test_stremio test_stremio_batch test_reliability test_shows test_settings
 node test_picker.cjs
 ```
 
-**212 tests**, all in temporary folders: real ffmpeg, ffprobe and MKVToolNix runs on tiny generated videos, Windows
+**256 tests**, all in temporary folders: real ffmpeg, ffprobe and MKVToolNix runs on tiny generated videos, Windows
 file locks under concurrent polling, simulated crashes and restarts, a slow server through the proxy, and the proxy's
 SSRF rules. They never touch real media. [`AGENTS.md`](AGENTS.md) has the rules for developing safely on a live system.
 
@@ -154,7 +157,11 @@ SSRF rules. They never touch real media. [`AGENTS.md`](AGENTS.md) has the rules 
 | [`hardsub.py`](hardsub.py) | Detects Arabic burned into the picture (Windows OCR) |
 | [`stremio.py`](stremio.py) · [`stremio_batch.py`](stremio_batch.py) · [`stremio.html`](stremio.html) | Search, track checks, downloads and season batches |
 | [`egress.py`](egress.py) | Filtering proxy for every outgoing media connection |
-| [`status.py`](status.py) | Local dashboard at `http://localhost:8097` |
+| [`status.py`](status.py) | Local app server at `http://localhost:8097` (pages, API, live status) |
+| [`dashboard.html`](dashboard.html) · [`weekly.html`](weekly.html) · [`settings.html`](settings.html) | The Now, Weekly and Settings pages |
+| [`kizuna.css`](kizuna.css) · [`kizuna.js`](kizuna.js) | Shared design system and app shell (navigation, live activity, artwork fallbacks) |
+| [`shows.py`](shows.py) | Followed weekly shows: AniList recommendations, DKB/Stremio linking, the Stremio source for new episodes |
+| [`settings.py`](settings.py) | Validated personal preferences |
 | [`dkb.py`](dkb.py) · [`torrent.py`](torrent.py) · [`fillers.py`](fillers.py) | Weekly releases, torrent helper, filler guide |
 | [`cleanup.py`](cleanup.py) | Recycles watched episodes |
 | [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Full operations guide |

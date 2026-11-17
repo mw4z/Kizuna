@@ -3,20 +3,40 @@
 Kizuna (formerly the "Anime FYA" agent) gives every new weekly anime episode styled Arabic subtitles, unattended, and puts it in
 Jellyfin so it plays on the TVs.
 
-## Shows
+## Shows (the Weekly page)
 
-The followed shows are configured in code, not listed here: `SHOWS` in `agent.py` (release name →
-Jellyfin folder), `SHOWS` in `dkb.py` (automatic downloads) and `subtitle_policy.json` (Arabic source
-policy per show; a show marked `manual` is typeset by hand and never published automatically).
+Followed shows are managed on the **Weekly** page (`/weekly`) and stored in the private, git-ignored `shows.json`;
+nothing is hard-coded. Changes apply on the next check without a restart.
 
-The status page shows each show's next episode, air time and a countdown from AniList's
-public schedule (refreshed every 30 min). It uses the AniList id of the **current season**,
-in `ANILIST` in `status.py`, so update that id when a new season starts. Times are the Japanese
-broadcast; the Arabic-subbed episode arrives some hours later.
+- **Add:** the page recommends what is airing this season (AniList: new shows first, then continuing ones) and searches
+  any anime. Choosing one fills the form automatically: the Jellyfin folder (English title and the year of season 1,
+  following AniList prequels of the same series), the season, the DKB release name (looked up on DKB) and the Stremio
+  catalog entry (season, latest aired episode, and an episode offset when DKB and Stremio number episodes
+  differently). Start with the next new episode (no backfill) or a chosen episode.
+- **Sources:** DKB 1080p weekly releases and/or your Stremio add-ons. Both check every few minutes (Settings); whichever
+  has a new episode first downloads it. `shows.claim()` and `shows.have_episode()` make the other source skip it
+  (library folder, Anime library, inbox, Arabic preparation queue and both sources' records are checked).
+  Stremio downloads use your Settings languages and resolutions and go through the normal Arabic preparation into
+  Weekly Anime. An episode no Stremio source offers within 3 days is shown as "not found on Stremio" (DKB can still
+  bring it). A Stremio download you cancel is not fetched again by Stremio; DKB may still bring it.
+- **Arabic subtitles rule per show:** official or fan, fan first, fan only, or typeset by hand (`manual`: never
+  published automatically). Shows not on the list still use `subtitle_policy.json`.
+- **Edit:** changing the season, start episode or release name restarts both sources from the new point. Renaming the
+  folder moves its episodes; it is refused while an episode of the show is still downloading or being prepared.
+- **Remove:** the show's folder moves to the Anime library (nothing is deleted; if a same-named folder exists there
+  it stays in Weekly Anime). Refused while an episode is in flight.
 
-To add a show: put it in `SHOWS` in `agent.py` (see *Jellyfin* below) and create its folder
-in `C:\Users\moody\Downloads\Weekly Anime`; when it stops airing, move its folder to
-`C:\Users\moody\Downloads\Anime`.
+The Now page shows each show's next episode, air time and a countdown from AniList's public schedule (refreshed every
+30 min), using the AniList id saved with the show. Times are the Japanese broadcast; the Arabic-subbed episode arrives
+some hours later.
+
+## Settings
+
+The **Settings** page (`/settings`, private `settings.json`, every value validated; a missing or damaged file means the
+defaults) holds: audio languages (up to three, in order) and an optional extra subtitle track for weekly Stremio
+episodes; resolutions tried (highest first); how often DKB and Stremio check (5–240 min); 12/24-hour air times; how
+long watched Weekly Anime/Anime episodes stay before the Recycle Bin (1 h – 30 days); Windows "ready" notifications;
+default libraries and audio filter for Discover.
 
 ## What happens when an episode lands
 
