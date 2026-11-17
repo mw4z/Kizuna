@@ -49,7 +49,7 @@ def _procs():
         cmd = " ".join(p.info["cmdline"] or [])
         if "watcher.py" in cmd:
             out["watcher" if "--child" in cmd else "supervisor"] = {"pid": p.info["pid"], "since": p.info["create_time"]}
-        elif "agent.py" in cmd and "AnimeFYA" in cmd:
+        elif os.path.normcase(os.path.join(agent.HERE, "agent.py")) in os.path.normcase(cmd):   # ours, whatever the folder is called
             out["agent"] = {"pid": p.info["pid"], "since": p.info["create_time"]}
     return out
 
