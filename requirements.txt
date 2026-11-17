@@ -1,0 +1,17 @@
+# Python 3.13 packages the agent and its tests import (versions = the working install).
+# Interpreter: C:\Users\moody\AppData\Local\Programs\Python\Python313\python.exe (see AGENTS.md)
+numpy==2.4.4        # audio_fit.py (timing), test_audit_fixes.py
+psutil==7.2.2       # agent.py, watcher.py, status.py, library_processing.py, test_audit.py
+watchdog==6.0.0     # watcher.py
+libtorrent==2.1.1   # torrent.py, dkb.py
+pillow==11.3.0      # make_icon.py only (one-off icon tool)
+opencv-python==5.0.0.93                  # hardsub.py (burned-in Arabic check; processing_worker imports it)
+winrt-runtime==3.2.1                     # hardsub.py: Windows OCR (ar-SA) through these four namespaces
+winrt-Windows.Foundation==3.2.1
+winrt-Windows.Foundation.Collections==3.2.1
+winrt-Windows.Globalization==3.2.1
+winrt-Windows.Graphics.Imaging==3.2.1
+winrt-Windows.Media.Ocr==3.2.1
+winrt-Windows.Storage.Streams==3.2.1
+# Not on PyPI here: ccl_chromium_reader is vendored under work\stremio-storage-reader and only
+# used by `stremio_account.py --import-local`.

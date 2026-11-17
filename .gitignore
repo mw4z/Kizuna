@@ -1,0 +1,17 @@
+# Runtime state, history and logs (live data, never committed)
+state.json
+progress.json
+library-processing.json
+stremio-job.json
+stremio-batch.json
+dkb-state.json
+running.lock
+log.txt
+*.tmp
+# Encrypted Stremio account (DPAPI, this PC only)
+stremio-account.bin
+# Work area (downloads, Arabic preparation, 90+ GB) and rollback copies
+work/
+backup/
+__pycache__/
+.venv*/
