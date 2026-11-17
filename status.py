@@ -133,7 +133,8 @@ def _deletions():
             if cleanup.inside(p, cleanup.ANIME):
                 show = os.path.relpath(p, cleanup.ANIME).split(os.sep)[0]
                 show = re.sub(r"\s*(\[[^\]]*\]|\(\d{4}\))", "", show).strip(" -")
-                return f"{show} · {os.path.splitext(os.path.basename(p))[0]}"
+                _, ep = agent.parse_name(os.path.basename(p))      # "Bleach (2004) - S10E13.mkv" -> "Bleach · S10E13"
+                return f"{show} · {ep or os.path.splitext(os.path.basename(p))[0]}"
             return nice(p)
         return [{"name": label(p), "at": d} for p, t, d in cleanup.due()]
     except Exception:

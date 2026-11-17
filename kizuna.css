@@ -119,7 +119,7 @@ img{max-width:100%}
 
 /* ---------------------------------------------------------------- artwork */
 .k-shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:28px 20px}
-.k-card{display:block;min-width:0;padding:0;border:0;background:none;color:inherit;text-align:start;font:inherit;text-decoration:none;cursor:pointer}
+.k-card{display:block;align-self:start;min-width:0;padding:0;border:0;background:none;color:inherit;text-align:start;font:inherit;text-decoration:none;cursor:pointer}
 .k-card:disabled{cursor:default}
 .k-art{position:relative;aspect-ratio:2/3;border-radius:var(--k-r-art);overflow:hidden;background:var(--k-raised);
   box-shadow:0 1px 0 rgba(255,255,255,.04) inset;transition:transform .35s var(--k-ease),box-shadow .35s var(--k-ease)}

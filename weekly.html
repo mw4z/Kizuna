@@ -2,7 +2,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="k-token" content="__STREMIO_TOKEN__">
 <title>Weekly · Kizuna</title><link rel="icon" type="image/png" href="/app.png"><link rel="stylesheet" href="/kizuna.css">
 <style>
-.head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.head>.k-btn{margin-top:2px}
 .follow{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:16px;align-items:center;padding:12px 0;border-bottom:1px solid var(--k-line)}
 .follow:last-child{border-bottom:0}
 .follow .k-art{width:44px;border-radius:5px}.follow .k-fallback{font-size:16px}
@@ -91,11 +92,12 @@ async function loadList(){
   $('list').innerHTML=following.length?following.map((s,i)=>{const st=s.stremio;
    return `<div class="follow" data-title="${esc(s.folder)}"><div class="k-art">${art(s.poster,s.folder)}</div><div style="min-width:0">
    <div class="follow-title" dir="auto">${esc(s.folder)}</div>
-   <div class="follow-meta">Season ${esc(s.season)} · ${s.latest?`latest ${esc(s.latest)} · `:''}${s.episodes} in Jellyfin${s.from?` · from episode ${esc(s.from)}`:''}</div>
+   <div class="follow-meta">Season ${esc(s.season)} · ${s.episodes?`${s.episodes} to watch`:'nothing waiting'}${s.latest?` · latest ${esc(s.latest)}`:s.dkb_after?` · following after ${esc(s.dkb_after)}`:''}${s.from?` · from episode ${esc(s.from)}`:''}</div>
    <div class="tags"><span class="k-tag ${s.dkb?'on':''}">DKB ${s.dkb?'on':'off'}</span>
-   <span class="k-tag ${st&&st.on?'on':st?'':'warn'}">Stremio ${st?(st.on?'on':'off'):'not linked'}</span>
-   <span class="k-tag${s.policy==='manual'?' accent':''}">${esc(POL[s.policy]||'Official or fan')}</span></div></div>
-   <div class="acts"><button type="button" class="k-btn k-btn-sm" data-edit="${i}">Edit</button><button type="button" class="k-btn k-btn-sm k-btn-ghost k-btn-danger" data-rm="${i}">Remove</button></div></div>`}).join('')
+   ${st?`<span class="k-tag ${st.on?'on':''}">Stremio ${st.on?'on':'off'}</span>`:''}
+   <span class="k-tag${s.policy==='manual'?' accent':''}">${esc(POL[s.policy]||'Official or fan')}</span>
+   ${(s.not_found||[]).length?`<span class="k-tag warn" title="No Stremio source within ${3} days">${s.not_found.length} not found on Stremio</span>`:''}</div></div>
+   <div class="acts">${!st&&s.anilist?`<button type="button" class="k-btn k-btn-sm k-btn-ghost" data-link="${i}">Link Stremio</button>`:''}<button type="button" class="k-btn k-btn-sm" data-edit="${i}">Edit</button><button type="button" class="k-btn k-btn-sm k-btn-ghost k-btn-danger" data-rm="${i}">Remove</button></div></div>`}).join('')
   :'<div class="k-empty"><strong>Not following anything yet</strong>Pick a show below. New episodes will arrive with Arabic subtitles.</div>';
   markFollowed()}catch(e){say($('topMsg'),e.message,'bad')}}
 
@@ -129,6 +131,7 @@ function openForm(l,show){editing=show||null;say($('fMsg'),'');
  document.querySelector(`input[name=start][value=${show&&show.from?'from':'next'}]`).checked=true;$('fFrom').value=show&&show.from||'';
  if(show){const st=show.stremio;sources({dkb:null,stremio:st?{...st,name:'Linked',latest:0}:null,anilist:show.anilist});$('fDkb').checked=!!show.dkb;
   $('srcDkb').className='src';$('dDkb').textContent=show.dkb_after?`Following after ${show.dkb_after}.`:'Turn on to fetch weekly 1080p releases from DKB.';
+  if(!st){$('srcStremio').className='src';$('dStremio').textContent='Not linked yet. Use “Find sources again” to look for it.'}
   if(st){$('srcStremio').className='src';$('fStremio').checked=!!st.on;$('dStremio').textContent=`Linked to season ${st.season}${st.offset?`, offset ${st.offset}`:''}${show.stremio_after!=null?` · following after episode ${show.stremio_after}`:''}.`}}
  else sources(l);
  $('dlg').showModal()}
@@ -136,8 +139,9 @@ async function pick(c,card){say($('gridMsg'),`Looking for ${c.title} on DKB and 
  try{const l=await api('shows-link',{anilist:String(c.anilist)});poster[l.anilist]=c.poster;say($('gridMsg'),'');openForm(l)}
  catch(e){say($('gridMsg'),e.message,'bad')}finally{card.removeAttribute('aria-busy')}}
 $('grid').addEventListener('click',e=>{const b=e.target.closest('[data-pick]');if(b&&b.getAttribute('aria-disabled')!=='true'&&!b.hasAttribute('aria-busy'))pick(cards[+b.dataset.pick],b)});
-$('list').addEventListener('click',async e=>{const ed=e.target.closest('[data-edit]'),rm=e.target.closest('[data-rm]');
+$('list').addEventListener('click',async e=>{const ed=e.target.closest('[data-edit]'),rm=e.target.closest('[data-rm]'),ln=e.target.closest('[data-link]');
  if(ed)openForm(null,following[+ed.dataset.edit]);
+ if(ln){openForm(null,following[+ln.dataset.link]);$('relink').click()}
  if(rm){const s=following[+rm.dataset.rm];if(!rm.classList.contains('armed')){rm.classList.add('armed');rm.textContent='Confirm';setTimeout(()=>{if(rm.isConnected){rm.classList.remove('armed');rm.textContent='Remove'}},4000);return}
   rm.disabled=true;try{const r=await api('shows-remove',{release:s.release});say($('topMsg'),`Stopped following ${r.removed}. ${r.note}`,'ok');loadList()}catch(err){say($('topMsg'),err.message,'bad');rm.disabled=false}}});
 $('relink').onclick=async()=>{$('relink').disabled=true;say($('fMsg'),'Finding sources…');
