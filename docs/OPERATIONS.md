@@ -5,14 +5,9 @@ Jellyfin so it plays on the TVs.
 
 ## Shows
 
-| Show (release name) | Jellyfin folder (shown as) | Current season | Arabic |
-|---|---|---|---|
-| Tokyo Revengers Santen Sensou-hen | Tokyo Revengers (2021) — مُنتقمو طوكيو | 4 | automatic |
-| Ao no Hako | Blue Box (2024) — بلو بوكس | 2 | automatic |
-| Ranma ½ (2024) | Ranma ½ (2024) — Ranma1/2 | 3 | automatic |
-| Kusuriya no Hitorigoto | The Apothecary Diaries (2023) — مذكرات الصيدلانية | 3 | automatic |
-| Black Clover | Black Clover (2017) — البرسيم الأسود | 2 | automatic |
-| Detective Conan | Detective Conan (1996) — المحقق كونان | — | by hand (typeset) |
+The followed shows are configured in code, not listed here: `SHOWS` in `agent.py` (release name →
+Jellyfin folder), `SHOWS` in `dkb.py` (automatic downloads) and `subtitle_policy.json` (Arabic source
+policy per show; a show marked `manual` is typeset by hand and never published automatically).
 
 The status page shows each show's next episode, air time and a countdown from AniList's
 public schedule (refreshed every 30 min). It uses the AniList id of the **current season**,
@@ -26,8 +21,7 @@ in `C:\Users\moody\Downloads\Weekly Anime`; when it stops airing, move its folde
 ## What happens when an episode lands
 
 **Automatic DKB downloads:** the watcher checks DKB's weekly listings every 20 minutes
-for Tokyo Revengers, Ao no Hako (Blue Box), Ranma, Kusuriya no Hitorigoto
-(The Apothecary Diaries), and Black Clover. Only DKB 1080p weekly episodes
+for every show in `SHOWS` in `dkb.py`. Only DKB 1080p weekly episodes
 are selected. `dkb-state.json` records each show's initial latest episode, so older
 episodes are not downloaded. Completed episodes are remembered across restarts and
 episodes already in the watched folder or Jellyfin library are skipped.
@@ -49,7 +43,7 @@ results, so very long offline periods can miss episodes that leave that listing.
    stable for 60 s (download or OneDrive sync finished).
 2. It starts **`agent.py --now`**. Files with a non-commentary Arabic audio track skip
    all subtitle extraction/search, styling, timing checks, and muxing; their original
-   video is copied to Jellyfin if needed. This includes Arabic-dubbed Conan. Detection
+   video is copied to Jellyfin if needed. This includes Arabic-dubbed episodes of `manual` shows. Detection
    uses audio language tags (`ara`, `ar`, regional `ar-*`) or an explicit Arabic audio
    track name; it does not infer audio language from subtitle tags or listen to untagged audio.
    Other files without an `العربية` track:
@@ -68,8 +62,8 @@ results, so very long offline periods can miss episodes that leave that listing.
    - shows a Windows notification.
 3. The local status page shows live progress; no separate progress window opens.
 
-Detective Conan without Arabic audio is skipped: it is typeset by hand (signs covered
-and translated). Already Arabic-dubbed Conan bypasses subtitle processing.
+A `manual` show without Arabic audio is skipped: it is typeset by hand (signs covered
+and translated). An Arabic-dubbed episode of such a show bypasses subtitle processing.
 
 ## Jellyfin
 
@@ -79,12 +73,7 @@ library **Weekly Anime**. The `SHOWS` map in `agent.py` turns release names into
 
 | Release name starts with | Folder |
 |---|---|
-| Tokyo Revengers | Tokyo Revengers (2021) |
-| Ao no Hako | Blue Box (2024) |
-| Ranma | Ranma ½ (2024) |
-| Detective Conan | Detective Conan (1996) |
-| Kusuriya no Hitorigoto | The Apothecary Diaries (2023) |
-| Black Clover | Black Clover (2017) |
+| `<Release Title>` | `<English Title (Year)>` |
 
 To follow a new show, add a line to `SHOWS` (English title + year, so Jellyfin finds its
 metadata). A show not in the map gets a folder named after its release title.
@@ -201,7 +190,7 @@ can keep downloading other episodes while those items wait; it counts them separ
 them ready only when processing and delivery complete. No ready notification fires for a pending
 item. Completed staging media is removed; manual original backups remain available for recovery.
 
-Existing Arabic-dubbed manual files are left unchanged. Non-dubbed Conan still requires manual
+Existing Arabic-dubbed manual files are left unchanged. Non-dubbed `manual` shows still require manual
 typesetting and stays pending rather than being silently published by this new import path.
 
 Track choices open directly under the checked release. The episode checklist in that panel
@@ -247,8 +236,7 @@ interaction handlers without installing browser dependencies.
   Windows notification **"New episode ready"** or **"New movie ready"** (from MyAnimeWatcher), according to
   the content type, when the finished item is in
   Jellyfin. Every other message (waiting, needs a look, errors) goes to the log and the page.
-- **Auto-cleanup** (`cleanup.py`, hourly): an episode in Weekly Anime or Anime (Bleach,
-  البؤساء) that Jellyfin marks fully watched is sent to the **Recycle Bin** 24 h later; for Weekly
+- **Auto-cleanup** (`cleanup.py`, hourly): an episode in Weekly Anime or Anime that Jellyfin marks fully watched is sent to the **Recycle Bin** 24 h later; for Weekly
   Anime its OneDrive inbox copy goes too. The Movies library is never touched.
   `python cleanup.py --dry` lists what is scheduled.
 
@@ -292,7 +280,7 @@ interaction handlers without installing browser dependencies.
 | `processing_worker.py` | runs the shared Arabic pipeline in an isolated staging folder |
 | `library-processing.json` | import progress, source fingerprints, publication and retry records |
 | `watcher.py` | folder watch + supervisor |
-| `dkb.py` | checks DKB and downloads new episodes for the five followed shows |
+| `dkb.py` | checks DKB and downloads new episodes for the followed shows |
 | `dkb-state.json` | initial episode baselines and completed DKB downloads |
 | `srt2ass.py` | SRT → styled Cairo ASS |
 | `mux.py` | safe in-place mux (`.tmp` + verify + swap) |

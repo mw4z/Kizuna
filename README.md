@@ -27,7 +27,7 @@ against the episode's own audio, and delivers a ready-to-watch file to Jellyfin,
 | | |
 |---|---|
 | 🎬 **Hands-off weekly anime** | New episodes are fetched (DKB 1080p) or picked up from a synced folder, subtitled, and in Jellyfin soon after release. |
-| ✍️ **Human Arabic only** | Official Arabic tracks, fan translations (per-show policy, e.g. fansub-first for Bleach) and Stremio subtitle add-ons. Never machine translation. |
+| ✍️ **Human Arabic only** | Official Arabic tracks, fan translations (chosen per show by policy) and Stremio subtitle add-ons. Never machine translation. |
 | 🎨 **House style** | Cairo font, right-to-left marks, clean speaker dashes, translator credits and site adverts removed, fonts embedded. |
 | ⏱️ **Timing you can trust** | Every subtitle is matched against the episode's real audio; a consistent offset is corrected, an inconsistent one is held for review. |
 | 🔍 **Find & download** | Search movies, series and anime across your Stremio add-ons, check the real tracks, then download one episode, a season or a whole show. |
