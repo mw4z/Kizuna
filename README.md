@@ -1,6 +1,6 @@
-# Anime FYA agent
+# Kizuna
 
-Gives every new weekly anime episode styled Arabic subtitles, unattended, and puts it in
+Kizuna (formerly the "Anime FYA" agent) gives every new weekly anime episode styled Arabic subtitles, unattended, and puts it in
 Jellyfin so it plays on the TVs.
 
 ## Shows

@@ -1,4 +1,4 @@
-"""Local status page for the Anime FYA agent: http://localhost:8097
+"""Local status page for the Kizuna agent: http://localhost:8097
 
 Started by watcher.py (child) as a daemon thread, so it lives and restarts with the agent.
 Read-only: it looks at progress.json, state.json, log.txt, the inbox folder, the Weekly Anime

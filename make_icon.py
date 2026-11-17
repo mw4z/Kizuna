@@ -1,4 +1,4 @@
-"""Draw the Anime FYA app icon -> app.ico (shortcut) + app.png (window/taskbar icon served by status.py)."""
+"""Draw the Kizuna app icon -> app.ico (shortcut) + app.png (window/taskbar icon served by status.py)."""
 import os
 
 from PIL import Image, ImageDraw

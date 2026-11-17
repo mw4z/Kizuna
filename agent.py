@@ -1,4 +1,4 @@
-"""Anime FYA agent: give every new episode in the anime folder styled Arabic subs, unattended.
+"""Kizuna agent: give every new episode in the anime folder styled Arabic subs, unattended.
 
 Started by watcher.py when a new file lands in the folder. For each .mkv without our "العربية" track:
   wait until the file is stable -> official Arabic SRT from the file (or, if missing,
