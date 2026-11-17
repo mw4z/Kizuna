@@ -22,6 +22,8 @@ from unittest import mock
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import agent  # noqa: E402
+import shows  # noqa: E402
+shows.FILE = __import__("pathlib").Path(__file__).parent / "fixtures" / "shows.json"   # test list, never the user's
 import cleanup  # noqa: E402
 import egress  # noqa: E402
 import mux  # noqa: E402

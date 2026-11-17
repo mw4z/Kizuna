@@ -8,20 +8,24 @@ import re
 import shutil
 import subprocess
 import sys
-import time
 import urllib.parse
 import urllib.request
 
 import agent
+import shows
 
-SHOWS = ("Tokyo Revengers", "Ao no Hako", "Ranma", "Kusuriya no Hitorigoto", "Black Clover")
+SHOWS = None        # tests may pin a tuple; normally the DKB-enabled shows in shows.json (edited on the page)
 STATE = os.path.join(agent.HERE, "dkb-state.json")
 INTERVAL = 20 * 60
 
 
+def names():
+    return SHOWS if SHOWS is not None else shows.dkb_names()
+
+
 def episode(title):
     name, ep = agent.parse_name(title)
-    show = next((s for s in SHOWS if name and re.match(re.escape(s) + r"(?:$|[ :])", name)), None)
+    show = next((s for s in names() if name and re.match(re.escape(s) + r"(?:$|[ :])", name)), None)
     return (show, ep) if show else (None, None)
 
 
@@ -30,10 +34,11 @@ def number(ep):
 
 
 class ReleaseLinks(HTMLParser):
-    def __init__(self):
+    def __init__(self, followed_only=True):
         super().__init__()
         self.torrent = None
         self.releases = []
+        self.followed_only = followed_only
 
     def handle_starttag(self, tag, attrs):
         if tag != "a":
@@ -44,7 +49,7 @@ class ReleaseLinks(HTMLParser):
         elif href.startswith("magnet:?"):
             title = urllib.parse.parse_qs(urllib.parse.urlsplit(href).query).get("dn", [""])[0]
             if self.torrent and title.startswith("[DKB] ") and "[1080p]" in title and "[weekly]" in title:
-                if episode(title)[0]:
+                if not self.followed_only or episode(title)[0]:
                     self.releases.append((title, self.torrent))
             self.torrent = None
         else:
@@ -73,6 +78,14 @@ def listing(show):
     return found
 
 
+def search_titles(name):
+    """Every recent DKB 1080p weekly release title matching `name` (used to link a new show)."""
+    parser = ReleaseLinks(followed_only=False)
+    parser.feed(fetch("https://dkb.lowpolyfire.com/index/releases?" + urllib.parse.urlencode({"w": 1, "query": name}))
+                .decode("utf-8"))
+    return [t for t, _ in parser.releases]
+
+
 def save(state):
     with open(STATE + ".tmp", "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
@@ -82,9 +95,14 @@ def save(state):
 def candidates(state, show, releases):
     # Persist the initial snapshot before any downloads: installation never backfills.
     if show not in state["baseline"]:
-        state["baseline"][show] = max((episode(t)[1] for t, _ in releases), key=number)
-        agent.log(f"DKB: following {show} after {state['baseline'][show]} (no backfill)")
-        return []
+        followed = shows.match(show) or {}
+        if followed.get("from"):                    # the user picked a start episode on the page
+            state["baseline"][show] = shows.tag(followed.get("season", 1), followed["from"] - 1)
+        else:
+            state["baseline"][show] = max((episode(t)[1] for t, _ in releases), key=number)
+            agent.log(f"DKB: following {show} after {state['baseline'][show]} (no backfill)")
+            return []
+        agent.log(f"DKB: following {show} after {state['baseline'][show]}")
     return sorted(((t, u) for t, u in releases
                    if number(episode(t)[1]) > number(state["baseline"][show])
                    and f"{show}|{episode(t)[1]}" not in state["done"]),
@@ -151,7 +169,7 @@ def poll(folder, ready, initialize_only=False):
             state = json.load(f)  # A damaged ledger must fail closed, never reset the baseline.
     else:
         state = {"baseline": {}, "done": {}}
-    for show in SHOWS:
+    for show in names():
         try:
             releases = listing(show)
             pending = candidates(state, show, releases)
@@ -164,14 +182,24 @@ def poll(folder, ready, initialize_only=False):
                 key = "|".join(wanted)
                 if key in state["done"]:
                     continue
+                path = existing(folder, wanted)
+                followed = shows.match(show)
+                if not path and followed and shows.have_episode(followed, wanted[1]):
+                    state["done"][key] = "from another source"      # Stremio was faster
+                    save(state)
+                    continue
+                if not path and not shows.claim(show, wanted[1], "dkb"):
+                    continue                                        # Stremio is fetching it right now
                 try:
-                    path = existing(folder, wanted) or download(title, url, folder)
+                    path = path or download(title, url, folder)
                     state["done"][key] = os.path.basename(path)
                     save(state)
                     if os.path.dirname(path) == folder:
                         ready(path)
                 except Exception as e:
                     agent.log(f"DKB: retry next check for {title}: {e!r}")
+                finally:
+                    shows.release_claim(show, wanted[1])
         except Exception as e:
             agent.log(f"DKB: {show} check failed: {e!r}")
     return state
@@ -183,7 +211,8 @@ def run(folder, ready):
             poll(folder, ready)
         except Exception as e:
             agent.log(f"DKB: check failed: {e!r}")
-        time.sleep(INTERVAL)
+        shows.wake_dkb.wait(INTERVAL)               # "Check now" on the page wakes it early
+        shows.wake_dkb.clear()
 
 
 if __name__ == "__main__":
@@ -191,5 +220,5 @@ if __name__ == "__main__":
         raise SystemExit("Usage: dkb.py --initialize (record current releases without downloading)")
     state = poll(agent.FOLDER, lambda path: None, initialize_only=True)
     print(json.dumps(state, ensure_ascii=False, indent=2))
-    if any(show not in state["baseline"] for show in SHOWS):
+    if any(show not in state["baseline"] for show in names()):
         raise SystemExit(1)

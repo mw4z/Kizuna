@@ -1,0 +1,184 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Weekly shows</title>
+<link rel="icon" type="image/png" href="/app.png">
+<style>
+:root{--bg:#101113;--panel:#16171a;--fg:#ececee;--mute:#8d9097;--line:#24262b;--ok:#46c37b;--busy:#5b9cff;--warn:#e6a23c;--bad:#ef5b5b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:32px 24px 72px}
+a{color:var(--busy)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.top a{color:var(--mute);text-decoration:none;font-size:13px}.top a:hover{color:var(--fg)}
+h1{font-size:28px;font-weight:600;margin:6px 0 0}
+.sub{color:var(--mute);margin-top:4px}
+h2{font-size:17px;font-weight:600;margin:40px 0 14px;display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+h2 small{color:var(--mute);font-weight:400;font-size:13px}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:#1d1f23;color:var(--fg);padding:8px 14px}
+button:hover{border-color:#3a3d44}button:disabled{opacity:.5;cursor:default}
+button.primary{background:var(--busy);border-color:#79afff;color:#101b2b;font-weight:600}
+button.primary:hover{background:#8ab9ff}
+button.danger{color:var(--bad)}button.danger.armed{background:var(--bad);color:#fff;border-color:var(--bad)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--busy);outline-offset:2px}
+.list{display:grid;gap:10px}
+.row{display:grid;grid-template-columns:56px 1fr auto;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.row img,.row .ph{width:56px;height:80px;object-fit:cover;border-radius:6px;background:#202227}
+.row .t{font-weight:600}.row .m{color:var(--mute);font-size:13px}
+.row .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.b{font-size:12px;padding:1px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mute)}
+.b.on{color:var(--ok);border-color:rgba(70,195,123,.4)}.b.off{opacity:.6}.b.new{color:var(--busy);border-color:rgba(91,156,255,.45)}
+.b.warn{color:var(--warn);border-color:rgba(230,162,60,.45)}
+.tabs{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.tabs button.sel{background:#262a31;border-color:#454a53}
+.tabs input{flex:1;min-width:200px}
+input,select{font:inherit;color:var(--fg);background:#0c0d0f;border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:18px;margin-top:16px}
+.card{background:none;border:0;padding:0;text-align:left;color:inherit;border-radius:10px}
+.card .pic{position:relative;border-radius:8px;overflow:hidden;transition:transform .3s cubic-bezier(.2,.7,.2,1),box-shadow .3s}
+.card:hover .pic{transform:translateY(-5px);box-shadow:0 14px 30px rgba(0,0,0,.5)}
+.card img,.card .ph{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:#1a1b1f}
+.card .tag{position:absolute;left:6px;top:6px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;background:rgba(16,17,19,.85)}
+.card .tag.new{color:var(--busy)}.card .tag.f{color:var(--ok)}
+.card .t{margin-top:8px;font-weight:600;font-size:14px;line-height:1.3}
+.card .m{color:var(--mute);font-size:12.5px}
+.card[disabled]{opacity:.55;cursor:default}.card[disabled]:hover .pic{transform:none;box-shadow:none}
+.sk{border-radius:8px;aspect-ratio:2/3;background:linear-gradient(90deg,#1a1b1f 0%,#24262b 50%,#1a1b1f 100%);background-size:200% 100%;animation:sh 1.4s linear infinite}
+@keyframes sh{from{background-position:200% 0}to{background-position:-200% 0}}
+.msg{margin-top:12px;color:var(--mute);font-size:14px}.msg.bad{color:var(--bad)}.msg.ok{color:var(--ok)}
+dialog{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:14px;padding:0;width:min(620px,94vw);max-height:92vh}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+.dlg{padding:22px 22px 18px;display:grid;gap:14px}
+.dlg h3{margin:0;font-size:19px}
+.field label{display:block;font-size:13px;color:var(--mute);margin-bottom:4px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.src{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:4px}
+.src .h{display:flex;align-items:center;gap:10px;font-weight:600}
+.src .h input{width:auto}.src .d{color:var(--mute);font-size:13px}
+.src.found .d b{color:var(--ok);font-weight:600}.src.missing .d b{color:var(--warn);font-weight:600}
+details.adv summary{cursor:pointer;color:var(--mute);font-size:13px}
+.radio{display:flex;gap:16px;align-items:center;flex-wrap:wrap}.radio label{display:flex;gap:6px;align-items:center;color:var(--fg)}
+.radio input[type=radio]{width:auto}.radio input[type=number]{width:90px}
+.foot{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:4px}
+.empty{color:var(--mute);background:var(--panel);border:1px dashed var(--line);border-radius:10px;padding:18px}
+@media (max-width:560px){.two{grid-template-columns:1fr}.row{grid-template-columns:44px 1fr}.row .acts{grid-column:1/-1;justify-content:flex-start}.row img,.row .ph{width:44px;height:64px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head><body><div class="wrap">
+<div class="top"><a href="/">← Dashboard</a><button id="check" type="button">Check for new episodes now</button></div>
+<h1>Weekly shows</h1>
+<div class="sub">New episodes are fetched automatically, get Arabic subtitles, and appear in Jellyfin. DKB and Stremio both
+look for each episode; whichever has it first is used.</div>
+<div class="msg" id="topMsg" role="status"></div>
+
+<h2>Following <small id="count"></small></h2>
+<div class="list" id="list"></div>
+
+<h2>Add a show <small id="season"></small></h2>
+<div class="tabs"><button type="button" id="tabNow" class="sel">Airing now</button>
+<input id="q" type="search" placeholder="Or search any anime…" aria-label="Search anime" autocomplete="off"></div>
+<div class="grid" id="grid"></div>
+<div class="msg" id="gridMsg" role="status"></div>
+</div>
+
+<dialog id="dlg"><form class="dlg" id="form" method="dialog">
+<h3 id="fTitle">Add show</h3>
+<div class="msg" id="fMsg" role="status"></div>
+<div class="field"><label for="fFolder">Jellyfin folder (English title and first year, so Jellyfin finds the artwork)</label><input id="fFolder" required></div>
+<div class="two">
+ <div class="field"><label for="fRelease">Release name (as in episode file names)</label><input id="fRelease" required></div>
+ <div class="field"><label for="fSeason">Season</label><input id="fSeason" type="number" min="0" max="99" required></div>
+</div>
+<div class="src" id="srcDkb"><div class="h"><input type="checkbox" id="fDkb"><label for="fDkb">DKB (1080p weekly)</label></div><div class="d" id="dDkb"></div></div>
+<div class="src" id="srcStremio"><div class="h"><input type="checkbox" id="fStremio"><label for="fStremio">Your Stremio add-ons (Japanese audio, 1080p, then 720p)</label></div><div class="d" id="dStremio"></div>
+ <details class="adv"><summary>Episode numbering</summary><div class="two" style="margin-top:8px">
+  <div class="field"><label for="fSSeason">Stremio season</label><input id="fSSeason" type="number" min="0" max="99"></div>
+  <div class="field"><label for="fOffset">Library episode = Stremio episode +</label><input id="fOffset" type="number" min="-5000" max="5000"></div>
+ </div></details></div>
+<div class="field"><label for="fPolicy">Arabic subtitles</label><select id="fPolicy">
+ <option value="official_ok">Official or fan translation, whichever is found</option>
+ <option value="fansub_first">Fan translation first, official if none</option>
+ <option value="fansub">Fan translation only</option>
+ <option value="manual">Typeset by hand (never published automatically)</option></select></div>
+<div class="field"><label>Start with</label><div class="radio">
+ <label><input type="radio" name="start" value="next" checked> The next new episode</label>
+ <label><input type="radio" name="start" value="from"> Episode <input id="fFrom" type="number" min="1" max="5000" aria-label="Start episode"></label></div></div>
+<div class="foot"><button type="button" id="relink">Find sources again</button>
+ <span><button type="button" id="cancel">Cancel</button> <button type="submit" class="primary" id="save">Follow show</button></span></div>
+</form></dialog>
+
+<script>
+const $=id=>document.getElementById(id),token='__STREMIO_TOKEN__';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(path,data){const r=await fetch('/api/stremio/'+path,{method:data===undefined?'GET':'POST',
+ headers:{'X-MyAnimeWatcher':token,'Content-Type':'application/json'},...(data===undefined?{}:{body:JSON.stringify(data)})});
+ const j=await r.json().catch(()=>({error:'The app did not answer. Is the watcher running?'}));if(!r.ok||j.error)throw new Error(j.error||'Request failed');return j}
+function say(el,text,tone){el.textContent=text||'';el.className='msg'+(tone?' '+tone:'')}
+function when(at){if(!at)return'';const d=at*1000-Date.now();if(d<=0)return'airing now';const h=Math.round(d/36e5);return h<48?`in ${h} h`:`in ${Math.round(h/24)} days`}
+const POL={official_ok:'Official or fan',fansub_first:'Fan first',fansub:'Fan only',manual:'By hand'};
+let following=[],editing=null,linked=null;const poster={};
+
+async function loadList(){
+ try{const d=await api('shows');following=d.shows;$('count').textContent=following.length?`${following.length} show${following.length>1?'s':''}`:'';
+  $('list').innerHTML=following.length?following.map((s,i)=>{const st=s.stremio;
+   return `<div class="row">${s.poster?`<img src="${esc(s.poster)}" alt="" loading="lazy">`:'<div class="ph"></div>'}<div><div class="t">${esc(s.folder)}</div>
+   <div class="m">Season ${esc(s.season)} · ${s.latest?`latest ${esc(s.latest)} · `:''}${s.episodes} episode${s.episodes==1?'':'s'} in Jellyfin</div>
+   <div class="badges"><span class="b ${s.dkb?'on':'off'}">DKB ${s.dkb?'on':'off'}</span>
+   <span class="b ${st&&st.on?'on':st?'off':'warn'}">Stremio ${st?(st.on?'on':'off'):'not linked'}</span>
+   <span class="b">${esc(POL[s.policy]||'Official or fan')}</span>${s.from?`<span class="b">from ep ${esc(s.from)}</span>`:''}</div></div>
+   <div class="acts"><button type="button" data-edit="${i}">Edit</button><button type="button" class="danger" data-rm="${i}">Remove</button></div></div>`}).join('')
+  :'<div class="empty">No weekly shows yet. Pick one below.</div>';
+  markFollowed()}catch(e){say($('topMsg'),e.message,'bad')}}
+
+let cards=[];
+function drawCards(list){cards=list;$('grid').innerHTML=list.map((c,i)=>`<button type="button" class="card" data-pick="${i}" ${c.followed?'disabled':''}>
+ <div class="pic">${c.poster?`<img src="${esc(c.poster)}" alt="" loading="lazy">`:'<div class="ph"></div>'}
+ ${c.followed?'<span class="tag f">Following</span>':c.new?'<span class="tag new">New this season</span>':''}</div>
+ <div class="t">${esc(c.title)}</div><div class="m">${c.next?`Ep ${esc(c.next)}${c.episodes?` of ${esc(c.episodes)}`:''} · ${esc(when(c.at))}`:c.year?esc(c.year):''}</div></button>`).join('');
+ if(!list.length)say($('gridMsg'),'Nothing found.');}
+function markFollowed(){const ids=new Set(following.map(s=>s.anilist));if(cards.length)drawCards(cards.map(c=>({...c,followed:ids.has(c.anilist)})))}
+function skeleton(){$('grid').innerHTML=Array.from({length:12},()=>'<div><div class="sk"></div></div>').join('');say($('gridMsg'),'')}
+async function loadNow(){skeleton();$('tabNow').classList.add('sel');try{const d=await api('shows-recommend');$('season').textContent=d.season;drawCards(d.shows)}catch(e){$('grid').innerHTML='';say($('gridMsg'),e.message,'bad')}}
+let qTimer;$('q').addEventListener('input',()=>{clearTimeout(qTimer);const q=$('q').value.trim();if(q.length<2){if(!q)loadNow();return}
+ qTimer=setTimeout(async()=>{$('tabNow').classList.remove('sel');skeleton();try{drawCards((await api('shows-search?q='+encodeURIComponent(q))).shows)}catch(e){$('grid').innerHTML='';say($('gridMsg'),e.message,'bad')}},350)});
+$('tabNow').onclick=()=>{$('q').value='';loadNow()};
+
+function sources(l){const d=l.dkb,st=l.stremio;
+ $('srcDkb').className='src '+(d?'found':'missing');$('fDkb').checked=!!d;
+ $('dDkb').innerHTML=d?`<b>Found</b>: “${esc(d.release)}”, latest ${esc('S'+String(d.season).padStart(2,'0')+'E'+String(d.latest).padStart(2,'0'))}`:'<b>Not found on DKB</b>. Stremio will be the only source.';
+ $('srcStremio').className='src '+(st?'found':'missing');$('fStremio').checked=!!st;$('fStremio').disabled=!st;
+ $('dStremio').innerHTML=st?`<b>Found</b>: ${esc(st.name)}, season ${esc(st.season)}${st.latest?`, latest episode ${esc(st.latest)}`:''}`:'<b>Not found in your Stremio add-ons</b>.';
+ $('fSSeason').value=st?st.season:'';$('fOffset').value=st?st.offset||0:'';linked=l}
+function openForm(l,show){editing=show||null;say($('fMsg'),'');$('fTitle').textContent=show?`Edit ${show.folder}`:`Follow ${l.title}`;
+ $('save').textContent=show?'Save changes':'Follow show';$('relink').hidden=!(show&&show.anilist);
+ $('fFolder').value=show?show.folder:l.folder;$('fRelease').value=show?show.release:l.release;$('fSeason').value=show?show.season:l.season;
+ $('fPolicy').value=(show&&show.policy)||'official_ok';
+ document.querySelector(`input[name=start][value=${show&&show.from?'from':'next'}]`).checked=true;$('fFrom').value=show&&show.from||'';
+ if(show){const st=show.stremio;sources({dkb:null,stremio:st?{...st,name:'Linked',latest:0}:null,anilist:show.anilist});$('fDkb').checked=!!show.dkb;
+  $('dDkb').textContent=show.dkb_after?`Following after ${show.dkb_after}.`:'Turn on to fetch from DKB.';$('srcDkb').className='src';
+  if(st){$('fStremio').checked=!!st.on;$('dStremio').textContent=`Linked (season ${st.season}${st.offset?`, offset ${st.offset}`:''})${show.stremio_after!=null?`, following after episode ${show.stremio_after}`:''}.`;$('srcStremio').className='src'}}
+ else sources(l);
+ $('dlg').showModal()}
+async function pick(c){say($('gridMsg'),`Finding ${c.title} on DKB and in your Stremio add-ons…`);document.querySelectorAll('.card').forEach(b=>b.disabled=true);
+ try{const l=await api('shows-link',{anilist:String(c.anilist)});poster[l.anilist]=c.poster;say($('gridMsg'),'');openForm(l)}
+ catch(e){say($('gridMsg'),e.message,'bad')}finally{markFollowed();document.querySelectorAll('.card').forEach((b,i)=>b.disabled=!!(cards[i]&&cards[i].followed))}}
+$('grid').addEventListener('click',e=>{const b=e.target.closest('[data-pick]');if(b&&!b.disabled)pick(cards[+b.dataset.pick])});
+$('list').addEventListener('click',async e=>{const ed=e.target.closest('[data-edit]'),rm=e.target.closest('[data-rm]');
+ if(ed)openForm(null,following[+ed.dataset.edit]);
+ if(rm){const s=following[+rm.dataset.rm];if(!rm.classList.contains('armed')){rm.classList.add('armed');rm.textContent='Confirm remove';setTimeout(()=>{rm.classList.remove('armed');rm.textContent='Remove'},4000);return}
+  rm.disabled=true;try{const r=await api('shows-remove',{release:s.release});say($('topMsg'),`Stopped following ${r.removed}. ${r.note}`,'ok');loadList()}catch(err){say($('topMsg'),err.message,'bad');rm.disabled=false}}});
+$('relink').onclick=async()=>{$('relink').disabled=true;say($('fMsg'),'Finding sources…');
+ try{const l=await api('shows-link',{anilist:String(editing.anilist)});sources(l);say($('fMsg'),'Sources updated. Save to keep them.','ok')}catch(e){say($('fMsg'),e.message,'bad')}finally{$('relink').disabled=false}};
+$('cancel').onclick=()=>$('dlg').close();
+$('form').addEventListener('submit',async e=>{e.preventDefault();const st=linked&&linked.stremio;const from=document.querySelector('input[name=start]:checked').value==='from';
+ if(from&&!$('fFrom').value){say($('fMsg'),'Enter the start episode.','bad');return}
+ const body={folder:$('fFolder').value,release:$('fRelease').value,season:String($('fSeason').value||1),
+  anilist:String((editing&&editing.anilist)||(linked&&linked.anilist)||0),dkb:String($('fDkb').checked),policy:$('fPolicy').value,
+  from:from?String($('fFrom').value):'',stremio_on:String($('fStremio').checked),poster:(linked&&poster[linked.anilist])||''};
+ if(st&&st.id){Object.assign(body,{stremio_id:st.id,stremio_type:st.type||'series',stremio_season:String($('fSSeason').value||st.season),stremio_offset:String($('fOffset').value||0)})}
+ if(editing){body.original=editing.release;if(!from&&editing.from)body.from=''}
+ $('save').disabled=true;try{await api(editing?'shows-edit':'shows-add',body);$('dlg').close();
+  say($('topMsg'),editing?'Saved.':`Following ${body.folder}. New episodes will appear in Jellyfin with Arabic subtitles.`,'ok');loadList()}
+ catch(err){say($('fMsg'),err.message,'bad')}finally{$('save').disabled=false}});
+$('check').onclick=async()=>{$('check').disabled=true;try{await api('shows-check',{});say($('topMsg'),'Checking DKB and Stremio now. New episodes show up on the dashboard.','ok')}
+ catch(e){say($('topMsg'),e.message,'bad')}finally{setTimeout(()=>$('check').disabled=false,5000)}};
+loadList();loadNow();
+</script></body></html>

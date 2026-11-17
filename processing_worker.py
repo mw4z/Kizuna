@@ -123,7 +123,11 @@ def fetch_arabic(metadata, destination, mode="official_ok", media=None):
         if not re.fullmatch(r"tt\d+", str(meta.get("id", ""))) or media is None:
             return None
         movie = video.get("type") == "movie"
-        return fansub.pick(str(media), meta["id"], None if movie else video["season"], None if movie else video["episode"],
+        # the episode id carries the catalog's own numbering ("tt..:2:5"); weekly shows may number their library
+        # differently (per-season episodes), and subtitle add-ons only know the catalog numbers
+        own = re.fullmatch(r"tt\d+:(\d+):(\d+)", str(video.get("id") or ""))
+        season, episode = (int(own.group(1)), int(own.group(2))) if own else (video.get("season"), video.get("episode"))
+        return fansub.pick(str(media), meta["id"], None if movie else season, None if movie else episode,
                            str(destination), mode, kind="movie" if movie else "series")
     except Exception as error:
         agent.log(f"Arabic subtitle add-ons unavailable ({type(error).__name__}); trying the existing subtitle fallback")

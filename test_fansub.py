@@ -8,6 +8,8 @@ from pathlib import Path
 from unittest import mock
 
 import agent
+import shows
+shows.FILE = Path(__file__).parent / "fixtures" / "shows.json"   # test list, never the user's
 import fansub
 import processing_worker as worker
 

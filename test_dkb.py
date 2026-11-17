@@ -7,6 +7,8 @@ from unittest.mock import patch
 import urllib.parse
 
 import dkb
+import shows
+shows.FILE = Path(__file__).parent / "fixtures" / "shows.json"   # test list, never the user's
 
 
 def title(ep, show="Ao no Hako"):
@@ -21,6 +23,12 @@ class DKBTests(unittest.TestCase):
         log = patch.object(dkb.agent, "log")
         log.start()
         self.addCleanup(log.stop)
+        tmp = tempfile.TemporaryDirectory()             # never look at the real library, inbox or state files
+        self.addCleanup(tmp.cleanup)
+        for p in [patch.object(dkb.agent, n, tmp.name) for n in ("LIBRARY", "FOLDER", "HERE")] + \
+                 [patch.object(shows, "STATE", Path(tmp.name) / "weekly-state.json")]:
+            p.start()
+            self.addCleanup(p.stop)
 
     def test_real_listing(self):
         parser = dkb.ReleaseLinks()

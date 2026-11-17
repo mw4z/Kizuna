@@ -96,7 +96,9 @@ def _shows(lines=()):
     ids = _series_ids()
     done = [agent.parse_name(m.group(1)) for l in lines if (m := re.search(r" DONE (.*?):\s*ok", l))]
     rows = []
-    for prefix, folder in agent.SHOWS.items():
+    import shows
+    for show in shows.load():
+        prefix, folder = show["release"], show["folder"]
         eps = []
         for _, _, fs in os.walk(os.path.join(agent.LIBRARY, folder)):
             eps += [f for f in fs if f.lower().endswith(".mkv")]
@@ -104,11 +106,11 @@ def _shows(lines=()):
         seen += [ep for name, ep in done if name and name.startswith(prefix)]   # also episodes done before the library existed
         latest = max(seen, key=lambda e: tuple(map(int, re.findall(r"\d+", e))), default=None)
         sid = ids.get(folder)
-        air = _airing().get(ANILIST.get(prefix), {})
+        air = _airing().get(show.get("anilist"), {})
         rows.append({"title": re.sub(r"\s*\(\d{4}\)$", "", folder), "latest": latest, "count": len(eps),
                      "next": air.get("next"), "at": air.get("at"), "total": air.get("total"),
                      "poster": f"{JF}/Items/{sid}/Images/Primary?maxHeight=420" if sid else None,
-                     "manual": prefix == "Detective Conan"})
+                     "manual": show.get("policy") == "manual"})
     return rows
 
 
@@ -133,20 +135,20 @@ def _deletions():
         return []
 
 
-# AniList ids of the CURRENT season of each followed show (agent.SHOWS prefix -> id). Update when a new season starts.
-ANILIST = {"Tokyo Revengers": 178083, "Ao no Hako": 189123, "Ranma": 209872, "Detective Conan": 235,
-           "Kusuriya no Hitorigoto": 195516, "Black Clover": 195604}
-_air = {"t": 0, "data": {}}
+_air = {"t": 0, "data": {}, "ids": ()}
 
 
 def _airing():
     """{anilist id: {next, at, total}} from AniList's public schedule, refreshed every 30 min (last good kept)."""
-    if time.time() - _air["t"] < 1800:
+    import shows
+    ids = tuple(sorted(s["anilist"] for s in shows.load() if s.get("anilist")))   # AniList id of each show's airing season
+    if time.time() - _air["t"] < 1800 and ids == _air["ids"]:
         return _air["data"]
+    _air["ids"] = ids
     q = "query($ids:[Int]){Page(perPage:50){media(id_in:$ids){id episodes nextAiringEpisode{episode airingAt}}}}"
     try:
         req = urllib.request.Request("https://graphql.anilist.co",
-                                     data=json.dumps({"query": q, "variables": {"ids": list(ANILIST.values())}}).encode(),
+                                     data=json.dumps({"query": q, "variables": {"ids": list(ids)}}).encode(),
                                      headers={"Content-Type": "application/json", "Accept": "application/json",
                                               "User-Agent": "AnimeFYA-status"})
         media = json.load(urllib.request.urlopen(req, timeout=15))["data"]["Page"]["media"]
@@ -303,7 +305,7 @@ details[open] dl,details[open] pre{animation:up .35s ease both}
 <div class="job" id="job" hidden><div class="stage"><span id="stage"></span><span id="pct"></span></div><div class="track"><div id="bar"></div></div></div>
 <div id="waitingBox" hidden><h2>Waiting</h2><ul class="rows" id="waiting"></ul></div>
 <div id="problemsBox" hidden><h2>Needs a look</h2><ul class="rows warn" id="problems"></ul></div>
-<h2 class="reveal" style="animation-delay:.18s">Your shows</h2><div class="shows" id="shows"></div>
+<h2 class="reveal" style="animation-delay:.18s;display:flex;justify-content:space-between;align-items:baseline">Your shows<a href="/weekly" style="font-size:13px;font-weight:600;color:var(--busy);text-decoration:none">Add or manage shows →</a></h2><div class="shows" id="shows"></div>
 <div id="finishedBox" hidden><h2>Recently finished</h2><ul class="rows" id="finished"></ul></div>
 <div id="delBox" hidden><h2>Deleting after watching</h2><ul class="rows" id="del"></ul></div>
 <details><summary>Details</summary><dl id="sys"></dl><pre id="log"></pre></details>
@@ -350,6 +352,7 @@ def make_handler(pending=None):
     """Request handler for the status app. Every request must be addressed to this machine by name
     (blocks DNS-rebinding pages from reading the status/log or the Stremio page; audit #9)."""
     import hmac
+    import shows
     import stremio
     import stremio_batch
 
@@ -419,12 +422,28 @@ def make_handler(pending=None):
                     data = {"job": stremio.dismiss_download()}
                 elif post and action == "batch-dismiss":
                     data = {"batch": stremio_batch.dismiss()}
+                elif not post and action == "shows":
+                    data = shows.overview()
+                elif not post and action == "shows-recommend":
+                    data = shows.recommendations()
+                elif not post and action == "shows-search":
+                    data = shows.search(params.get("q", ""))
+                elif post and action == "shows-link":
+                    data = shows.link(shows._int(params.get("anilist"), 1, 10**7, "AniList id"))
+                elif post and action == "shows-add":
+                    data = {"show": shows.add(params)}
+                elif post and action == "shows-edit":
+                    data = {"show": shows.edit(params)}
+                elif post and action == "shows-remove":
+                    data = shows.remove(params.get("release", ""))
+                elif post and action == "shows-check":
+                    data = shows.check_now()
                 else:
                     self.send_error(404)
                     return
                 code = 200
             except Exception as e:
-                data = {"error": str(e) if isinstance(e, stremio.UserError)
+                data = {"error": str(e) if isinstance(e, (stremio.UserError, shows.ShowError))
                         else "The request could not be completed. Try another source or sync your Stremio add-ons."}
                 code = 400
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -454,8 +473,9 @@ def make_handler(pending=None):
             if self.path.startswith("/api/stremio/"):
                 self.stremio_api()
                 return
-            if self.path in ("/stremio", "/stremio/"):
-                page = open(os.path.join(HERE, "stremio.html"), encoding="utf-8").read()
+            if self.path in ("/stremio", "/stremio/", "/weekly", "/weekly/"):
+                name = "weekly.html" if self.path.startswith("/weekly") else "stremio.html"
+                page = open(os.path.join(HERE, name), encoding="utf-8").read()
                 body, ctype = page.replace("__STREMIO_TOKEN__", stremio.TOKEN).encode("utf-8"), "text/html; charset=utf-8"
             elif self.path.startswith("/api/status"):
                 try:
@@ -498,7 +518,6 @@ if __name__ == "__main__":
         for k in ("headline", "tone", "shows", "finished", "waiting", "problems", "deletions", "system", "log"):
             assert k in d, k
         assert len(d["shows"]) == len(agent.SHOWS)
-        assert nice("[DKB] Ao no Hako - S02E05 [1080p].mkv") == "Blue Box · S02E05"
         print("ok:", d["headline"], "|", [s["title"] for s in d["shows"]], "|", d["finished"][:1], "|", d["problems"])
     else:
         print(f"http://localhost:{PORT}")
