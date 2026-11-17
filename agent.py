@@ -58,6 +58,14 @@ def notify(title, text):
     if title not in ALERTS:
         log(f"(silent) {title}: {text}")
         return
+    try:
+        import settings
+        quiet = not settings.get("notify_ready")
+    except Exception:
+        quiet = False
+    if quiet:                                   # turned off on the Settings page
+        log(f"(notifications off) {title}: {text}")
+        return
     log(f"NOTIFY {title}: {text}")
     title = ALERTS[title]
     ps = ("[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime]>$null;"

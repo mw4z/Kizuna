@@ -16,7 +16,6 @@ import shows
 
 SHOWS = None        # tests may pin a tuple; normally the DKB-enabled shows in shows.json (edited on the page)
 STATE = os.path.join(agent.HERE, "dkb-state.json")
-INTERVAL = 20 * 60
 
 
 def names():
@@ -87,9 +86,7 @@ def search_titles(name):
 
 
 def save(state):
-    with open(STATE + ".tmp", "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
-    os.replace(STATE + ".tmp", STATE)
+    agent.write_atomic(STATE, json.dumps(state, ensure_ascii=False, indent=2))   # read by other threads too
 
 
 def candidates(state, show, releases):
@@ -169,6 +166,11 @@ def poll(folder, ready, initialize_only=False):
             state = json.load(f)  # A damaged ledger must fail closed, never reset the baseline.
     else:
         state = {"baseline": {}, "done": {}}
+    resets = shows.take_resets("dkb")
+    if resets:
+        for release in resets:                    # season or start episode changed on the page, or show re-added
+            state["baseline"].pop(release, None)
+        save(state)
     for show in names():
         try:
             releases = listing(show)
@@ -211,7 +213,8 @@ def run(folder, ready):
             poll(folder, ready)
         except Exception as e:
             agent.log(f"DKB: check failed: {e!r}")
-        shows.wake_dkb.wait(INTERVAL)               # "Check now" on the page wakes it early
+        import settings
+        shows.wake_dkb.wait(settings.get("check_minutes") * 60)   # "Check now" on the page wakes it early
         shows.wake_dkb.clear()
 
 

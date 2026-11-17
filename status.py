@@ -114,6 +114,11 @@ def _shows(lines=()):
     return rows
 
 
+def _keep_hours():
+    import cleanup
+    return cleanup.keep_seconds() // 3600
+
+
 def _log_lines():
     try:
         return open(agent.LOG, encoding="utf-8", errors="replace").read().splitlines()
@@ -170,6 +175,7 @@ def _jellyfin_up():
 
 
 def collect(pending=None):
+    import fansub
     now = time.time()
     procs = _procs()
     prog = _json(agent.PFILE, {})
@@ -194,12 +200,20 @@ def collect(pending=None):
         for fn in sorted(os.listdir(agent.FOLDER)):
             p = os.path.join(agent.FOLDER, fn)
             if (fn.lower().endswith(".mkv") and ".tmp." not in fn and os.path.isfile(p)
-                    and "Detective Conan" not in fn                       # typeset by hand, never auto-processed
+                    and fansub.mode_for(agent.parse_name(fn)[0] or fn) != "manual"   # typeset by hand
                     and fn not in (state.get("failed") or {})             # listed under "Needs a look" instead
                     and _has_arabic(p) is False):
                 if nice(fn) not in waiting:
                     waiting.append(nice(fn))
 
+    attention = [{"name": nice(fn), "reason": "Failed. Skipped until the file changes", "kind": "failed"}
+                 for fn in (state.get("failed") or {}) if os.path.exists(os.path.join(agent.FOLDER, fn))]
+    attention += [{"name": nice(fn), "reason": "Hit a problem. Retrying automatically", "kind": "retrying"}
+                  for fn in (state.get("errors") or {})
+                  if fn not in (state.get("failed") or {}) and os.path.exists(os.path.join(agent.FOLDER, fn))]
+    attention += [{"name": nice(fn), "reason": "Arabic added, but copying to Jellyfin failed. Retrying", "kind": "retrying"}
+                  for fn in (state.get("copy_failed") or {}) if os.path.exists(os.path.join(agent.FOLDER, fn))]
+    pending_items = [{"name": x, "reason": "Waiting for an Arabic subtitle"} for x in waiting]
     problems = [f"{nice(fn)} — failed, skipped until the file changes"
                 for fn in (state.get("failed") or {}) if os.path.exists(os.path.join(agent.FOLDER, fn))]
     problems += [f"{nice(fn)} — retrying" for fn in (state.get("errors") or {})
@@ -208,12 +222,17 @@ def collect(pending=None):
                  for fn in (state.get("copy_failed") or {}) if os.path.exists(os.path.join(agent.FOLDER, fn))]
     if job and job["stalled"]:
         problems.append(f"{job['name']} — no progress for over 10 minutes")
+        attention.append({"name": job["name"], "reason": "No progress for over 10 minutes", "kind": "stalled"})
     import library_processing
     try:
         library_jobs = library_processing.status()
         for entry in library_jobs:
             if entry["status"] in ("waiting", "pending"):
                 problems.append(f"{nice(entry['destination'])} — {entry['stage']}")
+                failed = "failed" in entry["stage"].lower() or "needs" in entry["stage"].lower()
+                (attention if failed else pending_items).append(
+                    {"name": nice(entry["destination"]), "reason": entry["stage"], "kind": "failed" if failed else "waiting",
+                     "retry_at": entry.get("retry_at")})
             elif entry["status"] == "running" and not job:
                 job = {"name": nice(entry["destination"]), "stage": entry["stage"], "pct": entry.get("pct", 0),
                        "stalled": now - entry["updated"] > 600, "age": now - entry["updated"]}
@@ -233,6 +252,7 @@ def collect(pending=None):
     return {
         "now": now, "headline": headline, "tone": tone, "job": job, "finished": finished,
         "waiting": waiting, "problems": problems, "deletions": _deletions(), "shows": _shows(lines),
+        "attention": attention, "pending": pending_items, "keep_hours": _keep_hours(),
         "system": {
             "Watcher": "running" if procs["watcher"] else "not running",
             "Supervisor": "running" if procs["supervisor"] else "not running",
@@ -245,107 +265,14 @@ def collect(pending=None):
     }
 
 
-PAGE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>MyAnimeWatcher</title>
-<link rel="icon" type="image/png" href="/app.png">
-<style>
-:root{--bg:#101113;--fg:#ececee;--mute:#8d9097;--line:#24262b;--ok:#46c37b;--busy:#5b9cff;--warn:#e6a23c;--bad:#ef5b5b}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}
-.wrap{max-width:980px;margin:0 auto;padding:40px 24px 64px}
-.app{color:var(--mute);font-size:13px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:16px}
-.discover{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:10px 18px;border:1px solid #79afff;border-radius:8px;background:var(--busy);color:#101b2b;font-size:14px;font-weight:600;text-decoration:none;text-align:center;transition:background .15s,border-color .15s}
-.discover:hover{background:#8ab9ff;border-color:#a6caff}
-.discover:focus-visible{outline:2px solid var(--fg);outline-offset:4px}
-h1{font-size:28px;font-weight:600;margin:0;display:flex;align-items:center;gap:12px}
-.dot{width:12px;height:12px;border-radius:50%;flex:none}
-.sub{color:var(--mute);margin-top:6px}
-.job{margin-top:22px}.job .stage{color:var(--mute);font-size:14px;display:flex;justify-content:space-between}
-.track{height:6px;background:var(--line);border-radius:3px;margin-top:8px;overflow:hidden}
-.track div{height:100%;background:var(--busy);border-radius:3px;transition:width .8s}
-h2{font-size:17px;font-weight:600;margin:44px 0 14px}
-.shows{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:20px}
-.show img,.show .ph{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:8px;background:#1a1b1f;display:block}
-.show .t{margin-top:8px;font-weight:600;font-size:14px;line-height:1.3}
-.show .m{color:var(--mute);font-size:13px}
-.next{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:13px}
-.next .ep{color:var(--fg)}.next .cd{color:var(--busy);font-weight:600;font-variant-numeric:tabular-nums}
-.next .cd.soon{color:var(--ok)}.next .left{color:var(--mute)}
-ul.rows{list-style:none;margin:0;padding:0}
-ul.rows li{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--line)}
-ul.rows li span:last-child{color:var(--mute);white-space:nowrap}
-.warn li span:first-child{color:var(--warn)}
-details{margin-top:48px;color:var(--mute)}summary{cursor:pointer;font-size:14px}
-dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 18px;margin:16px 0}dt{color:var(--mute)}dd{margin:0;color:var(--fg);word-break:break-all}
-pre{background:#0b0c0d;border:1px solid var(--line);border-radius:8px;padding:12px;max-height:320px;overflow:auto;font:12px/1.55 Consolas,monospace;color:#b9bcc2;white-space:pre-wrap}
-/* motion */
-@keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-@keyframes breathe{0%{box-shadow:0 0 0 0 var(--glow)}70%{box-shadow:0 0 0 10px transparent}100%{box-shadow:0 0 0 0 transparent}}
-@keyframes shimmer{from{background-position:-200% 0}to{background-position:200% 0}}
-.reveal{opacity:0;animation:up .6s cubic-bezier(.2,.7,.2,1) forwards}
-.dot{--glow:rgba(70,195,123,.55);animation:breathe 2.6s ease-out infinite}
-.dot.busy{--glow:rgba(91,156,255,.6);animation-duration:1.1s}
-.dot.warn{--glow:rgba(230,162,60,.55)}.dot.bad{--glow:rgba(239,91,91,.6);animation-duration:1.4s}
-#headline{transition:opacity .25s}#headline.swap{opacity:0}
-.track div{background:linear-gradient(90deg,var(--busy) 0%,#9cc3ff 50%,var(--busy) 100%);background-size:200% 100%;
- animation:shimmer 1.8s linear infinite;transition:width .9s cubic-bezier(.2,.7,.2,1)}
-.job{animation:up .45s ease forwards}
-.show{opacity:0;animation:up .55s cubic-bezier(.2,.7,.2,1) forwards}
-.show .pic{border-radius:8px;transition:transform .35s cubic-bezier(.2,.7,.2,1),box-shadow .35s}
-.show:hover .pic{transform:translateY(-6px) scale(1.03);box-shadow:0 14px 32px rgba(0,0,0,.55)}
-.show img{opacity:0;transition:opacity .6s}.show img.in{opacity:1}
-ul.rows li{animation:up .4s ease both}
-ul.rows li:hover{background:rgba(255,255,255,.025)}
-details[open] dl,details[open] pre{animation:up .35s ease both}
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;opacity:1!important}}
-</style></head><body><div class="wrap">
-<div class="app reveal"><span>MyAnimeWatcher</span><a class="discover" href="/stremio">Find movies &amp; shows</a></div>
-<h1 class="reveal" style="animation-delay:.05s"><span class="dot" id="dot"></span><span id="headline">Loading…</span></h1>
-<div class="sub reveal" id="sub" style="animation-delay:.12s"></div>
-<div class="job" id="job" hidden><div class="stage"><span id="stage"></span><span id="pct"></span></div><div class="track"><div id="bar"></div></div></div>
-<div id="waitingBox" hidden><h2>Waiting</h2><ul class="rows" id="waiting"></ul></div>
-<div id="problemsBox" hidden><h2>Needs a look</h2><ul class="rows warn" id="problems"></ul></div>
-<h2 class="reveal" style="animation-delay:.18s;display:flex;justify-content:space-between;align-items:baseline">Your shows<a href="/weekly" style="font-size:13px;font-weight:600;color:var(--busy);text-decoration:none">Add or manage shows →</a></h2><div class="shows" id="shows"></div>
-<div id="finishedBox" hidden><h2>Recently finished</h2><ul class="rows" id="finished"></ul></div>
-<div id="delBox" hidden><h2>Deleting after watching</h2><ul class="rows" id="del"></ul></div>
-<details><summary>Details</summary><dl id="sys"></dl><pre id="log"></pre></details>
-</div>
-<script>
-const $=id=>document.getElementById(id);
-const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const ago=s=>{s=Math.max(0,s);return s<90?"just now":s<3600?Math.round(s/60)+" min ago":s<86400?Math.round(s/3600)+" h ago":Math.round(s/86400)+" days ago"};
-const when=t=>{const d=new Date(t*1000),n=new Date();return (d.toDateString()===n.toDateString()?"today":d.toLocaleDateString([], {weekday:"short",day:"numeric",month:"short"}))+" "+d.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})};
-const TONE={ok:"var(--ok)",busy:"var(--busy)",warn:"var(--warn)",bad:"var(--bad)"};
-const rows=(el,box,items,fmt)=>{$(box).hidden=!items.length;const h=items.map(fmt).join("");if($(el).dataset.h!==h){$(el).dataset.h=h;$(el).innerHTML=h;[...$(el).children].forEach((li,i)=>li.style.animationDelay=(i*.05)+"s")}};
-let shown="";
-const airDay=t=>new Date(t*1000).toLocaleString([], {weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
-function countdown(){document.querySelectorAll(".cd").forEach(el=>{let s=Math.round(+el.dataset.at-Date.now()/1000);
- if(s<=0){el.textContent="airing now";el.classList.add("soon");return}
- const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60),sec=s%60;
- el.textContent="in "+(d?`${d}d ${h}h ${m}m`:h?`${h}h ${m}m ${sec}s`:`${m}m ${sec}s`);el.classList.toggle("soon",s<86400)})}
-setInterval(countdown,1000);
-async function tick(){
- let d;try{d=await (await fetch("/api/status",{cache:"no-store"})).json()}catch(e){$("headline").textContent="Status page can't reach the agent";$("dot").style.background="var(--bad)";return}
- const hl=$("headline");
- if(hl.textContent!==d.headline){if(hl.textContent==="Loading…")hl.textContent=d.headline;else{hl.classList.add("swap");setTimeout(()=>{hl.textContent=d.headline;hl.classList.remove("swap")},250)}}
- $("dot").style.background=TONE[d.tone];$("dot").className="dot "+d.tone;
- const f=d.finished[0];$("sub").textContent=f?`Last finished: ${f.name}, ${ago(d.now-f.at)}`:"";
- $("job").hidden=!d.job;
- if(d.job){$("stage").textContent=d.job.stage;$("pct").textContent=Math.round(d.job.pct)+"%";$("bar").style.width=d.job.pct+"%"}
- rows("waiting","waitingBox",d.waiting,x=>`<li><span>${esc(x)}</span><span>waiting for Arabic</span></li>`);
- rows("problems","problemsBox",d.problems,x=>`<li><span>${esc(x)}</span><span></span></li>`);
- rows("finished","finishedBox",d.finished,x=>`<li><span>${esc(x.name)}</span><span>${ago(d.now-x.at)}</span></li>`);
- rows("del","delBox",d.deletions,x=>`<li><span>${esc(x.name)}</span><span>${x.at<=d.now?"within the hour":when(x.at)}</span></li>`);
- const sh=JSON.stringify(d.shows);
- if(sh!==shown){shown=sh;$("shows").innerHTML=d.shows.map((s,i)=>`<div class="show" style="animation-delay:${.22+i*.06}s"><div class="pic">${s.poster?`<img src="${esc(s.poster)}" alt="" onload="this.classList.add('in')">`:'<div class="ph"></div>'}</div>
-  <div class="t">${esc(s.title)}</div><div class="m">${s.latest?`Latest ${esc(s.latest)}`:"No episodes yet"}${s.manual?" · Arabic by hand":""}</div>
-  ${s.at?`<div class="next"><div class="ep">Ep ${s.next}${s.total?` of ${s.total}`:""} · ${esc(airDay(s.at))}</div><div><span class="cd" data-at="${s.at}"></span>${s.total?`<span class="left"> · ${s.total-s.next+1} left this season</span>`:""}</div></div>`:'<div class="next left">No date announced</div>'}</div>`).join("")}
- countdown();
- $("sys").innerHTML=Object.entries(d.system).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
- const lg=$("log"),bottom=lg.scrollTop+lg.clientHeight>=lg.scrollHeight-8;lg.textContent=d.log.join("\n");if(bottom)lg.scrollTop=lg.scrollHeight;
-}
-tick();setInterval(tick,3000);
-</script></body></html>"""
+# The pages (dashboard.html, stremio.html, weekly.html, settings.html) share kizuna.css and kizuna.js.
+
+
+PAGES = {"/": "dashboard.html", "/index.html": "dashboard.html", "/stremio": "stremio.html", "/weekly": "weekly.html",
+         "/settings": "settings.html"}
+ASSETS = {"/kizuna.css": ("kizuna.css", "text/css; charset=utf-8"), "/kizuna.js": ("kizuna.js", "text/javascript; charset=utf-8"),
+          "/fonts/Cairo-SemiBold.ttf": ("fonts/Cairo-SemiBold.ttf", "font/ttf"),
+          "/fonts/Cairo-Bold.ttf": ("fonts/Cairo-Bold.ttf", "font/ttf")}
 
 
 def make_handler(pending=None):
@@ -438,12 +365,19 @@ def make_handler(pending=None):
                     data = shows.remove(params.get("release", ""))
                 elif post and action == "shows-check":
                     data = shows.check_now()
+                elif not post and action == "settings":
+                    import settings
+                    data = settings.page()
+                elif post and action == "settings":
+                    import settings
+                    data = settings.update(params)
                 else:
                     self.send_error(404)
                     return
                 code = 200
             except Exception as e:
-                data = {"error": str(e) if isinstance(e, (stremio.UserError, shows.ShowError))
+                import settings
+                data = {"error": str(e) if isinstance(e, (stremio.UserError, shows.ShowError, settings.SettingsError))
                         else "The request could not be completed. Try another source or sync your Stremio add-ons."}
                 code = 400
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -473,10 +407,12 @@ def make_handler(pending=None):
             if self.path.startswith("/api/stremio/"):
                 self.stremio_api()
                 return
-            if self.path in ("/stremio", "/stremio/", "/weekly", "/weekly/"):
-                name = "weekly.html" if self.path.startswith("/weekly") else "stremio.html"
-                page = open(os.path.join(HERE, name), encoding="utf-8").read()
+            route = self.path.split("?", 1)[0].rstrip("/") or "/"
+            if route in PAGES:
+                page = open(os.path.join(HERE, PAGES[route]), encoding="utf-8").read()
                 body, ctype = page.replace("__STREMIO_TOKEN__", stremio.TOKEN).encode("utf-8"), "text/html; charset=utf-8"
+            elif route in ASSETS:
+                body, ctype = open(os.path.join(HERE, *ASSETS[route][0].split("/")), "rb").read(), ASSETS[route][1]
             elif self.path.startswith("/api/status"):
                 try:
                     body = json.dumps(collect(pending), ensure_ascii=False).encode("utf-8")
@@ -485,8 +421,6 @@ def make_handler(pending=None):
                                        "finished": [], "waiting": [], "problems": [], "deletions": [], "shows": [],
                                        "system": {}, "log": [], "job": None}).encode("utf-8")
                 ctype = "application/json; charset=utf-8"
-            elif self.path in ("/", "/index.html"):
-                body, ctype = PAGE.encode("utf-8"), "text/html; charset=utf-8"
             elif self.path in ("/app.png", "/favicon.ico"):
                 body, ctype = open(os.path.join(HERE, "app.png"), "rb").read(), "image/png"
             else:

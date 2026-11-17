@@ -28,12 +28,12 @@ import agent
 FILE = Path(agent.HERE) / "shows.json"
 STATE = Path(agent.HERE) / "weekly-state.json"       # Stremio side: baselines, finished and failed episodes
 POLICIES = ("official_ok", "fansub_first", "fansub", "manual")
-INTERVAL = 20 * 60
 MAX_FAILS = 6                                       # Stremio attempts per episode before giving up on it
 _lock = threading.RLock()
 _cache = {"stamp": None, "shows": []}
 _claims = {}                                        # "release|SxxEyy" -> source currently fetching it
 wake_dkb, wake_stremio = threading.Event(), threading.Event()
+_resets = {"dkb": set(), "stremio": set()}         # releases whose "following after" point must be recomputed
 
 
 class ShowError(ValueError):
@@ -48,9 +48,13 @@ def load():
         except FileNotFoundError:
             return []
         if stamp != _cache["stamp"]:
-            data = json.loads(FILE.read_text(encoding="utf-8"))
-            _cache.update(stamp=stamp, shows=[s for s in data.get("shows", [])
-                                              if isinstance(s, dict) and s.get("release") and s.get("folder")])
+            try:
+                data = json.loads(FILE.read_text(encoding="utf-8"))
+                _cache.update(stamp=stamp, shows=[s for s in data.get("shows", [])
+                                                  if isinstance(s, dict) and s.get("release") and s.get("folder")])
+            except (OSError, ValueError, AttributeError):
+                _cache["stamp"] = stamp                    # damaged by hand: keep the last good list, say so once
+                agent.log("shows: shows.json could not be read; using the last good list")
         return [dict(s) for s in _cache["shows"]]
 
 
@@ -103,6 +107,18 @@ def claim(release, episode_tag, source):
         return True
 
 
+def request_reset(release):
+    with _lock:
+        _resets["dkb"].add(release)
+        _resets["stremio"].add(release)
+
+
+def take_resets(source):
+    with _lock:
+        out, _resets[source] = set(_resets[source]), set()
+        return out
+
+
 def release_claim(release, episode_tag):
     with _lock:
         _claims.pop(f"{release}|{episode_tag}", None)
@@ -111,11 +127,13 @@ def release_claim(release, episode_tag):
 def have_episode(show, episode_tag):
     """True when the episode is already in the library, the inbox, on its way (Arabic preparation queue), or was
     fetched/skipped by either source."""
+    import cleanup
     pattern = re.compile(re.escape(episode_tag) + r"(?!\d)", re.I)
     folder = Path(agent.LIBRARY) / show["folder"]
-    if folder.is_dir() and any(pattern.search(p.name) and p.suffix.lower() in (".mkv", ".mp4", ".m4v")
-                               for p in folder.rglob("*")):
-        return True
+    for place in (folder, Path(cleanup.ANIME) / show["folder"]):
+        if place.is_dir() and any(pattern.search(p.name) and p.suffix.lower() in (".mkv", ".mp4", ".m4v")
+                                  for p in place.rglob("*")):
+            return True
     try:
         for p in Path(agent.FOLDER).glob("*.mkv"):
             name, ep = agent.parse_name(p.name)
@@ -127,7 +145,7 @@ def have_episode(show, episode_tag):
         import library_processing
         with library_processing._guard:
             records = library_processing.read()
-        root = os.path.normcase(str(folder))
+        root = os.path.normcase(str(folder)) + os.sep
         if any(r.get("status") != "done" and os.path.normcase(r.get("destination", "")).startswith(root)
                and pattern.search(os.path.basename(r.get("destination", ""))) for r in records.values()):
             return True
@@ -309,11 +327,14 @@ def link(anilist_id):
     aired = (nxt - 1) if nxt else current.get("episodes")
     season = dkb_found["season"] if dkb_found else stremio_found["season"] if stremio_found else number
     if stremio_found:
+        offset = 0
         if dkb_found and stremio_found["latest"]:
-            # library numbering follows DKB (per season); Stremio may count episodes differently
-            stremio_found["offset"] = (aired or dkb_found["latest"]) - stremio_found["latest"]
-        else:
-            stremio_found["offset"] = 0
+            # library numbering follows DKB; a real numbering difference (a continuing count, a split cour) is large,
+            # while a gap of one or two only means one source is a day ahead of the other
+            offset = dkb_found["latest"] - stremio_found["latest"]
+            if abs(offset) <= 2:
+                offset = 0
+        stremio_found["offset"] = offset
     return {"anilist": current["id"], "title": current["title"].get("english") or current["title"]["romaji"],
             "folder": folder, "season": season, "aired": aired,
             "release": dkb_found["release"] if dkb_found else current["title"]["romaji"],
@@ -362,8 +383,6 @@ def validate(form, existing=None):
     start = str(form.get("from", "")).strip()
     if start:
         show["from"] = _int(start, 1, 5000, "Start episode")
-    elif existing and existing.get("from"):
-        show["from"] = existing["from"]
     others = [x for x in load() if not existing or x["release"] != existing["release"]]
     if any(x["release"].casefold() == release.casefold() for x in others):
         raise ShowError("That release name is already followed.")
@@ -392,6 +411,11 @@ def edit(form):
             raise ShowError("That show isn't followed any more. Reload the page.")
         show = validate(form, current)
         show["added"] = current.get("added", time.time())
+        if show["folder"] != current["folder"] and busy(current):
+            raise ShowError("An episode of this show is still being prepared. Rename it once that has finished.")
+        if any(show.get(k) != current.get(k) for k in ("season", "from", "release")) or \
+                (show.get("stremio") or {}).get("season") != (current.get("stremio") or {}).get("season"):
+            request_reset(current["release"])          # start again from the new point
         if show["folder"] != current["folder"]:
             old, new = Path(agent.LIBRARY) / current["folder"], Path(agent.LIBRARY) / show["folder"]
             if new.exists():
@@ -414,7 +438,10 @@ def remove(release):
         show = next((x for x in items if x["release"] == release), None)
         if not show:
             raise ShowError("That show isn't followed any more. Reload the page.")
+        if busy(show):
+            raise ShowError("An episode of this show is still being downloaded or prepared. Remove it once that has finished.")
         save([x for x in items if x is not show])
+        request_reset(release)                         # following it again later starts fresh
     source, target = Path(agent.LIBRARY) / show["folder"], Path(cleanup.ANIME) / show["folder"]
     note = "Its folder stays in Weekly Anime."
     if source.is_dir() and any(source.iterdir()):
@@ -433,6 +460,22 @@ def remove(release):
     return {"removed": show["folder"], "note": note}
 
 
+def busy(show):
+    """True while an episode of this show is being fetched or waits in the Arabic preparation queue."""
+    with _lock:
+        if any(k.startswith(show["release"] + "|") for k in _claims):
+            return True
+    try:
+        import library_processing
+        with library_processing._guard:
+            records = library_processing.read()
+    except (OSError, ValueError):
+        return True
+    root = os.path.normcase(str(Path(agent.LIBRARY) / show["folder"])) + os.sep
+    return any(r.get("status") != "done" and os.path.normcase(r.get("destination", "")).startswith(root)
+               for r in records.values())
+
+
 def check_now():
     wake_dkb.set()
     wake_stremio.set()
@@ -440,12 +483,15 @@ def check_now():
 
 
 # ---------------------------------------------------------------- Stremio as a weekly source
+GIVE_UP_DAYS = 3        # an episode no Stremio source offers this long after it aired is left to DKB / the user
+
+
 def read_state():
     try:
         state = json.loads(STATE.read_text(encoding="utf-8"))
-    except FileNotFoundError:
+    except (OSError, ValueError):
         state = {}
-    for k in ("baseline", "done", "fails"):
+    for k in ("baseline", "done", "fails", "skipped"):
         state.setdefault(k, {})
     return state
 
@@ -454,23 +500,40 @@ def write_state(state):
     agent.write_atomic(STATE, json.dumps(state, ensure_ascii=False, indent=1))
 
 
-PREFERENCES = [{"audio": "ja", "subtitle": "none", "resolution": res, "hdr": "Unspecified", "provider": ""}
-               for res in ("1080p", "720p")]
+def preferences():
+    """Source choices for weekly episodes, best first: every preferred audio language at every resolution (Settings)."""
+    import settings
+    s = settings.get()
+    return [{"audio": audio, "subtitle": s["weekly_subtitle"], "resolution": res, "hdr": "Unspecified", "provider": ""}
+            for res in s["weekly_resolutions"] for audio in s["weekly_audio"]]
+
+
+def catalog_meta(st):
+    """The show's catalog entry straight from the add-ons. Not registered in the page's selection cache, so a weekly
+    check never pushes out what the user has open on the Discover page."""
+    import stremio as s
+    results, _ = s.parallel([(s.resource, (a, "meta", st["type"], st["id"])) for a in s.addons()
+                             if s.supports(a, "meta", st["type"], st["id"])])
+    metas = [r["meta"] for r in results if isinstance(r.get("meta"), dict) and r["meta"].get("videos")]
+    if not metas:
+        raise RuntimeError("no episode list from the add-ons")
+    return max(metas, key=lambda m: len(m.get("videos", [])))
 
 
 def aired(show):
-    """[(library episode tag, Stremio video)] for the linked Stremio season, released episodes only."""
-    import stremio as s
+    """[(library episode tag, library number, Stremio video, meta)] for the linked Stremio season, released only."""
     st = show["stremio"]
-    key = s.remember({"kind": "title", "type": st["type"], "meta": {"id": st["id"], "name": show["folder"]}})
-    s.details(key)
-    meta = s.item(key, "title")["meta"]
+    meta = catalog_meta(st)
     out = []
     for e in released(meta, st["season"]):
         number = e["episode"] + st.get("offset", 0)
         if number > 0:
             out.append((tag(show["season"], number), number, e, meta))
     return out
+
+
+class Busy(Exception):
+    """The user is downloading something: try again next check (not counted as a failed attempt)."""
 
 
 def fetch(show, ep_tag, number, episode, meta):
@@ -485,17 +548,36 @@ def fetch(show, ep_tag, number, episode, meta):
     video = {"kind": "video", "type": show["stremio"]["type"], "id": episode["id"], "season": show["season"],
              "episode": number, "meta": {"id": meta.get("id"), "name": title.group(1), "releaseInfo": title.group(2) or "",
                                          "runtime": meta.get("runtime")}}
-    for prefs in PREFERENCES:
-        chosen = b.choose({"preferences": prefs}, video)
+    own = threading.Event()        # never the season queue's Stop flag: stopping a batch must not stop weekly fetches
+    for prefs in preferences():
+        chosen = b.choose({"preferences": prefs}, video, cancel=own)
         if chosen:
-            return s.start_download(*chosen, library["id"], _batch=True)
-    return {"status": "unavailable", "stage": "No 1080p/720p Japanese-audio source yet"}
+            if s._job_lock.locked() or b.active():
+                raise Busy()
+            try:
+                return s.start_download(*chosen, library["id"], _batch=True)
+            except s.UserError as e:
+                if "already running" in str(e) or "season/show download is active" in str(e):
+                    raise Busy() from None
+                raise
+    return {"status": "unavailable", "stage": "No source in your preferred languages and resolutions yet"}
+
+
+def _season_key(show):
+    return f"{show['release']}|S{int(show['season']):02d}"
 
 
 def stremio_poll():
     import stremio as s
     import stremio_batch as b
     state = read_state()
+    for release in take_resets("stremio"):
+        for k in [k for k in state["baseline"] if k.split("|")[0] == release]:
+            del state["baseline"][k]
+        for bucket in ("fails", "skipped"):
+            for k in [k for k in state[bucket] if k.split("|")[0] == release]:
+                del state[bucket][k]
+        write_state(state)
     for show in load():
         st = show.get("stremio") or {}
         if not st.get("on"):
@@ -503,17 +585,21 @@ def stremio_poll():
         try:
             episodes = aired(show)
         except Exception as e:
-            agent.log(f"Stremio weekly: {show['folder']}: check failed ({type(e).__name__})")
+            agent.log(f"Stremio weekly: {show['folder']}: check failed ({type(e).__name__}); trying again next check")
             continue
-        release = show["release"]
-        if release not in state["baseline"]:
-            # like DKB: start after the newest aired episode unless a start episode was chosen (no backfill)
-            state["baseline"][release] = (show["from"] - 1) if show.get("from") else max((n for _, n, _, _ in episodes), default=0)
+        release, base_key = show["release"], _season_key(show)
+        if base_key not in state["baseline"]:
+            if show.get("from"):
+                state["baseline"][base_key] = show["from"] - 1
+            elif episodes:                         # never start from an empty list: that would fetch the whole season
+                state["baseline"][base_key] = max(n for _, n, _, _ in episodes)
+            else:
+                continue
             write_state(state)
-            agent.log(f"Stremio weekly: following {show['folder']} after episode {state['baseline'][release]}")
+            agent.log(f"Stremio weekly: following {show['folder']} {base_key.split('|')[1]} after episode {state['baseline'][base_key]}")
         for ep_tag, number, episode, meta in sorted(episodes, key=lambda x: x[1]):
             key = f"{release}|{ep_tag}"
-            if number <= state["baseline"][release] or key in state["done"] or state["fails"].get(key, 0) >= MAX_FAILS:
+            if number <= state["baseline"][base_key] or key in state["done"] or key in state["skipped"]:
                 continue
             if have_episode(show, ep_tag):
                 state["done"][key] = "already here"
@@ -528,34 +614,46 @@ def stremio_poll():
                 job = fetch(show, ep_tag, number, episode, meta)
                 if job["status"] in ("done", "waiting"):
                     state["done"][key] = "stremio"
+                    state["fails"].pop(key, None)
                     agent.log(f"Stremio weekly: downloaded {show['folder']} {ep_tag}")
                 elif job["status"] == "cancelled":
-                    state["done"][key] = "cancelled"     # the user stopped it: don't fetch it again by itself
+                    state["skipped"][key] = "cancelled"   # the user stopped it; DKB may still bring it
                 else:
-                    state["fails"][key] = state["fails"].get(key, 0) + 1
-                    agent.log(f"Stremio weekly: {show['folder']} {ep_tag} not downloaded ({job.get('stage', '')[:80]})")
+                    failed(state, key, show, ep_tag, job.get("stage", ""))
+            except Busy:
+                return state
             except s.UserError as e:
                 if "already exists" in str(e) or "already downloaded" in str(e):
                     state["done"][key] = "already here"
                 else:
-                    state["fails"][key] = state["fails"].get(key, 0) + 1
-                    agent.log(f"Stremio weekly: {show['folder']} {ep_tag}: {e}")
+                    failed(state, key, show, ep_tag, str(e))
             except Exception as e:
-                state["fails"][key] = state["fails"].get(key, 0) + 1
-                agent.log(f"Stremio weekly: {show['folder']} {ep_tag} failed ({type(e).__name__})")
+                failed(state, key, show, ep_tag, type(e).__name__)
             finally:
                 release_claim(release, ep_tag)
                 write_state(state)
     return state
 
 
+def failed(state, key, show, ep_tag, why):
+    first = state["fails"].get(key, {}).get("first", time.time()) if isinstance(state["fails"].get(key), dict) else time.time()
+    state["fails"][key] = {"first": first, "why": str(why)[:120]}
+    if time.time() - first > GIVE_UP_DAYS * 86400:
+        state["skipped"][key] = "not found"
+        state["fails"].pop(key, None)
+        agent.log(f"Stremio weekly: gave up on {show['folder']} {ep_tag} after {GIVE_UP_DAYS} days ({why})")
+    else:
+        agent.log(f"Stremio weekly: {show['folder']} {ep_tag} not downloaded yet ({str(why)[:80]}); trying again next check")
+
+
 def run_stremio():
+    import settings
     while True:
         try:
             stremio_poll()
         except Exception as e:
             agent.log(f"Stremio weekly: check failed ({type(e).__name__})")
-        wake_stremio.wait(INTERVAL)
+        wake_stremio.wait(settings.get("check_minutes") * 60)
         wake_stremio.clear()
 
 
@@ -571,7 +669,10 @@ def overview():
         folder = Path(agent.LIBRARY) / show["folder"]
         eps = sorted({m.group(0).upper() for p in folder.rglob("*") if p.suffix.lower() in (".mkv", ".mp4")
                       for m in [re.search(r"S\d+E\d+", p.name, re.I)] if m}) if folder.is_dir() else []
+        mine = lambda bucket: sorted(k.split("|")[1] for k in weekly[bucket] if k.split("|")[0] == show["release"])  # noqa: E731
         out.append(dict(show, episodes=len(eps), latest=eps[-1] if eps else None,
                         dkb_after=(dkb_state.get("baseline") or {}).get(show["release"]),
-                        stremio_after=weekly["baseline"].get(show["release"])))
+                        stremio_after=weekly["baseline"].get(_season_key(show)),
+                        not_found=[k for k in mine("skipped") if weekly["skipped"][f"{show['release']}|{k}"] == "not found"],
+                        retrying=mine("fails")))
     return {"shows": out, "library": agent.LIBRARY}

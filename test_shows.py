@@ -38,6 +38,8 @@ class ShowsSandbox(Sandbox):
         for p in self.extra:
             p.start()
         shows._claims.clear()
+        for pending in shows._resets.values():
+            pending.clear()
 
     def tearDown(self):
         for p in self.extra:
@@ -214,7 +216,7 @@ class StremioWeekly(ShowsSandbox):
     def test_first_check_sets_a_baseline_without_backfill(self):
         state, fetch = self.poll([61, 62, 63])
         fetch.assert_not_called()
-        self.assertEqual(state["baseline"]["Kaiju Squad"], 3)
+        self.assertEqual(state["baseline"]["Kaiju Squad|S02"], 3)            # per season
 
     def test_new_episode_is_downloaded_once_with_library_numbering(self):
         self.poll([61, 62, 63])
@@ -246,15 +248,61 @@ class StremioWeekly(ShowsSandbox):
         fetch.assert_not_called()
         self.assertNotIn("Kaiju Squad|S02E04", state["done"])
 
-    def test_failures_retry_then_stop_and_cancel_is_respected(self):
+    def test_unavailable_episodes_keep_retrying_for_days_then_stop(self):
         self.poll([61, 62, 63])
-        for _ in range(shows.MAX_FAILS + 2):
+        for _ in range(20):                                                       # ~7 hours of checks: still trying
             state, fetch = self.poll([61, 62, 63, 64], job={"status": "unavailable", "stage": "none"})
-        self.assertEqual(state["fails"]["Kaiju Squad|S02E04"], shows.MAX_FAILS)
-        state, fetch = self.poll([61, 62, 63, 64, 65], job={"status": "cancelled", "stage": "Download cancelled."})
-        self.assertEqual(state["done"]["Kaiju Squad|S02E05"], "cancelled")
+        self.assertEqual(fetch.call_count, 1)
+        self.assertIn("Kaiju Squad|S02E04", state["fails"])
+        self.assertNotIn("Kaiju Squad|S02E04", state["skipped"])
+        state["fails"]["Kaiju Squad|S02E04"]["first"] -= (shows.GIVE_UP_DAYS + 1) * 86400
+        shows.write_state(state)
+        state, fetch = self.poll([61, 62, 63, 64], job={"status": "unavailable", "stage": "none"})
+        self.assertEqual(state["skipped"]["Kaiju Squad|S02E04"], "not found")
+        state, fetch = self.poll([61, 62, 63, 64])
+        fetch.assert_not_called()
+        self.assertEqual(shows.overview()["shows"][0]["not_found"], ["S02E04"])     # shown on the page
+
+    def test_cancel_stops_stremio_but_lets_dkb_bring_it(self):
+        self.poll([61, 62, 63])
+        state, _ = self.poll([61, 62, 63, 64], job={"status": "cancelled", "stage": "Download cancelled."})
+        self.assertEqual(state["skipped"]["Kaiju Squad|S02E04"], "cancelled")
+        _, fetch = self.poll([61, 62, 63, 64])
+        fetch.assert_not_called()
+        self.assertFalse(shows.have_episode(shows.load()[0], "S02E04"))           # DKB is not blocked
+
+    def test_stopping_a_season_queue_does_not_stop_weekly_fetches(self):
+        b._cancel.set()
+        try:
+            sh = shows.load()[0]
+            library = {"id": "Weekly Anime:x", "name": "Weekly Anime", "path": self.lib}
+            with mock.patch.object(s, "libraries", return_value=[library]), \
+                    mock.patch.object(s, "streams", return_value={"sources": [], "failed_addons": []}) as streams, \
+                    mock.patch.object(s, "remember", return_value="k"):
+                shows.fetch(sh, "S02E04", 4, {"id": "tt9:5:64"}, {"id": "tt9"})
+            self.assertTrue(streams.called)                                       # it really searched
+        finally:
+            b._cancel.clear()
+
+    def test_empty_first_answer_never_starts_from_zero(self):
+        self.poll([])
+        self.assertNotIn("Kaiju Squad|S02", shows.read_state()["baseline"])
+        _, fetch = self.poll([61, 62, 63])
+        fetch.assert_not_called()                                                 # baseline taken now, no backfill
+
+    def test_season_change_and_re_adding_start_fresh(self):
+        self.poll([61, 62, 63])
+        shows.request_reset("Kaiju Squad")
         state, fetch = self.poll([61, 62, 63, 64, 65])
         fetch.assert_not_called()
+        self.assertEqual(state["baseline"]["Kaiju Squad|S02"], 5)
+
+    def test_busy_user_is_not_a_failed_attempt(self):
+        self.poll([61, 62, 63])
+        with mock.patch.object(shows, "aired", return_value=self.aired([61, 62, 63, 64])), \
+                mock.patch.object(shows, "fetch", side_effect=shows.Busy()):
+            state = shows.stremio_poll()
+        self.assertNotIn("Kaiju Squad|S02E04", state["fails"])
 
     def test_start_episode_backfills_from_there(self):
         self.follow(show(**{"from": 2}, stremio={"id": "tt9", "type": "series", "season": 5, "offset": -60, "on": True}))
@@ -266,6 +314,7 @@ class StremioWeekly(ShowsSandbox):
         library = {"id": "Weekly Anime:x", "name": "Weekly Anime", "path": self.lib}
         with mock.patch.object(s, "libraries", return_value=[library]), \
                 mock.patch.object(b, "choose", side_effect=[None, ("key", "1", "none")]) as choose, \
+                mock.patch.object(s, "_job_lock", __import__("threading").Lock()), \
                 mock.patch.object(s, "start_download", return_value={"status": "waiting", "stage": "Arabic"}) as start:
             job = shows.fetch(sh, "S02E04", 4, {"id": "tt9:5:64"}, {"id": "tt9", "runtime": "24 min"})
         self.assertEqual(job["status"], "waiting")

@@ -217,7 +217,8 @@ def source_identity(key):
     return s.hashlib.sha256(json.dumps([stream.get("url"), stream.get("infoHash"), stream.get("fileIdx")], sort_keys=True).encode()).hexdigest()
 
 
-def choose(data, video, rejected=()):
+def choose(data, video, rejected=(), cancel=None):
+    cancel = cancel or _cancel          # weekly fetches pass their own flag
     prefs = data["preferences"]
     result = s.streams(s.remember(video))
     if result["failed_addons"]:
@@ -226,7 +227,7 @@ def choose(data, video, rejected=()):
     candidates.sort(key=lambda r: (prefs["audio"] not in r.get("audio_languages", []),
                                    r.get("provider") != prefs["provider"], "❌" in r.get("description", "")))
     for candidate in candidates:
-        if _cancel.is_set():
+        if cancel.is_set():
             return None
         langs = candidate.get("audio_languages", [])
         if (prefs["audio"] != "none" and langs and prefs["audio"] not in langs
