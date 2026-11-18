@@ -358,7 +358,7 @@ exact: {
   // News
   "The latest from anime, film and television, refreshed every few minutes while this page is open.": "آخر أخبار الأنمي والسينما والتلفزيون، تُحدَّث كل بضع دقائق ما دامت الصفحة مفتوحة.",
   "Everything": "الكل", "Movies & TV": "أفلام وتلفزيون", "Section": "القسم", "Loading the latest stories…": "جارٍ تحميل آخر الأخبار…", "More stories": "المزيد من الأخبار",
-  "No stories right now": "لا أخبار الآن", "The news sites did not answer. Kizuna keeps trying.": "مواقع الأخبار لم تستجب. سيواصل Kizuna المحاولة.", "English": "بالإنجليزية", "Machine-translated": "مترجم آليًا", "Previous story": "الخبر السابق", "Next story": "الخبر التالي", "Top stories": "أبرز الأخبار",
+  "No stories right now": "لا أخبار الآن", "The news sites did not answer. Kizuna keeps trying.": "مواقع الأخبار لم تستجب. سيواصل Kizuna المحاولة.", "English": "بالإنجليزية", "Machine-translated": "مترجم آليًا", "Previous story": "الخبر السابق", "Previous show": "العرض السابق", "Next show": "العرض التالي", "Next story": "الخبر التالي", "Top stories": "أبرز الأخبار",
   // Settings
   "Anime and movies & series keep their own languages and quality, so anime can stay Japanese-first while everything else is English-first. The Arabic subtitles' look is yours to set. Saved on this PC only; changes apply right away.":
     "للأنمي إعداداته الخاصة من اللغات والجودة، وللأفلام والمسلسلات إعداداتها، فيبقى الأنمي يابانيًا أولًا وغيره إنجليزيًا أولًا. وشكل الترجمة العربية تختاره بنفسك. تُحفظ على هذا الجهاز فقط وتُطبَّق فورًا.",
@@ -417,6 +417,7 @@ rules: [
   [/^Season (\d+)$/, "الموسم $1"],
   [/^Story (\d+)$/, "الخبر $1"],
   [/^(\d+) × (\d+) pixels · (.+?) · (.+) release · verified embedded tracks$/, (m) => `${m[1]} × ${m[2]} بكسل · ${m[3] === "HDR metadata unspecified" ? "بيانات HDR غير محددة" : m[3].replace(/ verified$/, " متحقق منه")} · إصدار ${m[4]} · مسارات مدمجة متحقق منها`], [/^Episode (\d+)$/, "الحلقة $1"], [/^Ep (\d+) of (\d+)$/, "الحلقة $1 من $2"], [/^Ep (\d+)$/, "الحلقة $1"],
+  [/^Show (\d+)$/, "العرض $1"], [/^Episode (\d+)$/, "الحلقة $1"], [/^Ep (\d+) of (\d+)$/, "الحلقة $1 من $2"], [/^Ep (\d+)$/, "الحلقة $1"],
   [/^Episode (\d+) of (\d+)$/, "الحلقة $1 من $2"], [/^Episode (\d+) out$/, "صدرت الحلقة $1"], [/^Episode (\d+) airs (.+)$/, (m, t) => `تُعرض الحلقة ${m[1]} ${t(m[2])}`],
   [/^(\d+) in library$/, "$1 في المكتبة"], [/^latest (S\d+E\d+)$/i, "الأحدث $1"], [/^Latest (S\d+E\d+)$/, "الأحدث $1"],
   [/^following after (S\d+E\d+|episode \d+)\.?$/i, (m) => "المتابعة بعد " + m[1].replace(/episode/i, "الحلقة")],
