@@ -36,6 +36,7 @@ DEFAULTS = {
     "notify_ready": True,                      # Windows notification when an episode or movie is ready
     "clock": "auto",                           # air times: "auto" (Windows setting), "12h" or "24h"
     "language": "en",                          # interface language: "en" or "ar" (right-to-left)
+    "theme": "dark",                           # appearance: "dark", "light" or "system" (follows Windows)
     "subtitle_language": sublang.DEFAULT,     # the subtitle track Kizuna adds to every episode and movie
     # folders (read when Kizuna starts): new episodes land in the inbox; finished weekly episodes are copied to the
     # Weekly library; the Anime library holds finished shows (both cleaned up after watching)
@@ -105,6 +106,11 @@ def _clean(raw, strict=False, base=None):
         except (TypeError, ValueError):
             bad(f"{label} must be between {low} and {high}.")
     out["notify_ready"] = str(raw.get("notify_ready", out["notify_ready"])).lower() in ("1", "true", "yes", "on")
+    theme = str(raw.get("theme", out["theme"]))
+    if theme in ("dark", "light", "system"):
+        out["theme"] = theme
+    else:
+        bad("Unknown appearance.")
     language = str(raw.get("language", out["language"]))
     if language in ("en", "ar"):
         out["language"] = language

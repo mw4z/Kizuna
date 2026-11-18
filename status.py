@@ -506,8 +506,10 @@ def make_handler(pending=None):
             if route in PAGES:
                 page = open(os.path.join(HERE, PAGES[route]), encoding="utf-8").read()
                 import settings
-                if settings.get("language") == "ar":       # right-to-left from the first paint
-                    page = page.replace('<html lang="en">', '<html lang="ar" dir="rtl">', 1)
+                arabic = settings.get("language") == "ar"   # right-to-left from the first paint
+                theme = settings.get("theme")             # appearance from the first paint (no flash)
+                page = page.replace('<html lang="en">', f'<html lang="{"ar" if arabic else "en"}"'
+                                    f'{" dir=\"rtl\"" if arabic else ""} data-theme="{theme}">', 1)
                 body, ctype = page.replace("__STREMIO_TOKEN__", stremio.TOKEN).encode("utf-8"), "text/html; charset=utf-8"
             elif route in ASSETS:
                 body, ctype = open(os.path.join(HERE, *ASSETS[route][0].split("/")), "rb").read(), ASSETS[route][1]

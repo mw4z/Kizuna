@@ -57,7 +57,8 @@ everything else is English-first. Choose the subtitle language Kizuna adds and h
 <div id="loading" class="k-note" style="margin-top:24px">Loading your settings…</div>
 <div id="body" hidden>
  <section class="group" aria-labelledby="gLang"><div><h2 id="gLang">Interface language</h2><p>The whole app, including news sources and the agent's messages.</p></div>
-  <div class="fields"><label class="k-field">Language<select id="language"><option value="en">English</option><option value="ar">العربية</option></select></label></div></section>
+  <div class="fields"><div class="row2"><label class="k-field">Language<select id="language"><option value="en">English</option><option value="ar">العربية</option></select></label>
+   <label class="k-field">Appearance<select id="theme"><option value="system">Like Windows</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div></div></section>
 
  <section class="group" aria-labelledby="gSubs"><div><h2 id="gSubs">Subtitles</h2>
   <p>Kizuna adds one subtitle track in this language to every episode and movie, styled the way you set here. The preview is drawn by the same subtitle renderer as the episodes. Applies to subtitles added after you save; episodes already done keep their look.</p>
@@ -157,7 +158,7 @@ function fill(s){
  for(const id of ['check_minutes','keep_hours']){const sel=$(id);if(![...sel.options].some(o=>o.value===String(s[id])))opt(sel,s[id],id==='keep_hours'?`${s[id]} hours after watching`:`Every ${s[id]} minutes`);sel.value=String(s[id])}
  $('clock').value=s.clock;preview();
  for(const id of ['library_movie','library_series','library_anime']){const sel=$(id);sel.replaceChildren();[...new Set([...meta.libraries,s[id]])].forEach(n=>opt(sel,n,n));sel.value=s[id]}
- $('notify_ready').checked=s.notify_ready;$('language').value=s.language;
+ $('notify_ready').checked=s.notify_ready;$('language').value=s.language;$('theme').value=s.theme;
  for(const id of ['folder_inbox','folder_weekly','folder_anime'])$(id).value=s[id];
  const lsel=$('subtitle_language');lsel.replaceChildren();
  Object.entries(meta.subtitle_languages).forEach(([c,[en,native]])=>opt(lsel,c,native===en?en:`${native} · ${en}`));
@@ -200,7 +201,7 @@ function preview(){const c=$('clock').value,t=new Date();t.setHours(18,30,0,0);
 $('clock').onchange=preview;
 function collect(){const out={check_minutes:$('check_minutes').value,clock:$('clock').value,keep_hours:$('keep_hours').value,
   library_movie:$('library_movie').value,library_series:$('library_series').value,library_anime:$('library_anime').value,notify_ready:String($('notify_ready').checked),
-  language:$('language').value,subtitle_language:subLang,folder_inbox:$('folder_inbox').value,folder_weekly:$('folder_weekly').value,
+  language:$('language').value,theme:$('theme').value,subtitle_language:subLang,folder_inbox:$('folder_inbox').value,folder_weekly:$('folder_weekly').value,
   folder_anime:$('folder_anime').value};
  styles[subLang]=subStyle();
  for(const c of Object.keys(styles))out['sub_style_'+c]=JSON.stringify(styles[c]);
@@ -213,7 +214,7 @@ $('form').addEventListener('input',()=>say('Unsaved changes'));
 $('form').addEventListener('submit',async e=>{e.preventDefault();$('save').disabled=true;say('Saving…');
  const before=meta&&meta.settings.language;
  try{meta=await K.api('settings',collect());fill(meta.settings);say('Saved. Changes apply right away.','ok');
-  if(meta.settings.language!==before)location.reload()}catch(err){say(err.message,'bad')}finally{$('save').disabled=false}});   // new language: redraw everything
+  if(meta.settings.language!==before||meta.settings.theme!==document.documentElement.dataset.theme)location.reload()}catch(err){say(err.message,'bad')}finally{$('save').disabled=false}});   // new language: redraw everything
 $('reset').onclick=()=>{if(!meta)return;fill(meta.defaults);say('Defaults restored here. Save to keep them.')};
 K.api('settings').then(d=>{meta=d;fill(d.settings);$('loading').hidden=true;$('body').hidden=false}).catch(e=>{$('loading').textContent=e.message;$('loading').className='k-note bad'});
 </script></body></html>

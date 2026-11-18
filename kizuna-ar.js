@@ -60,6 +60,12 @@ exact: {
   "Preparing Arabic subtitles and checking timing": "تجهيز الترجمة العربية ومطابقة التوقيت",
   "Arabic preparation or delivery failed; original retained. Automatic retry scheduled.": "فشل تجهيز الترجمة أو تسليمها؛ الأصل محفوظ. ستُعاد المحاولة تلقائيًا.",
   "Arabic dub already present; original unchanged": "الدبلجة العربية موجودة؛ الملف الأصلي لم يتغير", "Arabic dub preserved": "الدبلجة العربية محفوظة",
+  // appearance
+  "Appearance": "المظهر",
+  "Like Windows": "مثل Windows",
+  "Light": "فاتح",
+  "Dark": "داكن",
+  "Unknown appearance.": "مظهر غير معروف.",
   // Discover panel (2026-11-18)
   "Download the whole show": "تنزيل العرض كاملًا",
   "Kept until you delete it (no automatic cleanup in this library).": "تبقى حتى تحذفها (لا تنظيف تلقائي في هذه المكتبة).",
