@@ -79,7 +79,7 @@ const ago=at=>at?K.ago(Date.now()/1000-at):'';
 const pic=(n,cls)=>n.image?`<img src="${esc(n.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
   :`<div class="tile ${n.kind}"><span class="src">${esc(n.source)}</span><span class="seal" aria-hidden="true">絆</span></div>`;
 const link=n=>`href="${esc(n.link)}" target="_blank" rel="noopener noreferrer"`;
-const other=n=>K.lang==='ar'&&n.lang!=='ar'?` · <span class="k-tag lang">${K.t('English')}</span>`:'';
+const other=n=>K.lang==='ar'&&n.lang!=='ar'?` · <span class="k-tag lang">${K.t(n.translated?'Machine-translated':'English')}</span>`:'';
 function render(items){
   shown=items;const lead=items.find(n=>n.image)||items[0];
   if(!lead){$('top').innerHTML='<div class="k-empty" style="grid-column:1/-1"><strong>No stories right now</strong>The news sites did not answer. Kizuna keeps trying.</div>';$('grid').innerHTML='';return}

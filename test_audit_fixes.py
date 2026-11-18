@@ -74,7 +74,7 @@ class RecoveryAndCleanup(Sandbox):
             self.assertTrue(Path(agent.library_target(os.path.basename(video))).exists())
             self.assertFalse(ns["needs_work"](video))
             agent.main()
-        self.assertEqual(self.toasts.count("Anime FYA: ready"), 1)
+        self.assertEqual(self.toasts.count("Kizuna: ready"), 1)
         self.assertFalse(agent.load_state()["delivery"])
 
     def test_mismatched_recovery_never_copies(self):

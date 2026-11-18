@@ -86,7 +86,7 @@ class List(ShowsSandbox):
                 mock.patch.object(agent, "TARGET", v), mock.patch.object(agent, "NOW", True):
             agent.main()
         process.assert_not_called()
-        self.assertEqual(self.toasts, ["Anime FYA: manual"])
+        self.assertEqual(self.toasts, ["Kizuna: manual"])
 
 
 class AddEditRemove(ShowsSandbox):

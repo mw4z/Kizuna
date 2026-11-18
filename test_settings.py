@@ -108,11 +108,11 @@ class Prefs(Sandbox):
         try:
             settings.update({"notify_ready": "false"})
             with mock.patch.object(agent.subprocess, "run") as run:
-                agent.notify("Anime FYA: ready", "Episode 1")
+                agent.notify("Kizuna: ready", "Episode 1")
             run.assert_not_called()
             settings.update({"notify_ready": "true"})
             with mock.patch.object(agent.subprocess, "run") as run:
-                agent.notify("Anime FYA: ready", "Episode 1")
+                agent.notify("Kizuna: ready", "Episode 1")
             run.assert_called_once()
         finally:
             self.notify.start()

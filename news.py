@@ -35,7 +35,9 @@ KEEP = 160
 PER_SOURCE = 25
 MEDIA = "{http://search.yahoo.com/mrss/}"
 _lock = threading.Lock()
-_state = {"items": [], "updated": 0, "failed": [], "refreshing": False}
+_state = {"items": [], "updated": 0, "failed": [], "refreshing": False, "want": "en"}
+_tr = {}                 # (target language, english text) -> translation; only stories still listed are kept
+TRANSLATE = "https://translate.googleapis.com/translate_a/single?"
 
 
 def _text(value, limit):
@@ -116,7 +118,47 @@ def fetch(source, kind, url, language="en"):
     return parse(data, source, kind, language)
 
 
-def refresh():
+def translate(text, target):
+    """Machine translation of one public headline/summary (no personal data is sent). Raises on failure."""
+    url = TRANSLATE + urllib.parse.urlencode({"client": "gtx", "sl": "auto", "tl": target, "dt": "t", "q": text})
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=10) as r:
+        data = __import__("json").loads(r.read(1024 * 1024))
+    return "".join(part[0] for part in data[0] if part and part[0])
+
+
+def _clean_translation(text, target):
+    """Translation that adds no Latin words of its own (the free translator sometimes injects spam such as
+    'mp3 youtube com' for quoted titles); one retry with the quotes changed, else None (stays in English)."""
+    words = lambda s: set(re.findall(r"[a-z0-9]+", s.lower()))     # noqa: E731
+    for attempt in (text, text.replace("'", '"')):
+        out = translate(attempt, target)
+        if out and words(out) <= words(text):
+            return out
+    return None
+
+
+def _translate_all(items, target):
+    """Fill _tr for every story not already in the target language; failures just stay untranslated."""
+    texts = {t for i in items if i.get("lang") != target for t in (i["title"], i["summary"]) if t}
+    todo = [t for t in texts if (target, t) not in _tr]
+    pool = ThreadPoolExecutor(max_workers=6)
+    try:
+        futures = {pool.submit(_clean_translation, t, target): t for t in todo}
+        deadline = time.monotonic() + 60
+        for future, text in futures.items():
+            try:
+                out = future.result(timeout=max(1, deadline - time.monotonic()))
+                if out:
+                    _tr[(target, text)] = out
+            except Exception:
+                pass
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+    for key in [k for k in _tr if k[1] not in texts]:      # forget stories that dropped off the list
+        del _tr[key]
+
+
+def refresh(translate_now=True):
     items, failed = [], []
     pool = ThreadPoolExecutor(max_workers=len(FEEDS))
     try:
@@ -136,27 +178,40 @@ def refresh():
         seen.add(key)
         per_source[item["source"]] = per_source.get(item["source"], 0) + 1
         unique.append(item)
+    if _state["want"] != "en" and translate_now:
+        _translate_all(unique[:KEEP], _state["want"])
     with _lock:
         if unique or not _state["items"]:      # all feeds down: keep showing the last good list
             _state["items"] = unique[:KEEP]
         _state.update(updated=time.time(), failed=failed, refreshing=False)
 
 
+def _in(item, language):
+    """The story with its machine-translated title/summary when we have them (marked translated)."""
+    title = _tr.get((language, item["title"]))
+    if not title:
+        return item
+    return dict(item, title=title, summary=_tr.get((language, item["summary"]), item["summary"]), translated=True)
+
+
 def latest(kind="all", language="en"):
     """Cached stories (newest first; with language="ar", Arabic stories first, then the rest marked by their own
     language). The first call fetches; later calls start a background refresh when stale."""
     with _lock:
+        _state["want"] = language
         empty, stale = not _state["items"], time.time() - _state["updated"] > REFRESH
         start = stale and not _state["refreshing"]
         if start:
             _state["refreshing"] = True          # one refresh at a time, also while the list is still empty
     if start and empty and not _state["updated"]:
-        refresh()                                # the very first call waits once (a few seconds)
+        refresh(translate_now=False)             # the very first call waits once (a few seconds) for the feeds;
+        if language != "en":                     # translations then fill in from the background
+            threading.Thread(target=_translate_all, args=(list(_state["items"]), language), daemon=True).start()
     elif start:
         threading.Thread(target=refresh, daemon=True).start()
     with _lock:
         items = [i for i in _state["items"] if kind == "all" or i["kind"] == kind]
         if language != "en":
-            items = [i for i in items if i.get("lang") == language] + [i for i in items if i.get("lang") != language]
+            items = [i for i in items if i.get("lang") == language] + [_in(i, language) for i in items if i.get("lang") != language]
         return {"items": items, "updated": _state["updated"], "failed": list(_state["failed"]),
                 "sources": [{"name": n, "kind": k, "lang": lg} for n, k, _, lg in FEEDS]}

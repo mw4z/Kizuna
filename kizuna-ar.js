@@ -227,7 +227,7 @@ exact: {
   // News
   "The latest from anime, film and television, refreshed every few minutes while this page is open.": "آخر أخبار الأنمي والسينما والتلفزيون، تُحدَّث كل بضع دقائق ما دامت الصفحة مفتوحة.",
   "Everything": "الكل", "Movies & TV": "أفلام وتلفزيون", "Section": "القسم", "Loading the latest stories…": "جارٍ تحميل آخر الأخبار…", "More stories": "المزيد من الأخبار",
-  "No stories right now": "لا أخبار الآن", "The news sites did not answer. Kizuna keeps trying.": "مواقع الأخبار لم تستجب. سيواصل Kizuna المحاولة.", "English": "بالإنجليزية",
+  "No stories right now": "لا أخبار الآن", "The news sites did not answer. Kizuna keeps trying.": "مواقع الأخبار لم تستجب. سيواصل Kizuna المحاولة.", "English": "بالإنجليزية", "Machine-translated": "مترجم آليًا",
   // Settings
   "Anime and movies & series keep their own languages and quality, so anime can stay Japanese-first while everything else is English-first. Saved on this PC only; changes apply right away.":
     "للأنمي إعداداته الخاصة من اللغات والجودة، وللأفلام والمسلسلات إعداداتها، فيبقى الأنمي يابانيًا أولًا وغيره إنجليزيًا أولًا. تُحفظ على هذا الجهاز فقط وتُطبَّق فورًا.",

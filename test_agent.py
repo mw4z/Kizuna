@@ -17,9 +17,9 @@ def audio(**properties):
 class Tests(unittest.TestCase):
     def test_notifications_distinguish_movies_and_episodes(self):
         with patch.object(agent, "log"), patch.object(agent.subprocess, "run") as toast:
-            agent.notify("Anime FYA: movie ready", "Finding Nemo")
+            agent.notify("Kizuna: movie ready", "Finding Nemo")
             self.assertEqual(toast.call_args.kwargs["env"]["T1"], "New movie ready")
-            agent.notify("Anime FYA: ready", "Episode 1")
+            agent.notify("Kizuna: ready", "Episode 1")
             self.assertEqual(toast.call_args.kwargs["env"]["T1"], "New episode ready")
 
     def test_dub_detection_uses_audio_not_subtitles(self):
