@@ -50,19 +50,20 @@
 </style></head><body>
 <header class="k-top"></header>
 <main class="k-page">
-<h1 class="k-title">Settings</h1>
+<div class="row-head" style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap"><h1 class="k-title">Settings</h1><a class="k-btn k-btn-ghost" href="/setup">Run setup again</a></div>
 <p class="k-lede">Anime and movies &amp; series keep their own languages and quality, so anime can stay Japanese-first while
-everything else is English-first. The Arabic subtitles' look is yours to set. Saved on this PC only; changes apply right away.</p>
+everything else is English-first. Choose the subtitle language Kizuna adds and how it looks. Saved on this PC only; changes apply right away.</p>
 <form id="form" novalidate>
 <div id="loading" class="k-note" style="margin-top:24px">Loading your settings…</div>
 <div id="body" hidden>
  <section class="group" aria-labelledby="gLang"><div><h2 id="gLang">Interface language</h2><p>The whole app, including news sources and the agent's messages.</p></div>
   <div class="fields"><label class="k-field">Language<select id="language"><option value="en">English</option><option value="ar">العربية</option></select></label></div></section>
 
- <section class="group" aria-labelledby="gSubs"><div><h2 id="gSubs">Arabic subtitles</h2>
-  <p>How the Arabic subtitles Kizuna adds look in every player. The preview is drawn by the same subtitle renderer as the episodes. Applies to subtitles added after you save; episodes already done keep their look.</p>
-  <p>Other languages are the release's own subtitle tracks; your player decides how they look.</p></div>
+ <section class="group" aria-labelledby="gSubs"><div><h2 id="gSubs">Subtitles</h2>
+  <p>Kizuna adds one subtitle track in this language to every episode and movie, styled the way you set here. The preview is drawn by the same subtitle renderer as the episodes. Applies to subtitles added after you save; episodes already done keep their look.</p>
+  <p>The release's other subtitle tracks are kept as they are; your player decides how they look.</p></div>
   <div class="fields">
+   <label class="k-field">Subtitle language<select id="subtitle_language"></select></label>
    <div class="subview" id="subview"><img id="subImg" alt="Subtitle preview">
     <div class="scene" role="group" aria-label="Preview scene"><button type="button" data-scene="dark" aria-pressed="true">Dark scene</button><button type="button" data-scene="bright" aria-pressed="false">Bright scene</button></div></div>
    <div class="k-note" id="subErr" role="status"></div>
@@ -90,8 +91,16 @@ everything else is English-first. The Arabic subtitles' look is yours to set. Sa
      <label class="range"><span>Distance<output id="ss_shadow_v"></output></span><input type="range" id="ss_shadow" min="0" max="8" step="0.2"></label></div></div>
   </div></section>
 
+ <section class="group" aria-labelledby="gFolders"><div><h2 id="gFolders">Folders</h2>
+  <p>Full paths on this PC. New episodes land in the inbox; finished weekly episodes are copied to the Weekly library; finished shows live in the Anime library. Point your Jellyfin libraries at the last two. A change applies after Kizuna restarts.</p></div>
+  <div class="fields">
+   <label class="k-field">Inbox (new episodes arrive here)<input id="folder_inbox" spellcheck="false" dir="ltr"></label>
+   <label class="k-field">Weekly library (Jellyfin)<input id="folder_weekly" spellcheck="false" dir="ltr"></label>
+   <label class="k-field">Anime library (Jellyfin)<input id="folder_anime" spellcheck="false" dir="ltr"></label>
+  </div></section>
+
  <section class="group" aria-labelledby="gAnime" data-kind="anime"><div><h2 id="gAnime"><span class="mark" aria-hidden="true"></span>Anime</h2>
-  <p>Weekly episodes fetched from your Stremio add-ons, and Discover when you open an anime. Arabic subtitles are always added.</p></div>
+  <p>Weekly episodes fetched from your Stremio add-ons, and Discover when you open an anime. Subtitles in your language are always added.</p></div>
   <div class="fields"></div></section>
 
  <section class="group" aria-labelledby="gScreen" data-kind="screen"><div><h2 id="gScreen"><span class="mark screen" aria-hidden="true"></span>Movies &amp; series</h2>
@@ -141,7 +150,7 @@ function fill(s){
  const langs=Object.entries(meta.languages);
  for(const kind of ['anime','screen']){
   [1,2,3].forEach(i=>{const sel=$(`${kind}_a${i}`);sel.replaceChildren();if(i>1)opt(sel,'','None');langs.forEach(([c,n])=>opt(sel,c,n));sel.value=s[kind+'_audio'][i-1]||''});
-  const sub=$(kind+'_subtitle');sub.replaceChildren();opt(sub,'none','None, Arabic only');langs.forEach(([c,n])=>opt(sub,c,n));sub.value=s[kind+'_subtitle'];
+  const sub=$(kind+'_subtitle');sub.replaceChildren();opt(sub,'none','None, only the one Kizuna adds');langs.forEach(([c,n])=>opt(sub,c,n));sub.value=s[kind+'_subtitle'];
   const af=$(kind+'_audio_filter');af.replaceChildren();opt(af,'','All languages');langs.forEach(([c,n])=>opt(af,c,n));opt(af,'und','Unspecified');af.value=s[kind+'_audio_filter'];
   $(kind+'_resolutions').innerHTML=meta.resolutions.map(r=>`<label class="chip"><input type="checkbox" value="${r}" ${s[kind+'_resolutions'].includes(r)?'checked':''}><span>${r}</span></label>`).join('');
  }
@@ -149,14 +158,26 @@ function fill(s){
  $('clock').value=s.clock;preview();
  for(const id of ['library_movie','library_series','library_anime']){const sel=$(id);sel.replaceChildren();[...new Set([...meta.libraries,s[id]])].forEach(n=>opt(sel,n,n));sel.value=s[id]}
  $('notify_ready').checked=s.notify_ready;$('language').value=s.language;
+ for(const id of ['folder_inbox','folder_weekly','folder_anime'])$(id).value=s[id];
+ const lsel=$('subtitle_language');lsel.replaceChildren();
+ Object.entries(meta.subtitle_languages).forEach(([c,[en,native]])=>opt(lsel,c,native===en?en:`${native} · ${en}`));
+ lsel.value=s.subtitle_language;
+ styles={};Object.keys(meta.subtitle_languages).forEach(c=>{styles[c]={...s['sub_style_'+c]}});
+ subLang=s.subtitle_language;showStyle();
+}
+// ---- subtitle style: one per language; every change redraws the preview with libass (latest request wins)
+let styles={},subLang='en';
+function showStyle(){
+ const st=styles[subLang],sample=meta.subtitle_languages[subLang][1];
  const fsel=$('ss_font');fsel.replaceChildren();
- Object.entries(meta.fonts).forEach(([f,files])=>{opt(fsel,f,f+' · عربي');fsel.lastChild.style.fontFamily=`"${f}"`;
+ Object.entries(meta.fonts).forEach(([f,files])=>{opt(fsel,f,`${f} · ${sample}`);fsel.lastChild.style.fontFamily=`"${f}"`;
   if(!loadedFonts.has(f)){loadedFonts.add(f);files.forEach(file=>{const face=new FontFace(f,`url(/fonts/${encodeURI(file)})`,{weight:/Bold/.test(file)?'700':'400'});
    document.fonts.add(face);face.load().catch(()=>{})})}});
- fsel.style.fontFamily=`"${s.sub_style_ar.font}"`;
- for(const k of SS){const el=$('ss_'+k);if(el.type==='checkbox')el.checked=s.sub_style_ar[k];else el.value=String(s.sub_style_ar[k])}
+ fsel.style.fontFamily=`"${st.font}"`;
+ for(const k of SS){const el=$('ss_'+k);if(el.type==='checkbox')el.checked=st[k];else el.value=String(st[k])}
  syncStyle();
 }
+$('subtitle_language').addEventListener('change',()=>{styles[subLang]=subStyle();subLang=$('subtitle_language').value;showStyle()});
 // ---- subtitle style: every change redraws the preview with libass (latest request wins)
 const SS=['font','size','bold','color','outline','outline_color','shadow','shadow_color','shadow_opacity','box','box_color','box_opacity','box_padding','position','margin'];
 const loadedFonts=new Set();   // the dropdown shows each font in its own face (fonts.check() says yes for unknown ones)
@@ -167,7 +188,7 @@ function syncStyle(){
  $('boxRow').hidden=!$('ss_box').checked;$('outlineRow').hidden=$('ss_box').checked;
  clearTimeout(pvTimer);pvTimer=setTimeout(drawPreview,120)}
 async function drawPreview(){const n=++pv;$('subview').classList.add('busy');
- try{const d=await K.api('subtitle-preview',{style:JSON.stringify(subStyle()),scene});if(n===pv){$('subImg').src=d.image;$('subErr').textContent=''}}
+ try{const d=await K.api('subtitle-preview',{style:JSON.stringify(subStyle()),scene,lang:subLang});if(n===pv){$('subImg').src=d.image;$('subErr').textContent=''}}
  catch(e){if(n===pv){$('subErr').textContent=e.message;$('subErr').className='k-note bad'}}
  finally{if(n===pv)$('subview').classList.remove('busy')}}
 SS.forEach(k=>$('ss_'+k).addEventListener('input',syncStyle));
@@ -179,7 +200,10 @@ function preview(){const c=$('clock').value,t=new Date();t.setHours(18,30,0,0);
 $('clock').onchange=preview;
 function collect(){const out={check_minutes:$('check_minutes').value,clock:$('clock').value,keep_hours:$('keep_hours').value,
   library_movie:$('library_movie').value,library_series:$('library_series').value,library_anime:$('library_anime').value,notify_ready:String($('notify_ready').checked),
-  language:$('language').value,sub_style_ar:JSON.stringify(subStyle())};
+  language:$('language').value,subtitle_language:subLang,folder_inbox:$('folder_inbox').value,folder_weekly:$('folder_weekly').value,
+  folder_anime:$('folder_anime').value};
+ styles[subLang]=subStyle();
+ for(const c of Object.keys(styles))out['sub_style_'+c]=JSON.stringify(styles[c]);
  for(const kind of ['anime','screen']){out[kind+'_audio']=[1,2,3].map(i=>$(`${kind}_a${i}`).value).filter(Boolean).join(',');
   out[kind+'_resolutions']=[...document.querySelectorAll(`#${kind}_resolutions input:checked`)].map(i=>i.value).join(',');
   out[kind+'_subtitle']=$(kind+'_subtitle').value;out[kind+'_audio_filter']=$(kind+'_audio_filter').value}

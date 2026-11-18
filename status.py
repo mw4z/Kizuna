@@ -332,7 +332,7 @@ def collect(pending=None, light=False):
 
 
 PAGES = {"/": "dashboard.html", "/index.html": "dashboard.html", "/stremio": "stremio.html", "/weekly": "weekly.html",
-         "/settings": "settings.html", "/news": "news.html"}
+         "/settings": "settings.html", "/news": "news.html", "/setup": "setup.html"}
 ASSETS = {"/kizuna.css": ("kizuna.css", "text/css; charset=utf-8"), "/kizuna.js": ("kizuna.js", "text/javascript; charset=utf-8"),
           "/kizuna-ar.js": ("kizuna-ar.js", "text/javascript; charset=utf-8"),
           **{f"/fonts/{f}": (f"fonts/{f}", "font/ttf")                       # the subtitle fonts (Settings previews)
@@ -445,13 +445,29 @@ def make_handler(pending=None):
                 elif post and action == "subtitle-preview":
                     import settings
                     data = settings.preview(params)
+                elif not post and action == "setup-check":
+                    import setup
+                    data = setup.check()
+                elif post and action == "setup-install":
+                    import setup
+                    data = setup.install(params.get("app", ""))
+                elif post and action == "setup-folders":
+                    import setup
+                    data = setup.make_folders()
+                elif post and action == "stremio-login":
+                    import setup
+                    data = setup.stremio_login(params.get("email"), params.get("password"))
+                elif post and action == "setup-finish":
+                    import setup
+                    data = setup.finish()
                 else:
                     self.send_error(404)
                     return
                 code = 200
             except Exception as e:
                 import settings
-                data = {"error": str(e) if isinstance(e, (stremio.UserError, shows.ShowError, settings.SettingsError))
+                import setup
+                data = {"error": str(e) if isinstance(e, (stremio.UserError, shows.ShowError, settings.SettingsError, setup.SetupError))
                         else "The request could not be completed. Try another source or sync your Stremio add-ons."}
                 code = 400
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
