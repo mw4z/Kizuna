@@ -1,25 +1,19 @@
-"""Draw the Kizuna app icon -> app.ico (shortcut) + app.png (window/taskbar icon served by status.py)."""
+"""Build the Kizuna app icons from icon-source.png (the ribbon K artwork):
+app.png (window/taskbar icon and top-bar logo, served by status.py) and app.ico (desktop shortcut).
+The rounded square is found by brightness, cropped, and everything outside its rounded corners made transparent."""
 import os
 
 from PIL import Image, ImageDraw
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-S = 512
-img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-grad = Image.new("RGBA", (S, S))
-px = grad.load()
-for y in range(S):
-    for x in range(S):
-        t = (x + y) / (2 * S)
-        px[x, y] = (int(36 + (91 - 36) * t), int(180 + (110 - 180) * t), int(160 + (255 - 160) * t), 255)
-mask = Image.new("L", (S, S), 0)
-ImageDraw.Draw(mask).rounded_rectangle((16, 16, S - 16, S - 16), 112, fill=255)
-img.paste(grad, (0, 0), mask)
-d = ImageDraw.Draw(img)
-d.polygon([(196, 130), (196, 310), (346, 220)], fill=(255, 255, 255, 255))          # play
-for i, (w, a) in enumerate(((300, 255), (210, 200))):                                # subtitle lines
-    y = 362 + i * 52
-    d.rounded_rectangle(((S - w) / 2, y, (S + w) / 2, y + 26), 13, fill=(255, 255, 255, a))
-img.save(os.path.join(HERE, "app.png"))
-img.save(os.path.join(HERE, "app.ico"), sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
-print("ok")
+src = Image.open(os.path.join(HERE, "icon-source.png")).convert("RGB")
+box = src.convert("L").point(lambda v: 255 if v > 22 else 0).getbbox()   # the tile is lighter than the black backdrop
+assert box, "no icon tile found"
+side = max(box[2] - box[0], box[3] - box[1])
+tile = src.crop(box).resize((side, side), Image.LANCZOS).resize((1024, 1024), Image.LANCZOS).convert("RGBA")
+mask = Image.new("L", (4096, 4096), 0)
+ImageDraw.Draw(mask).rounded_rectangle((0, 0, 4095, 4095), radius=int(4096 * 0.215), fill=255)
+tile.putalpha(mask.resize((1024, 1024), Image.LANCZOS))
+tile.resize((512, 512), Image.LANCZOS).save(os.path.join(HERE, "app.png"), optimize=True)
+tile.save(os.path.join(HERE, "app.ico"), sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+print("ok", box)
