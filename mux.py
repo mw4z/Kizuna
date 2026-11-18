@@ -1,8 +1,10 @@
-"""Add the styled Arabic track as the default subtitle, in place (via .tmp + verify)."""
+"""Add the styled subtitle track (in the subtitle language) as the default subtitle, in place (via .tmp + verify)."""
 import json
 import os
 import subprocess
 import sys
+
+import language
 
 MKV = r"C:\Program Files\MKVToolNix"
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -29,8 +31,8 @@ def mux(video, ass, progress=None, check=None):
     """check(tmp) -> bool: extra verification of the built file; the original is only replaced when it passes."""
     src = info(video)
     tr = src["tracks"]
-    old = [t["id"] for t in tr if t["type"] == "subtitles" and t["properties"].get("track_name") == "العربية"]
-    tr = [t for t in tr if t["id"] not in old]             # replace our earlier Arabic track, if any
+    old = [t["id"] for t in tr if t["type"] == "subtitles" and language.is_own(t["properties"].get("track_name"))]
+    tr = [t for t in tr if t["id"] not in old]             # replace our earlier track, if any
     subs = [t for t in tr if t["type"] == "subtitles"]
     have = {a["file_name"] for a in src.get("attachments", [])}
     tmp = video[:-4] + ".tmp.mkv"
@@ -39,7 +41,7 @@ def mux(video, ass, progress=None, check=None):
         cmd += ["--default-track-flag", f"{t['id']}:no"]
     if old:
         cmd += ["--subtitle-tracks", ",".join(str(t["id"]) for t in subs)] if subs else ["--no-subtitles"]
-    cmd += [video, "--language", "0:ara", "--track-name", "0:العربية",
+    cmd += [video, "--language", f"0:{language.iso2()}", "--track-name", f"0:{language.own_name()}",
             "--default-track-flag", "0:yes", "--sub-charset", "0:UTF-8", ass]
     import subtitle_style
     for f in subtitle_style.font_files(ass):              # the font the style uses, so every player draws it
@@ -62,7 +64,7 @@ def mux(video, ass, progress=None, check=None):
         raise RuntimeError("".join(out)[-800:])
     new = info(tmp)
     nt = new["tracks"]
-    ara = [t for t in nt if t["type"] == "subtitles" and t["properties"].get("track_name") == "العربية"]
+    ara = [t for t in nt if t["type"] == "subtitles" and t["properties"].get("track_name") == language.own_name()]
     defs = [t for t in nt if t["type"] == "subtitles" and t["properties"].get("default_track")]
     ok = (len(nt) == len(tr) + 1 and len(ara) == 1 and defs == ara
           and abs(new["container"]["properties"]["duration"] - src["container"]["properties"]["duration"]) < 5e8)
@@ -73,7 +75,7 @@ def mux(video, ass, progress=None, check=None):
         os.replace(tmp, video)
     except PermissionError as e:
         raise Locked(tmp) from e
-    return f"ok: {len(nt)} tracks, Arabic = track {ara[0]['id']} (only default subtitle)"
+    return f"ok: {len(nt)} tracks, {language.name()} = track {ara[0]['id']} (only default subtitle)"
 
 
 if __name__ == "__main__":

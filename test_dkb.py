@@ -1,4 +1,6 @@
 """Offline checks: python test_dkb.py."""
+import os
+os.environ.setdefault("KIZUNA_SUBTITLE_LANGUAGE", "ar")   # this suite tests the Arabic pipeline
 from pathlib import Path
 import tempfile
 import types

@@ -1,5 +1,7 @@
 """Subtitle style (Settings > Arabic subtitles): validation, the ASS it writes, the fonts embedded with it (real
 mkvmerge) and the libass preview (real ffmpeg)."""
+import os
+os.environ.setdefault("KIZUNA_SUBTITLE_LANGUAGE", "ar")   # this suite tests the Arabic pipeline
 import base64
 import json
 from pathlib import Path

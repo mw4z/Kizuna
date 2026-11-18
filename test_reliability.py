@@ -1,9 +1,10 @@
 """Regression tests for the 2026-11-18 reliability audit (findings 1-20). Real Windows file locks, real
 ffmpeg/ffprobe/mkvmerge on tiny temp files, simulated crashes. Never touches real media or library folders."""
+import os
+os.environ.setdefault("KIZUNA_SUBTITLE_LANGUAGE", "ar")   # this suite tests the Arabic pipeline
 from contextlib import ExitStack
 import hashlib
 import json
-import os
 from pathlib import Path
 import re
 import shutil
@@ -332,7 +333,7 @@ class MuxSafety(Sandbox):
         def convert(srt, ass, title, off=0):
             Path(ass).write_text(ASS, encoding="utf-8-sig")
         with ExitStack() as st:
-            for name, value in (("arabic_track", lambda v: 2), ("timing", lambda v, a: (0.0, True)), ("qc", lambda a: []),
+            for name, value in (("target_track", lambda v: 2), ("timing", lambda v, a: (0.0, True)), ("qc", lambda a: []),
                                 ("extract_srt", lambda v, t, out: open(out, "w").write("1") or True)):
                 st.enter_context(mock.patch.object(agent, name, value))
             st.enter_context(mock.patch.object(agent.srt2ass, "convert", convert))
@@ -495,7 +496,7 @@ class LibraryQueue(Sandbox):
         copy.assert_not_called()
         process.assert_not_called()
         self.assertEqual(record["status"], "done")
-        self.assertIn("dub", record["stage"])
+        self.assertIn("dub", record["stage"].lower())
         self.assertEqual(video.read_bytes(), b"dub")
 
 
@@ -851,10 +852,10 @@ class RepeatedWork(Sandbox):
         (folder / "metadata.json").write_text(json.dumps({"type": "series", "season": 1, "episode": 2, "meta": {"name": "Show"}}))
         (folder / "raw.media").write_bytes(b"raw")
         import hardsub
-        with mock.patch.object(agent, "tracks", return_value=[]), mock.patch.object(agent, "arabic_track", return_value=None), \
-                mock.patch.object(hardsub, "burned_in_arabic", return_value=(False, 0, 20)), \
+        with mock.patch.object(agent, "tracks", return_value=[]), mock.patch.object(agent, "target_track", return_value=None), \
+                mock.patch.object(hardsub, "burned_in_subtitles", return_value=(False, 0, 20)), \
                 mock.patch.object(worker.fansub, "mode_for", return_value="official_ok"), \
-                mock.patch.object(worker, "fetch_arabic", return_value=None) as fetch, \
+                mock.patch.object(worker, "fetch_subtitle", return_value=None) as fetch, \
                 mock.patch.object(agent, "process", return_value=None) as process:
             worker.prepare(folder)
         fetch.assert_called_once()
@@ -862,9 +863,9 @@ class RepeatedWork(Sandbox):
 
     def test_agent_skips_addons_when_told(self):
         v = self.episode("Show - S01E02.mkv")
-        with mock.patch.object(agent, "tracks", return_value=[]), mock.patch.object(agent, "arabic_track", return_value=None), \
-                mock.patch.object(agent, "nyaa_arabic", return_value=False), \
-                mock.patch.object(agent, "addon_arabic") as addons:
+        with mock.patch.object(agent, "tracks", return_value=[]), mock.patch.object(agent, "target_track", return_value=None), \
+                mock.patch.object(agent, "nyaa_subtitle", return_value=False), \
+                mock.patch.object(agent, "addon_subtitle") as addons:
             agent.process(v, agent.load_state(), publish=False, addons=False)
         addons.assert_not_called()
 

@@ -172,7 +172,7 @@ def release_claim(release, episode_tag):
 
 
 def have_episode(show, episode_tag):
-    """True when the episode is already in the library, the inbox, on its way (Arabic preparation queue), or was
+    """True when the episode is already in the library, the inbox, on its way (subtitle preparation queue), or was
     fetched/skipped by either source."""
     import cleanup
     pattern = re.compile(re.escape(episode_tag) + r"(?!\d)", re.I)
@@ -561,7 +561,7 @@ def remove(release):
 
 
 def busy(show):
-    """True while an episode of this show is being fetched or waits in the Arabic preparation queue."""
+    """True while an episode of this show is being fetched or waits in the subtitle preparation queue."""
     with _lock:
         if any(k.startswith(show["release"] + "|") for k in _claims):
             return True
@@ -646,7 +646,7 @@ class Busy(Exception):
 
 
 def fetch(show, ep_tag, number, episode, meta):
-    """Download one episode from the best matching Stremio source into Weekly Anime (Arabic preparation follows)."""
+    """Download one episode from the best matching Stremio source into Weekly Anime (subtitle preparation follows)."""
     import stremio as s
     import stremio_batch as b
     library = next((lib for lib in s.libraries()

@@ -1,12 +1,13 @@
-"""Does a video already carry Arabic subtitles burned into the picture? (2026-11-17)
+"""Does a video already carry subtitles in the subtitle language burned into the picture? (2026-11-17)
 
-Some downloads (e.g. Anime4up releases) are hardsubbed. Adding a soft Arabic track to those puts two sets
+Some downloads (e.g. Anime4up releases) are hardsubbed. Adding a soft track to those puts two sets
 of subtitles on screen, so the library processor leaves them unchanged instead.
 
 Method: frames spread over the episode, bottom 30 % only (where dialogue sits), keep white letters next to
-a dark outline (the usual subtitle look), then Windows' built-in Arabic OCR. A frame counts when it reads
-at least two Arabic words; the video counts as hardsubbed when enough frames do. Signs or Japanese text
-rarely pass both the outline mask and the Arabic-words test, and a raw episode reads ~0 frames.
+a dark outline (the usual subtitle look), then Windows' built-in OCR for the subtitle language. A frame counts
+when it reads at least two words in that language's letters; the video counts as hardsubbed when enough frames do.
+Signs or Japanese text rarely pass both tests, and a raw episode reads ~0 frames. No OCR installed for the
+language (or a Latin-script language, where signs and credits read as words too): never guess "hardsubbed".
 """
 import asyncio
 import re
@@ -16,15 +17,21 @@ import cv2
 import numpy as np
 
 import agent
+import language
 
 SAMPLES, MIN_HITS = 20, 5
 ARABIC_WORD = re.compile(r"[ء-ي]{2,}")
 
 
+def word_pattern():
+    script = language.info()["script"]
+    return re.compile(f"[{script}]{{2,}}") if script else None
+
+
 def _ocr_engine():
     from winrt.windows.globalization import Language
     from winrt.windows.media.ocr import OcrEngine
-    return OcrEngine.try_create_from_language(Language("ar-SA"))
+    return OcrEngine.try_create_from_language(Language(language.info()["ocr"]))
 
 
 async def _ocr(engine, png):
@@ -60,20 +67,23 @@ def frame(video, t, width=1280):
     return cv2.imdecode(np.frombuffer(r.stdout, np.uint8), cv2.IMREAD_COLOR)
 
 
-def arabic_words(text):
-    return ARABIC_WORD.findall(text or "")
+def dialogue_words(text):
+    pattern = word_pattern() or ARABIC_WORD
+    return pattern.findall(text or "")
 
 
-def burned_in_arabic(video, samples=SAMPLES, min_hits=MIN_HITS):
-    """-> (hardsubbed?, frames that read as Arabic dialogue, frames checked)."""
+def burned_in_subtitles(video, samples=SAMPLES, min_hits=MIN_HITS):
+    """-> (hardsubbed?, frames that read as dialogue in the subtitle language, frames checked)."""
     p = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", video],
                        capture_output=True, text=True, timeout=60, creationflags=agent.NO_CF)
     try:
         duration = float(p.stdout.strip())
     except ValueError:
         return False, 0, 0
+    if word_pattern() is None:             # Latin letters: credits and signs read as words too; don't guess
+        return False, 0, 0
     engine = _ocr_engine()
-    if engine is None:                     # no Arabic OCR on this Windows: never guess "hardsubbed"
+    if engine is None:                     # no OCR for this language on this Windows: never guess "hardsubbed"
         return False, 0, 0
     hits = checked = 0
     for t in np.linspace(duration * 0.08, duration * 0.92, samples):
@@ -85,7 +95,7 @@ def burned_in_arabic(video, samples=SAMPLES, min_hits=MIN_HITS):
         if ink < 200:                      # no subtitle-like letters at all
             continue
         text = asyncio.run(_ocr(engine, cv2.imencode(".png", img)[1].tobytes()))
-        if len(arabic_words(text)) >= 2:
+        if len(dialogue_words(text)) >= 2:
             hits += 1
             if hits >= min_hits:
                 break
@@ -95,4 +105,4 @@ def burned_in_arabic(video, samples=SAMPLES, min_hits=MIN_HITS):
 if __name__ == "__main__":
     import sys
     for v in sys.argv[1:]:
-        print(burned_in_arabic(v), v)
+        print(burned_in_subtitles(v), v)

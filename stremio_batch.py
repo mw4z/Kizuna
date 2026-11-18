@@ -49,7 +49,7 @@ def status():
                     changed = True
             if changed:
                 if _state["status"] == "waiting" and not any(e["status"] == "waiting" for e in _state["episodes"]):
-                    _state.update(status="done", stage="Arabic preparation complete. Review any failed or unavailable episodes.")
+                    _state.update(status="done", stage="Subtitle preparation complete. Review any failed or unavailable episodes.")
                 save(_state)
         out = {k: v for k, v in _state.items() if k not in ("episodes", "meta", "preferences")}
         counts = {name: 0 for name in ("pending", "running", "done", "existing", "unavailable", "failed", "waiting")}
@@ -339,7 +339,7 @@ def worker(data):
             data.update(status="stopped", stage="Stopped. Remaining episodes can be resumed.")
         elif data["status"] == "running":
             waiting = any(e["status"] == "waiting" for e in data["episodes"])
-            data.update(status="waiting" if waiting else "done", stage="Downloads finished; Arabic preparation is pending and will retry automatically." if waiting else "Batch finished. Review any unavailable or failed episodes below.")
+            data.update(status="waiting" if waiting else "done", stage="Downloads finished; subtitle preparation is pending and will retry automatically." if waiting else "Batch finished. Review any unavailable or failed episodes below.")
     except Exception as e:
         data.update(status="paused", stage=str(e) if isinstance(e, s.UserError) else "Batch interrupted. Resume to retry remaining episodes.")
     finally:

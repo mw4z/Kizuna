@@ -2,7 +2,7 @@
 
 Event-driven folder watch via watchdog, plus DKB release checks every 20 minutes.
 A new file is processed once its size has stopped changing for 60 s (download/OneDrive done).
-If the episode has no official Arabic yet, it is retried hourly for up to 2 days.
+If the episode has no official subtitle yet, it is retried hourly for up to 2 days.
 At logon it also picks up episodes that arrived while the PC was off.
 
 Hardened: one instance only (named mutex); every error, including in threads, goes to
@@ -46,12 +46,13 @@ def needs_work(path):
         if fn in st.get("copy_failed", {}):
             return True
         video_tracks = agent.tracks(path)
-        if agent.has_arabic_audio(video_tracks):
+        if agent.has_target_audio(video_tracks):
             destination = agent.library_target(fn)
             return bool(destination and not os.path.exists(destination))
-        if "Detective Conan" in fn:
+        import fansub
+        if fansub.mode_for(agent.parse_name(fn)[0] or fn) == "manual":     # typeset by hand (Weekly page rule)
             return False
-        if any(t["properties"].get("track_name") == "العربية" for t in video_tracks):
+        if any(agent.language.is_own(t["properties"].get("track_name")) for t in video_tracks):
             destination = agent.library_target(fn)
             return st.get("failed", {}).get(fn) != os.path.getsize(path) and bool(
                 fn in st.get("delivery", {}) or destination and not os.path.exists(destination))
@@ -159,7 +160,7 @@ def step():
         if code:
             agent.log(f"watcher: agent exited with {code}")
         if needs_work(path) and time.time() - first_seen.get(path, time.time()) < 2 * 86400:
-            queue(path, 1200)             # no Arabic yet / transient error: try again in 20 min
+            queue(path, 1200)             # no subtitle yet / transient error: try again in 20 min
         else:
             first_seen.pop(path, None)
 

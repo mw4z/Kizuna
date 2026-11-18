@@ -1,8 +1,9 @@
 """Audit regressions: temporary media, mocked providers, no real library changes."""
+import os
+os.environ.setdefault("KIZUNA_SUBTITLE_LANGUAGE", "ar")   # this suite tests the Arabic pipeline
 import ast
 from contextlib import ExitStack
 import json
-import os
 from pathlib import Path
 import sqlite3
 import tempfile

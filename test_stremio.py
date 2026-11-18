@@ -1,4 +1,6 @@
 """Offline validation, including a tiny local media download (no real library writes)."""
+import os
+os.environ.setdefault("KIZUNA_SUBTITLE_LANGUAGE", "ar")   # this suite tests the Arabic pipeline
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json

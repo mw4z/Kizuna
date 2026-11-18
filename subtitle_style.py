@@ -1,12 +1,14 @@
-"""The look of the subtitles Kizuna builds (Settings > Subtitles), per language: validated style -> ASS Style line,
-the font files to embed (so every player draws the same font), and a preview rendered by libass itself.
+"""The look of the subtitles Kizuna builds (Settings > Subtitles), one style per subtitle language: validated style ->
+ASS Style line, the font files to embed (so every player draws the same font), and a preview rendered by libass itself.
 
-Kizuna builds only the Arabic track; other languages are the release's own tracks and keep their look."""
+Kizuna builds one track, in the subtitle language chosen in Settings; the release's other tracks keep their look."""
 import base64
 import os
 import re
 import subprocess
 import tempfile
+
+import language
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FONT_DIR = os.path.join(HERE, "fonts")
@@ -25,9 +27,10 @@ FONTS = {  # family name inside the font -> files embedded with it (all OFL, fro
     "Scheherazade New": ("ScheherazadeNew-Regular.ttf", "ScheherazadeNew-Bold.ttf"),
     "Markazi Text": ("MarkaziText-Regular.ttf", "MarkaziText-Bold.ttf"),
     "Lalezar": ("Lalezar-Regular.ttf",),
+    "Noto Sans": ("NotoSans-Regular.ttf", "NotoSans-Bold.ttf"),     # Latin, Cyrillic, Greek, Vietnamese
 }
-LANGUAGES = ("ar",)            # languages Kizuna builds a subtitle track for
-DEFAULT = {                    # the original Kizuna house style
+LANGUAGES = tuple(language.TABLE)   # every language Kizuna can build a subtitle track for
+DEFAULT = {                    # the original Kizuna house style (Arabic)
     "font": "Cairo", "size": 82, "bold": True, "color": "#FFFFFF",
     "outline": 2.6, "outline_color": "#2B2C2F",
     "shadow": 1.2, "shadow_color": "#000000", "shadow_opacity": 38,
@@ -36,7 +39,28 @@ DEFAULT = {                    # the original Kizuna house style
 }
 NUMBERS = {"size": (40, 140, int), "outline": (0, 8, float), "shadow": (0, 8, float), "shadow_opacity": (0, 100, int),
            "box_opacity": (0, 100, int), "box_padding": (2, 30, int), "margin": (10, 300, int)}
-SAMPLE = ("- هل أنت متأكد أنه سيأتي الليلة؟", "- لا أعرف... لكن علينا أن ننتظر.")
+SAMPLES = {   # two preview lines per language (same meaning)
+    "ar": ("- هل أنت متأكد أنه سيأتي الليلة؟", "- لا أعرف... لكن علينا أن ننتظر."),
+    "en": ("- Are you sure he's coming tonight?", "- I don't know... but we have to wait."),
+    "es": ("- ¿Estás seguro de que vendrá esta noche?", "- No lo sé... pero tenemos que esperar."),
+    "pt": ("- Tem certeza de que ele vem esta noite?", "- Não sei... mas temos que esperar."),
+    "fr": ("- Tu es sûr qu'il viendra ce soir ?", "- Je ne sais pas... mais il faut attendre."),
+    "de": ("- Bist du sicher, dass er heute Nacht kommt?", "- Ich weiß nicht... aber wir müssen warten."),
+    "it": ("- Sei sicuro che verrà stasera?", "- Non lo so... ma dobbiamo aspettare."),
+    "ru": ("- Ты уверен, что он придёт сегодня?", "- Не знаю... но мы должны ждать."),
+    "tr": ("- Bu gece geleceğinden emin misin?", "- Bilmiyorum... ama beklemek zorundayız."),
+    "pl": ("- Jesteś pewien, że przyjdzie dziś wieczorem?", "- Nie wiem... ale musimy czekać."),
+    "nl": ("- Weet je zeker dat hij vanavond komt?", "- Ik weet het niet... maar we moeten wachten."),
+    "id": ("- Kau yakin dia akan datang malam ini?", "- Aku tidak tahu... tapi kita harus menunggu."),
+    "fa": ("- مطمئنی امشب میاد؟", "- نمی‌دانم... ولی باید صبر کنیم."),
+    "he": ("- אתה בטוח שהוא יבוא הלילה?", "- אני לא יודע... אבל אנחנו חייבים לחכות."),
+}
+
+
+def default_for(lang):
+    """The starting style of a language: the house style with that language's font (smaller for Latin letters)."""
+    i = language.TABLE[lang]
+    return dict(DEFAULT, font=i["font"], **({} if i["rtl"] or lang == "ru" else {"size": 70}))
 
 
 def clean(raw, base=None):
@@ -89,13 +113,14 @@ def style_line(style):
             f"{outline:g},{s['shadow']:g},{8 if s['position'] == 'top' else 2},180,180,{s['margin']},1")
 
 
-def current(language="ar"):
-    """The saved style for a language; the house style if settings can't be read (never stops the agent)."""
+def current(lang=None):
+    """The saved style of the subtitle language; its default if settings can't be read (never stops the agent)."""
+    lang = lang or language.code()
     try:
         import settings
-        return clean(settings.get(f"sub_style_{language}"))
+        return clean(settings.get(f"sub_style_{lang}"))
     except Exception:
-        return dict(DEFAULT)
+        return default_for(lang)
 
 
 def font_files(ass_path):
@@ -110,13 +135,13 @@ def font_files(ass_path):
     return [os.path.join(FONT_DIR, f) for f in FONTS[family]]
 
 
-def preview(style, bright=False):
+def preview(style, bright=False, lang="ar"):
     """PNG (as a data: URL) of two sample lines drawn by libass with exactly this style, on a dark or bright scene."""
     import srt2ass
     s = clean(style)
     scene = "c0=0x1d2b4a:c1=0x0b0d12:c2=0x3a2a3f" if not bright else "c0=0xf3e7c9:c1=0x9ec5e8:c2=0xffffff"
     with tempfile.TemporaryDirectory() as work:
-        text = "\\N".join(srt2ass.line(x) for x in SAMPLE)
+        text = "\\N".join(srt2ass.line(x, language.TABLE[lang]["rtl"]) for x in SAMPLES[lang])
         with open(os.path.join(work, "p.ass"), "w", encoding="utf-8-sig", newline="\n") as f:
             f.write(srt2ass.head("Preview", s) + f"Dialogue: 0,0:00:00.00,0:00:05.00,Default,,0,0,0,,{text}\n")
         fonts = FONT_DIR.replace("\\", "/").replace(":", "\\:")

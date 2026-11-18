@@ -1,8 +1,9 @@
 """Regression tests for the 2026-11-17 "Needs a look" causes: Arabic folder names, hardsubbed files,
 over-cautious timing, and subtitle-site adverts."""
+import os
+os.environ.setdefault("KIZUNA_SUBTITLE_LANGUAGE", "ar")   # this suite tests the Arabic pipeline
 import contextlib
 import json
-import os
 import random
 import sqlite3
 import tempfile
@@ -67,7 +68,7 @@ class TimingFallback(Sandbox):
         srt = Path(self.tmp, "in.srt")
         srt.write_text(srt_text(range(0, 1200, 3)), encoding="utf-8")
         calls = []
-        with mock.patch.object(agent, "tracks", return_value=[]), mock.patch.object(agent, "arabic_track", return_value=None), \
+        with mock.patch.object(agent, "tracks", return_value=[]), mock.patch.object(agent, "target_track", return_value=None), \
                 mock.patch.object(agent, "timing", side_effect=[(0.0, False), recheck]), \
                 mock.patch.object(agent, "reference_offset", return_value=ref), \
                 mock.patch.object(agent.srt2ass, "convert", side_effect=lambda *a: calls.append(a)), \
@@ -108,7 +109,7 @@ class EpisodeImdbId(unittest.TestCase):
         import stremio
         with mock.patch.object(stremio, "get_json", return_value={"meta": {"name": "Dexter: Resurrection"}}), \
                 mock.patch.object(worker.fansub, "pick", return_value="Arabic") as pick:
-            self.assertEqual(worker.fetch_arabic(md, "out.srt", "official_ok", "media.mkv"), "Arabic")
+            self.assertEqual(worker.fetch_subtitle(md, "out.srt", "official_ok", "media.mkv"), "Arabic")
         self.assertEqual(pick.call_args.args[1:4], ("tt33043892", 2, 3))
 
 
@@ -118,16 +119,16 @@ class BurnedIn(unittest.TestCase):
         (folder / "metadata.json").write_text(json.dumps({"type": "series", "season": 1, "episode": 12,
                                                           "meta": {"name": "Show"}}))
         (folder / "raw.media").write_bytes(b"raw")
-        with mock.patch.object(agent, "tracks", return_value=[]), mock.patch.object(agent, "arabic_track", return_value=None), \
-                mock.patch.object(hardsub, "burned_in_arabic", return_value=(True, 5, 7)), \
-                mock.patch.object(worker, "fetch_arabic") as fetch, mock.patch.object(agent, "process") as process:
+        with mock.patch.object(agent, "tracks", return_value=[]), mock.patch.object(agent, "target_track", return_value=None), \
+                mock.patch.object(hardsub, "burned_in_subtitles", return_value=(True, 5, 7)), \
+                mock.patch.object(worker, "fetch_subtitle") as fetch, mock.patch.object(agent, "process") as process:
             self.assertEqual(worker.prepare(folder), worker.BURNED_IN)
         fetch.assert_not_called()
         process.assert_not_called()
 
     def test_needs_several_frames_of_arabic_dialogue(self):
-        self.assertEqual(hardsub.arabic_words("إنه جهاز لوحي أعطاني"), ["إنه", "جهاز", "لوحي", "أعطاني"])
-        self.assertEqual(hardsub.arabic_words("1080p BluRay"), [])
+        self.assertEqual(hardsub.dialogue_words("إنه جهاز لوحي أعطاني"), ["إنه", "جهاز", "لوحي", "أعطاني"])
+        self.assertEqual(hardsub.dialogue_words("1080p BluRay"), [])
         self.assertGreaterEqual(hardsub.MIN_HITS, 4)          # one Spacetoon title card must never be enough
 
 

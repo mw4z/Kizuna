@@ -2,11 +2,12 @@
 episode, library, state or log file is touched. Needs ffmpeg/ffprobe and MKVToolNix (already required).
 Run: python -m unittest test_audit
 """
+import os
+os.environ.setdefault("KIZUNA_SUBTITLE_LANGUAGE", "ar")   # this suite tests the Arabic pipeline
 import http.server
 import importlib
 import io
 import json
-import os
 import shutil
 import socket
 import subprocess
@@ -136,14 +137,14 @@ class AgentFailures(Sandbox):
                 out = a[-1].split(":", 1)[1]
                 open(out, "w", encoding="utf-8").write(ass_text if embedded_matches else "[Events]\n")
             return mock.Mock(returncode=0)
-        return [mock.patch.object(agent, "arabic_track", lambda v: 2),
+        return [mock.patch.object(agent, "target_track", lambda v: 2),
                 mock.patch.object(agent, "extract_srt", lambda v, t, out: open(out, "w").write("1") or True),
                 mock.patch.object(agent.srt2ass, "convert", convert),
                 mock.patch.object(agent, "timing", lambda v, a: (0.0, True)),
                 mock.patch.object(agent, "qc", lambda a: []),
                 mock.patch.object(agent.mux, "mux", lambda v, a, progress=None, check=None: "ok"),
                 mock.patch.object(agent, "tracks", lambda v: ARABIC),
-                mock.patch.object(agent, "has_arabic_audio", lambda t: False),
+                mock.patch.object(agent, "has_target_audio", lambda t: False),
                 mock.patch.object(agent, "run", run)]
 
     def process(self, video, state, **kw):
@@ -173,7 +174,7 @@ class AgentFailures(Sandbox):
         self.assertIn(os.path.basename(v), state["copy_failed"])
         self.assertEqual(self.progress()["status"], "fail")
         self.assertFalse(any(f.endswith(".part") for _, _, fs in os.walk(self.lib) for f in fs))
-        with mock.patch.object(agent, "has_arabic_audio", lambda t: False), self.fake_pipeline()[-1]:
+        with mock.patch.object(agent, "has_target_audio", lambda t: False), self.fake_pipeline()[-1]:
             agent.retry_copy(v, ARABIC, state)                                  # disk freed: retry works
         self.assertEqual(self.toasts.count("Kizuna: ready"), 1)
         self.assertEqual(state["copy_failed"], {})
@@ -191,9 +192,9 @@ class AgentFailures(Sandbox):
         state = agent.load_state()
         state["nyaa_tries"][os.path.basename(v)] = time.time()              # searched 1 minute ago
         with mock.patch.object(agent, "tracks", lambda x: []), \
-                mock.patch.object(agent, "has_arabic_audio", lambda t: False), \
-                mock.patch.object(agent, "arabic_track", lambda x: None), \
-                mock.patch.object(agent, "nyaa_arabic") as nyaa:
+                mock.patch.object(agent, "has_target_audio", lambda t: False), \
+                mock.patch.object(agent, "target_track", lambda x: None), \
+                mock.patch.object(agent, "nyaa_subtitle") as nyaa:
             agent.process(v, state)
         nyaa.assert_not_called()
         self.assertNotEqual(self.progress()["status"], "run")
@@ -407,7 +408,7 @@ class Watcher(Sandbox):
         w = import_watcher()
         v = self.episode("[DKB] Ao no Hako - S02E06 [1080p].mkv")
         json.dump({"copy_failed": {os.path.basename(v): 1000}}, open(agent.STATE, "w", encoding="utf-8"))
-        with mock.patch.object(agent, "tracks", lambda p: ARABIC), mock.patch.object(agent, "has_arabic_audio", lambda t: False):
+        with mock.patch.object(agent, "tracks", lambda p: ARABIC), mock.patch.object(agent, "has_target_audio", lambda t: False):
             self.assertTrue(w.needs_work(v))
 
 
@@ -693,7 +694,7 @@ class StyledArabicIsNeverRebuilt(Sandbox):
     def test_plain_srt_arabic_is_still_processed(self):
         path, _ = self.make("Show - S01E01.mkv", "srt", "العربية")
         from pathlib import Path
-        self.assertFalse(self.lp.styled_arabic(path))
+        self.assertFalse(self.lp.styled_target(path))
         with mock.patch.object(self.lp, "process_record", return_value={"status": "running"}) as proc:
             self.lp.submit(Path(path), Path(path), manual=True)
         proc.assert_called_once()

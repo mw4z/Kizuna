@@ -1,0 +1,7 @@
+{
+ "_help": "Optional per-show subtitle rules. Copy this file to subtitle_policy.json (private, never uploaded) and edit it. Shows you follow on the Weekly page can also get a rule there. Modes: official_ok (official streaming subtitles are fine), fansub (fan translations only), fansub_first (fan translations first, official only as a last resort), manual (never automatic; typeset by hand). 'match' is a regular expression tested against the show name; 'imdb' pins the show's IMDb id.",
+ "default": "official_ok",
+ "shows": [
+  {"name": "Example Show", "match": "\\bExample Show\\b", "imdb": "tt0000000", "mode": "fansub_first"}
+ ]
+}

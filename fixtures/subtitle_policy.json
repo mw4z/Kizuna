@@ -1,0 +1,7 @@
+{
+ "default": "official_ok",
+ "shows": [
+  {"name": "Bleach", "match": "\\bBleach\\b|المطهر|بليتش", "imdb": "tt0434665", "mode": "fansub_first"},
+  {"name": "Detective Conan", "match": "Detective Conan|Case Closed|المحقق كونان", "imdb": "tt0131179", "mode": "manual"}
+ ]
+}

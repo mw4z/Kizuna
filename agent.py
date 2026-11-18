@@ -1,11 +1,11 @@
-"""Kizuna agent: give every new episode in the anime folder styled Arabic subs, unattended.
+"""Kizuna agent: give every new episode in the inbox folder styled subtitles in your language, unattended.
 
-Started by watcher.py when a new file lands in the folder. For each .mkv without our "العربية" track:
-  wait until the file is stable -> official Arabic SRT from the file (or, if missing,
-  from a Judas/ToonsHub/VARYG multi-sub release on Nyaa) -> Cairo ASS without the
-  translator credit -> timing checked against the episode's own audio (a consistent
+Started by watcher.py when a new file lands in the folder. For each .mkv without our track (language.own_name()):
+  wait until the file is stable -> official subtitle SRT in the subtitle language from the file (or, if missing,
+  from a Judas/ToonsHub/VARYG multi-sub release on Nyaa, or the Stremio subtitle add-ons) -> ASS in the style chosen
+  in Settings, without translator credits -> timing checked against the episode's own audio (a consistent
   offset is corrected; an inconsistent one blocks the mux) -> mux in place -> verify
-  the embedded track -> Windows notification. Conan is skipped (needs hand typesetting).
+  the embedded track -> Windows notification. Shows set to "manual" are skipped (typeset by hand).
 Log: log.txt next to this file. Usage: agent.py [folder] [--now]   (--now: caller already confirmed the files are complete)
 """
 from collections.abc import Mapping
@@ -29,20 +29,39 @@ import urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import audio_fit  # noqa: E402
+import language   # noqa: E402
 import mux        # noqa: E402
 import srt2ass    # noqa: E402
+
+
+_VIDEOS = os.path.join(os.path.expanduser("~"), "Videos", "Kizuna")
+FOLDER_DEFAULTS = {"folder_inbox": os.path.join(_VIDEOS, "Inbox"), "folder_weekly": os.path.join(_VIDEOS, "Weekly Anime"),
+                   "folder_anime": os.path.join(_VIDEOS, "Anime")}
+
+
+def folder_setting(key):
+    """A folder from Settings (read at start; a change applies after Kizuna restarts). Read from settings.json
+    directly: settings.py imports this module, so it can't be used while this module loads."""
+    try:
+        with open(os.path.join(HERE, "settings.json"), encoding="utf-8") as f:
+            value = json.load(f).get(key)
+        if isinstance(value, str) and os.path.isabs(value.strip()):
+            return os.path.normpath(value.strip())
+    except (OSError, ValueError, AttributeError):
+        pass
+    return FOLDER_DEFAULTS[key]
 
 NOW = "--now" in sys.argv
 ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 # The watcher passes the ONE file it saw settle; then only that file is processed (audit #1: --now used to
 # mark every .mkv in the folder ready, so a second episode still syncing got muxed mid-write).
 TARGET = os.path.abspath(ARGS[0]) if ARGS and os.path.isfile(ARGS[0]) else None
-FOLDER = os.path.dirname(TARGET) if TARGET else (ARGS[0] if ARGS else r"C:\Users\moody\OneDrive\Videos\أنمي\آخر حلقات الأنمي")
+FOLDER = os.path.dirname(TARGET) if TARGET else (ARGS[0] if ARGS else folder_setting("folder_inbox"))
 MKV = r"C:\Program Files\MKVToolNix"
 WORK = os.path.join(HERE, "work")
 STATE = os.path.join(HERE, "state.json")
 LOG = os.path.join(HERE, "log.txt")
-GROUPS = ("[Judas]", "[ToonsHub]", "VARYG", "[Trix]")   # multi-sub releases that carry NF/DSNP/CR Arabic
+GROUPS = ("[Judas]", "[ToonsHub]", "VARYG", "[Trix]")   # multi-sub releases that carry NF/DSNP/CR subtitles
 NO_CF = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
 
 
@@ -123,7 +142,10 @@ def tracks(path):
     return mux.info(path)["tracks"]
 
 
-def has_arabic_audio(track_list):
+def has_target_audio(track_list):
+    """A (non-commentary) audio track in the subtitle language: a dub needs no subtitles."""
+    info = language.info()
+    named = re.compile(rf"^(?:{re.escape(info['name'])}|{re.escape(info['native'])}{'|عربي' if language.code() == 'ar' else ''})(?:$|[\s(/-])", re.I)
     for track in track_list:
         if track.get("type") != "audio":
             continue
@@ -132,17 +154,16 @@ def has_arabic_audio(track_list):
         if p.get("flag_commentary") or re.search(r"commentary|تعليق", name, re.I):
             continue
         languages = (p.get("language", ""), p.get("language_ietf", ""))
-        if any(str(lang).lower().split("-")[0] in ("ar", "ara") for lang in languages) \
-                or re.match(r"^(?:Arabic|العربية|عربي)(?:$|[\s(/-])", name, re.I):
+        if any(language.is_code(lang) for lang in languages if lang) or named.match(name):
             return True
     return False
 
 
-def arabic_track(path, include_named=False):
-    """id of an Arabic text subtitle track that is not ours, else None."""
+def target_track(path, include_named=False):
+    """id of a text subtitle track in the subtitle language that is not ours, else None."""
     for t in tracks(path):
         p = t["properties"]
-        if t["type"] == "subtitles" and str(p.get("language_ietf") or p.get("language", "")).lower().split("-")[0] in ("ar", "ara") and (include_named or p.get("track_name") != "العربية") \
+        if t["type"] == "subtitles" and language.is_code(p.get("language_ietf") or p.get("language", "")) and (include_named or not language.is_own(p.get("track_name"))) \
                 and not p.get("forced_track") and not re.search(r"forced|signs|songs", p.get("track_name", ""), re.I) \
                 and t["codec"] in ("SubRip/SRT", "SubStationAlpha", "WebVTT"):
             return t["id"]
@@ -167,7 +188,7 @@ def parse_name(fn):
 
 
 # Jellyfin "Weekly Anime" library: finished episodes are copied to <show folder>\Season NN (OneDrive copy stays).
-LIBRARY = r"C:\Users\moody\Downloads\Weekly Anime"
+LIBRARY = folder_setting("folder_weekly")
 class _Shows(Mapping):
     """Release name prefix -> Jellyfin folder (English title + year, for TMDB metadata), read live from the private
     shows.json that the Weekly shows page edits (no restart needed)."""
@@ -223,7 +244,7 @@ def library_target(fn):
 
 def copy_to_library(video):
     """True when the episode is in the library (or has no library place); False when the copy failed.
-    Never raises: a failed copy must not undo the Arabic work, but it must be visible and retried (audit #4)."""
+    Never raises: a failed copy must not undo the subtitle work, but it must be visible and retried (audit #4)."""
     dst = None
     try:
         dst = library_target(os.path.basename(video))
@@ -256,8 +277,8 @@ def record_copy(video, state, ok):
 LABEL = ""
 
 
-def nyaa_arabic(fn, out):
-    """Fetch the episode from a multi-sub group on Nyaa just for its Arabic track."""
+def nyaa_subtitle(fn, out):
+    """Fetch the episode from a multi-sub group on Nyaa just for its subtitle track in the subtitle language."""
     name, ep = parse_name(fn)
     if not name:
         name = re.sub(r"\[[^\]]*\]", "", os.path.splitext(fn)[0]).strip(" .-")
@@ -289,23 +310,23 @@ def nyaa_arabic(fn, out):
             for ln in pr.stdout:
                 m = re.search(r"([\d.]+)%.*?([\d.]+) MB/s", ln)
                 if m and LABEL:
-                    show(LABEL, f"No Arabic in this release, fetching it from {title.split(']')[0].strip('[')} ({m.group(2)} MB/s)",
+                    show(LABEL, f"No subtitle in this release, fetching it from {title.split(']')[0].strip('[')} ({m.group(2)} MB/s)",
                          10 + float(m.group(1)) * 0.4)
             pr.wait()
             for f in glob.glob(os.path.join(d, "**", "*.mkv"), recursive=True):
-                tid = arabic_track(f)
+                tid = target_track(f)
                 ok = tid is not None and extract_srt(f, tid, out)
                 if ok:
-                    log(f"Arabic taken from {title}")
+                    log(f"{language.name()} subtitle taken from {title}")
                     shutil.rmtree(d, ignore_errors=True)
                     return True
             shutil.rmtree(d, ignore_errors=True)
     return False
 
 
-def addon_arabic(fn, video, out):
-    """Human Arabic from the user's Stremio subtitle add-ons (fansub.pick: show policy, no machine translation,
-    timing checked against this file), when no official release carries Arabic. -> True when written to out."""
+def addon_subtitle(fn, video, out):
+    """Human subtitles from the user's Stremio subtitle add-ons (fansub.pick: show policy, no machine translation,
+    timing checked against this file), when no official release carries the subtitle language. -> True when written to out."""
     name, ep = parse_name(fn)
     if not name:
         return False
@@ -315,7 +336,7 @@ def addon_arabic(fn, video, out):
     try:
         import fansub
         import processing_worker
-        return bool(processing_worker.fetch_arabic({"type": "series", "season": season, "episode": episode,
+        return bool(processing_worker.fetch_subtitle({"type": "series", "season": season, "episode": episode,
                                                     "meta": {"name": title}}, out, fansub.mode_for(title), video))
     except Exception as error:
         log(f"fansub: add-on subtitles unavailable ({type(error).__name__})")
@@ -386,10 +407,10 @@ def cue_shift(reference, srt, parts=6):
 
 
 def reference_offset(video, srt):
-    """cue_shift() against the video's own non-Arabic text subtitle track (Collateral: English). -> offset or None."""
+    """cue_shift() against the video's own text subtitle track in another language (Collateral: English). -> offset or None."""
     for t in tracks(video):
         p = t.get("properties", {})
-        if t["type"] == "subtitles" and str(p.get("codec_id", "")).startswith("S_TEXT") and p.get("language") != "ara":
+        if t["type"] == "subtitles" and str(p.get("codec_id", "")).startswith("S_TEXT") and not language.is_code(p.get("language")):
             ref = os.path.join(WORK, "reference.srt")
             if extract_srt(video, t["id"], ref):
                 shift = cue_shift(ref, srt)
@@ -408,7 +429,13 @@ def qc(ass):
         bad.append("control characters")
     if re.search(r"</?(font|i|b|u)\b[^>]*>", t):
         bad.append("HTML tags left")
-    if re.search(r"\{[^}]*\}\s*\u200f?(ترجمة|تمت الترجمة)", t):
+    if language.code() == "ar":                   # the original Arabic rule, unchanged
+        left = re.search(r"\{[^}]*\}\s*\u200f?(ترجمة|تمت الترجمة)", t)
+    else:                                         # other languages: a dialogue line that reads like a credit
+        credit = language.credits()
+        left = any(credit.match(re.sub("[\u200e\u200f]", "", line.split(",", 9)[-1]))
+                   for line in t.splitlines() if line.startswith("Dialogue:"))
+    if left:
         bad.append("credit line left")
     return bad
 
@@ -417,42 +444,42 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
     """addons=False: the caller already asked the subtitle add-ons for this file (processing_worker)."""
     fn = os.path.basename(video)
     key = fn
-    if has_arabic_audio(tracks(video)):
+    if has_target_audio(tracks(video)):
         if publish:
             record_copy(video, state, copy_to_library(video))
         state["errors"].pop(key, None)
         state["failed"].pop(key, None)
-        log(f"SKIP subtitles {fn}: Arabic audio already present; video unchanged")
-        show(fn, "Arabic dub already present. Subtitle processing skipped", 100, "done")
+        log(f"SKIP subtitles {fn}: {language.name()} audio already present; video unchanged")
+        show(fn, "Dub in your subtitle language already present. Subtitle processing skipped", 100, "done")
         return True
     global LABEL
     srt = os.path.join(WORK, "ar.srt")
     ass = os.path.join(WORK, "ar.ass")
     show_, ep_ = parse_name(fn)
     LABEL = f"{show_} {ep_}" if show_ else fn
-    tid = arabic_track(video)
+    tid = target_track(video)
     if subtitle_path:
         shutil.copy2(subtitle_path, srt)
     if not subtitle_path and tid is None and time.time() - state["nyaa_tries"].get(key, 0) < 3600:
         # Nyaa retry at most hourly; say so instead of leaving a stale "working" state (audit #10)
-        show(LABEL, "Waiting for the official Arabic subtitle; checking again within the hour", 100, "wait")
+        show(LABEL, "Waiting for the official subtitle; checking again within the hour", 100, "wait")
         return
-    show(LABEL, "Looking for the official Arabic subtitle", 5)
+    show(LABEL, "Looking for the official subtitle", 5)
     if subtitle_path:
         pass
     elif tid is not None:
         if not extract_srt(video, tid, srt):
-            raise RuntimeError("could not extract Arabic track")
+            raise RuntimeError("could not extract the subtitle track")
     else:
         state["nyaa_tries"][key] = time.time()
-        if not nyaa_arabic(search_name or fn, srt) and not (addons and addon_arabic(search_name or fn, video, srt)):
-            show(LABEL, "No official Arabic released yet. Will retry hourly", 100, "fail")
+        if not nyaa_subtitle(search_name or fn, srt) and not (addons and addon_subtitle(search_name or fn, video, srt)):
+            show(LABEL, "No official subtitle released yet. Will retry hourly", 100, "fail")
             if not state["told"].get(key + "|noarabic"):
-                notify("Kizuna: waiting", f"No official Arabic for {fn[:60]} yet. Will keep checking hourly.")
+                notify("Kizuna: waiting", f"No official {language.name()} subtitle for {fn[:60]} yet. Will keep checking hourly.")
                 state["told"][key + "|noarabic"] = 1
             return
-    title = f"{show_} {ep_} - Arabic" if show_ else fn
-    show(LABEL, "Converting to Cairo style, removing credits", 55)
+    title = f"{show_} {ep_} - {language.name()}" if show_ else fn
+    show(LABEL, "Converting to your subtitle style, removing credits", 55)
     srt2ass.convert(srt, ass, title)
     show(LABEL, "Checking timing against the episode audio", 62)
     off, ok = timing(video, ass)
@@ -489,7 +516,7 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
     dl = lambda p: [l for l in open(p, encoding="utf-8-sig").read().splitlines() if l.startswith("Dialogue")]  # noqa: E731
 
     def embedded_ok(path):                        # the built file carries exactly our dialogue, before it replaces anything
-        tid = [t["id"] for t in tracks(path) if t["properties"].get("track_name") == "العربية"][0]
+        tid = [t["id"] for t in tracks(path) if t["properties"].get("track_name") == language.own_name()][0]
         emb = os.path.join(WORK, "emb.ass")
         with contextlib.suppress(FileNotFoundError):
             os.remove(emb)
@@ -504,8 +531,8 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
                 os.replace(verified, video)
                 res = "ok (after wait)"
                 break
-            show(LABEL, "Adding the Arabic track to the episode", 70)
-            res = mux.mux(video, ass, lambda p: show(LABEL, "Adding the Arabic track to the episode", 70 + p * 0.25),
+            show(LABEL, "Adding the subtitle track to the episode", 70)
+            res = mux.mux(video, ass, lambda p: show(LABEL, "Adding the subtitle track to the episode", 70 + p * 0.25),
                           check=embedded_ok)
             break
         except mux.Locked as e:
@@ -525,7 +552,7 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
         log(f"{fn}: file locked for 30 min, will retry next run")
         return
     show(LABEL, "Verifying the finished file", 97)
-    tid = [t["id"] for t in tracks(video) if t["properties"].get("track_name") == "العربية"][0]
+    tid = [t["id"] for t in tracks(video) if t["properties"].get("track_name") == language.own_name()][0]
     emb = os.path.join(WORK, "emb.ass")
     run(MKV + r"\mkvextract.exe", video, "tracks", f"{tid}:{emb}")
     if dl(emb) != dl(ass):
@@ -539,17 +566,17 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
     log(f"DONE {fn}: {res}; {n} lines; offset {off:+.2f}s")
     if not publish:
         state["delivery"].pop(key, None)
-        show(LABEL, f"Arabic verified ({n} lines), ready for library delivery", 100, "done")
+        show(LABEL, f"Subtitles verified ({n} lines), ready for library delivery", 100, "done")
         return True
     copied = copy_to_library(video)
     record_copy(video, state, copied)
     if copied:
         state["delivery"].pop(key, None)
-        show(LABEL, f"Done. Arabic added ({n} lines), ready to watch", 100, "done")
-        notify("Kizuna: ready", f"{LABEL[:50]}: Arabic added ({n} lines).")
+        show(LABEL, f"Done. Subtitles added ({n} lines), ready to watch", 100, "done")
+        notify("Kizuna: ready", f"{LABEL[:50]}: {language.name()} subtitles added ({n} lines).")
     else:
-        show(LABEL, "Arabic added, but copying to Jellyfin failed. Retrying", 100, "fail")
-        notify("Kizuna: needs a look", f"{fn[:60]}: Arabic added, Jellyfin copy failed; retrying.")
+        show(LABEL, "Subtitles added, but copying to Jellyfin failed. Retrying", 100, "fail")
+        notify("Kizuna: needs a look", f"{fn[:60]}: subtitles added, Jellyfin copy failed; retrying.")
 
 
 def dialogue_hash(path):
@@ -563,7 +590,7 @@ def retry_copy(video, video_tracks, state):
     fn = os.path.basename(video)
     expected = state.get("delivery", {}).get(fn)
     if expected:
-        tid = next(t["id"] for t in video_tracks if t["type"] == "subtitles" and t["properties"].get("track_name") == "العربية")
+        tid = next(t["id"] for t in video_tracks if t["type"] == "subtitles" and language.is_own(t["properties"].get("track_name")))
         embedded = os.path.join(WORK, "recovered.ass")
         result = run(MKV + r"\mkvextract.exe", video, "tracks", f"{tid}:{embedded}")
         if result.returncode or dialogue_hash(embedded) != expected:
@@ -577,8 +604,8 @@ def retry_copy(video, video_tracks, state):
     label = f"{show_} {ep_}" if show_ else fn
     log(f"library: copy recovered for {fn}")
     show(label, "Done. Copied to Jellyfin, ready to watch", 100, "done")
-    if not has_arabic_audio(video_tracks):            # dubs never had a ready alert
-        notify("Kizuna: ready", f"{label[:50]}: Arabic added.")
+    if not has_target_audio(video_tracks):            # dubs never had a ready alert
+        notify("Kizuna: ready", f"{label[:50]}: {language.name()} subtitles added.")
 
 
 def save_state(state):
@@ -658,10 +685,10 @@ def main():
                     retry_copy(video, video_tracks, state)
                     save_state(state)
                     continue
-                dubbed = has_arabic_audio(video_tracks)
+                dubbed = has_target_audio(video_tracks)
                 if not dubbed and state["failed"].get(fn) == size:
                     continue
-                if not dubbed and any(t["properties"].get("track_name") == "العربية" for t in video_tracks):
+                if not dubbed and any(language.is_own(t["properties"].get("track_name")) for t in video_tracks):
                     destination = library_target(fn)
                     if fn in state.get("delivery", {}) or destination and not os.path.exists(destination):
                         retry_copy(video, video_tracks, state)

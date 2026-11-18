@@ -1,4 +1,4 @@
-"""Run the existing Arabic pipeline in an isolated work folder, without publishing."""
+"""Run the existing subtitle pipeline in an isolated work folder, without publishing."""
 import json
 import os
 from pathlib import Path
@@ -7,11 +7,12 @@ import shutil
 import sys
 
 import agent
+import language
 import fansub
 import hardsub
 
 
-BURNED_IN = "burned_in"     # prepare() result: Arabic already in the picture -> leave the file unchanged
+BURNED_IN = "burned_in"     # prepare() result: subtitles already in the picture -> leave the file unchanged
 
 
 def prepare(folder):
@@ -25,31 +26,31 @@ def prepare(folder):
     agent.PFILE = str(folder / "progress.json")
     agent.LOG = str(folder / "worker.log")
     state = agent.load_state()
-    original = agent.arabic_track
-    agent.arabic_track = lambda path: original(path, include_named=True)
+    original = agent.target_track
+    agent.target_track = lambda path: original(path, include_named=True)
     try:
         shutil.copy2(raw, video)
         tracks = agent.tracks(str(video))
-        dubbed = agent.has_arabic_audio(tracks)
+        dubbed = agent.has_target_audio(tracks)
         mode = fansub.mode_for(metadata.get("meta", {}).get("name", ""), metadata.get("meta", {}).get("id", ""))
         if not dubbed and mode == "manual":
             agent.show(video.name, "Manual typesetting show; automatic publication blocked", 100, "wait")
             return False
-        subtitle = folder / "arabic.srt"                 # a sidecar .ar.srt placed by the user is trusted as-is
-        embedded = agent.arabic_track(str(video)) is not None
+        subtitle = folder / "arabic.srt"                 # a sidecar (e.g. .ar.srt / .en.srt) placed by the user is trusted as-is
+        embedded = agent.target_track(str(video)) is not None
         if not dubbed and not subtitle.exists() and not embedded:
-            # Darwin S01E12 (Anime4up) was hardsubbed: a second, soft Arabic track would double the subtitles
-            burned, hits, checked = hardsub.burned_in_arabic(str(video))
-            agent.log(f"burned-in Arabic check: {hits}/{checked} frames read as Arabic dialogue")
+            # Darwin S01E12 (Anime4up) was hardsubbed: a second, soft track would double the subtitles
+            burned, hits, checked = hardsub.burned_in_subtitles(str(video))
+            agent.log(f"burned-in subtitle check: {hits}/{checked} frames read as {language.name()} dialogue")
             if burned:
-                agent.show(video.name, "Arabic is burned into the video; nothing to add", 100, "done")
+                agent.show(video.name, "Subtitles are burned into the video; nothing to add", 100, "done")
                 return BURNED_IN
         asked = not dubbed and not subtitle.exists() and (mode in ("fansub", "fansub_first") or not embedded)
         if asked:
-            # fansub shows never take embedded Arabic of unknown origin first; styled fansub tracks never
+            # fansub shows never take embedded subtitles of unknown origin first; styled fansub tracks never
             # reach this point (library_processing leaves them untouched). fansub_first: when the add-ons have
-            # nothing, the file's own official Arabic is the last level-2 option.
-            if not fetch_arabic(metadata, subtitle, mode, video) and (
+            # nothing, the file's own official subtitle is the last level-2 option.
+            if not fetch_subtitle(metadata, subtitle, mode, video) and (
                     mode == "fansub" or (mode == "fansub_first" and not embedded)):
                 agent.show(video.name, "No acceptable fan translation yet; checking again hourly", 100, "wait")
                 return False
@@ -63,7 +64,7 @@ def prepare(folder):
                                   addons=not asked))           # the add-ons were just asked; don't download it all twice
     finally:
         agent.save_state(state)
-        agent.arabic_track = original
+        agent.target_track = original
 
 
 def jellyfin_imdb(name, kind):
@@ -96,8 +97,8 @@ def identify(s, meta, kind):
     return next(iter(ids)) if len(ids) == 1 and re.fullmatch(r"tt\d+", str(next(iter(ids)))) else None
 
 
-def fetch_arabic(metadata, destination, mode="official_ok", media=None):
-    """Human Arabic from the user's subtitle add-ons via fansub.pick (policy, no machine translation, timing
+def fetch_subtitle(metadata, destination, mode="official_ok", media=None):
+    """Human subtitles from the user's subtitle add-ons via fansub.pick (policy, no machine translation, timing
     checked against `media`). -> chosen release name, or None."""
     import stremio as s
     video = dict(metadata)
@@ -130,7 +131,7 @@ def fetch_arabic(metadata, destination, mode="official_ok", media=None):
         return fansub.pick(str(media), meta["id"], None if movie else season, None if movie else episode,
                            str(destination), mode, kind="movie" if movie else "series")
     except Exception as error:
-        agent.log(f"Arabic subtitle add-ons unavailable ({type(error).__name__}); trying the existing subtitle fallback")
+        agent.log(f"Subtitle add-ons unavailable ({type(error).__name__}); trying the existing subtitle fallback")
         return None
 
 
@@ -141,8 +142,8 @@ if __name__ == "__main__":
         ready = prepare(work)
         progress = json.loads((work / "progress.json").read_text(encoding="utf-8"))
         result = {"ready": ready is True, "leave_unchanged": ready == BURNED_IN,
-                  "stage": progress.get("stage", "Arabic preparation incomplete")}
+                  "stage": progress.get("stage", "Subtitle preparation incomplete")}
     except Exception as error:
-        agent.log(f"Arabic processing worker failed ({type(error).__name__})")
-        result = {"ready": False, "stage": "Arabic preparation failed. Original retained; automatic retry scheduled."}
+        agent.log(f"Subtitle processing worker failed ({type(error).__name__})")
+        result = {"ready": False, "stage": "Subtitle preparation failed. Original retained; automatic retry scheduled."}
     (work / "result.json").write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")

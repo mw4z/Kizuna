@@ -1,18 +1,19 @@
-"""Pick a human Arabic subtitle from the user's Stremio subtitle add-ons (AIOStreams), for any show.
+"""Pick a human subtitle in the subtitle language from the user's Stremio subtitle add-ons (AIOStreams), for any show.
 
 For each episode: ask every subtitle add-on (by season:episode, and by absolute episode number for shows
 that subtitle sites index as one long season, e.g. Bleach 206 = TMDB S11E01), then
   * drop machine/AI translations by name, and official/streaming releases for "fansub" shows,
   * rank fansub groups first,
-  * download each candidate (text only, through the egress proxy), check it is real Arabic dialogue,
+  * download each candidate (text only, through the egress proxy), check it is real dialogue in that language,
   * check its timing against THIS file's audio (agent.timing) and take the first one that fits.
 Nothing acceptable -> None (the caller leaves the episode under "Needs a look"; never a bad fallback).
 
-Per-show rules live in subtitle_policy.json next to this file:
-  mode "fansub"      human fan translation only (no Shahid/Netflix/... and no machine translation)
-  mode "fansub_first" fan translation first; only when no fansub fits anywhere, official human Arabic (level 2)
-  mode "official_ok" official streaming Arabic is fine (weekly shows); machine translation still rejected
-  mode "manual"      never automatic (Detective Conan is typeset by hand)
+Per-show rules: the Weekly page (shows.json), or subtitle_policy.json next to this file (private; see
+subtitle_policy.example.json):
+  mode "fansub"      human fan translation only (no Netflix/Crunchyroll/... and no machine translation)
+  mode "fansub_first" fan translation first; only when no fansub fits anywhere, official human subtitles (level 2)
+  mode "official_ok" official streaming subtitles are fine (weekly shows); machine translation still rejected
+  mode "manual"      never automatic (typeset by hand)
 """
 import json
 import os
@@ -21,23 +22,25 @@ import shutil
 import subprocess
 
 import agent
+import language
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-POLICY_FILE = os.path.join(HERE, "subtitle_policy.json")
-DEFAULT_POLICY = {
-    "default": "official_ok",
-    "shows": [
-        {"name": "Bleach", "match": r"\bBleach\b|المطهر|بليتش", "imdb": "tt0434665", "mode": "fansub_first"},
-        {"name": "Detective Conan", "match": r"Detective Conan|Case Closed|المحقق كونان", "imdb": "tt0131179",
-         "mode": "manual"},
-    ],
-}
+POLICY_FILE = os.path.join(HERE, "subtitle_policy.json")          # private (git-ignored)
+DEFAULT_POLICY = {"default": "official_ok", "shows": []}
 OFFICIAL = re.compile(r"shahid|شاهد|netflix|\bNF\b|crunchyroll|\bCR\b|amazon|\bAMZN\b|prime ?video|\bOSN\b|disney|"
                       r"\bDSNP\b|hidive|anghami|starz|\bTOD\b|weyyak|yango|\bviu\b|iqiyi|\bWAKANIM\b", re.I)
-MACHINE = re.compile(r"\bAI\b|machine|auto[ ._-]?trans|google|deepl|chat ?gpt|\bGPT\b|\bMT\b|ترجمة آلية|آلياً?\b|مترجم آلي",
-                     re.I)
-FANSUB = re.compile(r"kurai|mangetsu|pirates|3asq|عاشق|arabic ?anime ?team|anime ?island|witanime|anime ?4 ?up|"
-                    r"blkom|fansub|فانساب|ترجمة احترافية|فريق", re.I)
+MACHINE = re.compile(r"\bAI\b|machine|auto[ ._-]?trans|google|deepl|chat ?gpt|\bGPT\b|\bMT\b|ترجمة آلية|آلياً?\b|مترجم آلي|"
+                     r"automátic|automatique|automatisch|automatic|машинн|otomatik|maszynow|ترجمه ماشینی", re.I)
+FANSUBS = {   # fan translation groups worth ranking first, per subtitle language ("*" for every other language)
+    "ar": re.compile(r"kurai|mangetsu|pirates|3asq|عاشق|arabic ?anime ?team|anime ?island|witanime|anime ?4 ?up|"
+                     r"blkom|fansub|فانساب|ترجمة احترافية|فريق", re.I),
+    "*": re.compile(r"fan ?subs?\b|fansub", re.I),
+}
+FANSUB = FANSUBS["ar"]
+
+
+def fansub_pattern():
+    return FANSUBS.get(language.code(), FANSUBS["*"])
 
 
 def policy():
@@ -74,10 +77,10 @@ def release_name(sub):
 
 
 def ranked(subs, mode):
-    """Arabic candidates allowed by the policy, best first: [(score, name, sub)]."""
-    out = []
+    """Candidates in the subtitle language allowed by the policy, best first: [(score, name, sub)]."""
+    out, groups = [], fansub_pattern()
     for sub in subs:
-        if not str(sub.get("lang", "")).lower().startswith(("ar", "ara")) or not sub.get("url"):
+        if not language.is_code(sub.get("lang", "")) or not sub.get("url"):
             continue
         name = release_name(sub)
         if MACHINE.search(name):
@@ -85,7 +88,7 @@ def ranked(subs, mode):
         official = bool(OFFICIAL.search(name))
         if official and mode == "fansub":
             continue
-        score = 3 if FANSUB.search(name) else (2 if official else 1)   # official only reachable in official_ok
+        score = 3 if groups.search(name) else (2 if official else 1)   # official only reachable in official_ok
         out.append((score, name, sub))
     seen, unique = set(), []
     for score, name, sub in sorted(out, key=lambda x: -x[0]):           # stable: keeps add-on order inside a score
@@ -111,18 +114,17 @@ def episode_ids(meta_id, season, episode):
 
 
 def text_ok(path):
-    """Real Arabic dialogue: enough cues, mostly Arabic letters. -> (ok, reason)."""
+    """Real dialogue in the subtitle language: enough cues, the right letters and words. -> (ok, reason)."""
     try:
         t = open(path, encoding="utf-8", errors="replace").read()
     except OSError:
         return False, "unreadable"
     cues = t.count("-->")
-    letters = re.findall(r"[^\W\d_]", t)
-    arabic = sum(1 for c in letters if "؀" <= c <= "ۿ")
     if cues < 100:
         return False, f"only {cues} lines"
-    if not letters or arabic / len(letters) < 0.6:
-        return False, "not mostly Arabic"
+    ok, why = language.text_check(re.sub(r"<[^>]+>|\{[^}]*\}|\d+:\d+:\d+[,.]\d+", " ", t))
+    if not ok:
+        return False, why
     if MACHINE.search(t[:3000]) and re.search(r"ترجم|translat", t[:3000], re.I):
         return False, "credits mention machine translation"
     return True, ""
@@ -132,14 +134,14 @@ MARKS = re.compile(r"<[^>]+>|\{[^}]*\}|[‎‏‪-‮⁦-⁩؜]|[^\w\s]")
 
 
 def normalized_lines(path):
-    """Arabic dialogue lines with tags, direction marks and punctuation removed (for copy detection)."""
+    """Dialogue lines (subtitle language's letters) with tags, direction marks and punctuation removed (copy detection)."""
     try:
         text = open(path, encoding="utf-8", errors="replace").read()
     except OSError:
         return set()
     out = set()
     for line in text.splitlines():
-        if re.search(r"[؀-ۿ]", line):
+        if language.has_letters(line) and "-->" not in line:
             n = re.sub(r"\s+", " ", MARKS.sub("", line)).strip()
             if len(n) > 6:
                 out.add(n)
@@ -147,15 +149,15 @@ def normalized_lines(path):
 
 
 def official_lines(video, work):
-    """Lines of the Arabic subtitle tracks that came inside the file (official releases), except our own."""
+    """Lines of the subtitle-language tracks that came inside the file (official releases), except our own."""
     lines = set()
     try:
         for t in agent.tracks(video):
             p = t.get("properties", {})
-            # every Arabic track that came with the release (official subs are often ASS too, e.g. DKB/Crunchyroll);
+            # every track in the language that came with the release (official subs are often ASS too, e.g. DKB/CR);
             # files carrying a styled fansub never reach the picker (library_processing leaves them untouched)
-            if (t.get("type") == "subtitles" and str(p.get("language", "")).lower() in ("ara", "ar")
-                    and p.get("track_name") != "العربية"):
+            if (t.get("type") == "subtitles" and language.is_code(p.get("language", ""))
+                    and not language.is_own(p.get("track_name"))):
                 out = os.path.join(work, f"official{t['id']}.srt")
                 subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-y", "-i", video, "-map", f"0:{t['id']}",
                                 "-c:s", "srt", out], timeout=120, capture_output=True, creationflags=agent.NO_CF)
@@ -198,7 +200,7 @@ def pick(video, meta_id, season, episode, destination, mode, kind="series"):
     official = official_lines(video, work) if mode in ("fansub", "fansub_first") else set()
     first = ranked(subs, "fansub" if mode == "fansub_first" else mode)
     queue = [(c, 1) for c in first]
-    if mode == "fansub_first":                   # level 2: official human Arabic, only after every fansub failed
+    if mode == "fansub_first":                   # level 2: official human subtitles, only after every fansub failed
         queue += [(c, 2) for c in ranked(subs, "official_ok") if c not in first]
     tried = 0
     for (score, name, sub), level in queue:      # the queue may grow: official re-uploads move to level 2
@@ -231,5 +233,5 @@ def pick(video, meta_id, season, episode, destination, mode, kind="series"):
         shutil.rmtree(work, ignore_errors=True)
         return name
     shutil.rmtree(work, ignore_errors=True)
-    agent.log(f"fansub: no acceptable Arabic for {label} ({tried} candidates)")
+    agent.log(f"fansub: no acceptable {language.name()} subtitle for {label} ({tried} candidates)")
     return None

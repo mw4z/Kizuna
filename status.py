@@ -62,7 +62,7 @@ def _has_arabic(path):
             return c[2]
     try:
         video_tracks = agent.tracks(path)
-        ok = agent.has_arabic_audio(video_tracks) or any(t["properties"].get("track_name") == "العربية" for t in video_tracks)
+        ok = agent.has_target_audio(video_tracks) or any(agent.language.is_own(t["properties"].get("track_name")) for t in video_tracks)
     except Exception:
         ok = None
     with _lock:
@@ -274,14 +274,14 @@ def collect(pending=None, light=False):
     attention += [{"name": nice(fn), "reason": "Hit a problem. Retrying automatically", "kind": "retrying"}
                   for fn in (state.get("errors") or {})
                   if fn not in (state.get("failed") or {}) and os.path.exists(os.path.join(agent.FOLDER, fn))]
-    attention += [{"name": nice(fn), "reason": "Arabic added, but copying to Jellyfin failed. Retrying", "kind": "retrying"}
+    attention += [{"name": nice(fn), "reason": "Subtitles added, but copying to Jellyfin failed. Retrying", "kind": "retrying"}
                   for fn in (state.get("copy_failed") or {}) if os.path.exists(os.path.join(agent.FOLDER, fn))]
-    pending_items = [{"name": x, "reason": "Waiting for an Arabic subtitle"} for x in waiting]
+    pending_items = [{"name": x, "reason": "Waiting for a subtitle"} for x in waiting]
     problems = [f"{nice(fn)} — failed, skipped until the file changes"
                 for fn in (state.get("failed") or {}) if os.path.exists(os.path.join(agent.FOLDER, fn))]
     problems += [f"{nice(fn)} — retrying" for fn in (state.get("errors") or {})
                  if fn not in (state.get("failed") or {}) and os.path.exists(os.path.join(agent.FOLDER, fn))]
-    problems += [f"{nice(fn)} — Arabic added, but copying to Jellyfin failed; retrying"
+    problems += [f"{nice(fn)} — subtitles added, but copying to Jellyfin failed; retrying"
                  for fn in (state.get("copy_failed") or {}) if os.path.exists(os.path.join(agent.FOLDER, fn))]
     if job and job["stalled"]:
         problems.append(f"{job['name']} — no progress for over 10 minutes")

@@ -1,8 +1,8 @@
-"""Official Arabic SRT (logical order, RLE/RLM marks) -> ASS in the style chosen on the Settings page.
+"""Subtitle SRT -> ASS in the style chosen on the Settings page, for the configured subtitle language.
 
-Every visual line is wrapped in RLM so edge punctuation and dialogue dashes
-resolve right-to-left under libass; leading override tags such as {\\an8}
-(sign translations) are kept outside the wrap. A timing offset is applied if given.
+Right-to-left languages (Arabic, Persian, Hebrew): every visual line is wrapped in RLM so edge punctuation and
+dialogue dashes resolve right-to-left under libass; leading override tags such as {\\an8} (sign translations) are
+kept outside the wrap. Translator credit cues and subtitle-site adverts are dropped. A timing offset is applied if given.
 """
 import re
 import sys
@@ -31,7 +31,7 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
 
 def head(title, style=None):
     import subtitle_style
-    return HEAD.format(title=title, style=subtitle_style.style_line(style or subtitle_style.current("ar")))
+    return HEAD.format(title=title, style=subtitle_style.style_line(style or subtitle_style.current()))
 
 
 def ts(s):
@@ -41,7 +41,7 @@ def ts(s):
     return f"{h}:{m:02d}:{cs // 100:02d}.{cs % 100:02d}"
 
 
-def line(l):
+def line(l, rtl=True):
     l = CTRL.sub("", l).strip()
     l = re.sub(r"</?(?:i|b|u|font)\b[^>]*>", "", l)      # ASS->SRT conversion leaves <font face=...>
     l = re.sub(r"\{\\(?!an\d)[^}]*\}", "", l)              # stray ASS overrides, except {\an8}
@@ -50,10 +50,14 @@ def line(l):
     body = l[len(tags):].strip()
     body = re.sub(r"^-(?=[^\s-])", "- ", body)          # speaker dash: always "- "
     l = tags + body
-    return tags + RLM + l[len(tags):].strip() + RLM
+    body = l[len(tags):].strip()
+    return tags + RLM + body + RLM if rtl else tags + body
 
 
-def convert(src, dst, title, offset=0.0, style=None):
+def convert(src, dst, title, offset=0.0, style=None, lang=None):
+    import language
+    lang = lang or language.code()
+    rtl, credit = language.TABLE[lang]["rtl"], language.credits(lang)
     t = open(src, encoding="utf-8-sig").read()
     ev = []
     for b in re.split(r"\r?\n[ \t\r]*\n", t.strip()):     # "blank" lines may hold stray spaces
@@ -66,11 +70,11 @@ def convert(src, dst, title, offset=0.0, style=None):
         lines = [x for x in b[m.end():].strip("\r\n").splitlines() if x.strip()]
         if not lines:
             continue
-        if re.match(r"^\s*(\{[^}]*\})*\s*(ترجمة|تمت الترجمة|تدقيق)", CTRL.sub("", lines[0])):
+        if credit.match(CTRL.sub("", lines[0])):
             continue                                    # translator credit: user wants none
         if AD.search(" ".join(lines)):
             continue                                    # site advert / release-name line (OpenSubtitles etc.)
-        txt = "\\N".join(line(x) for x in lines)
+        txt = "\\N".join(line(x, rtl) for x in lines)
         tag = "".join(re.findall(r"^(?:\{[^}]*\})+", txt))   # keep tag once, at the very start
         if tag:
             txt = tag + txt.replace(tag, "")

@@ -1,4 +1,6 @@
 """Mandatory routing, retained originals, retries and Arabic-dub bypass."""
+import os
+os.environ.setdefault("KIZUNA_SUBTITLE_LANGUAGE", "ar")   # this suite tests the Arabic pipeline
 from contextlib import ExitStack
 import json
 from pathlib import Path
@@ -154,7 +156,7 @@ class Tests(Sandbox):
         (folder / "metadata.json").write_text(json.dumps({"type": "movie", "meta": {"name": "Movie"}}))
         (folder / "raw.media").write_bytes(b"raw")
         (folder / "arabic.srt").write_text("Arabic test subtitle")
-        with patch.object(agent, "tracks", return_value=[]), patch.object(worker, "fetch_arabic") as fetch, \
+        with patch.object(agent, "tracks", return_value=[]), patch.object(worker, "fetch_subtitle") as fetch, \
                 patch.object(agent, "process", return_value=True) as process:
             self.assertTrue(worker.prepare(folder))
             fetch.assert_not_called()
@@ -206,8 +208,8 @@ class Tests(Sandbox):
             (folder / "metadata.json").write_text(json.dumps({"type": "series", "season": 11, "episode": 1, "meta": meta}))
             (folder / "raw.media").write_bytes(b"raw")
             with patch.object(agent, "tracks", return_value=[]), patch.object(agent, "process") as process, \
-                    patch.object(agent, "arabic_track", return_value=None), \
-                    patch.object(worker, "fetch_arabic", return_value=None) as fetch:
+                    patch.object(agent, "target_track", return_value=None), \
+                    patch.object(worker, "fetch_subtitle", return_value=None) as fetch:
                 self.assertFalse(worker.prepare(folder), meta)
                 process.assert_not_called()
                 self.assertEqual(fetch.call_args.args[2], "fansub_first")
@@ -223,7 +225,7 @@ class Tests(Sandbox):
             result = lp.submit(source, destination, {"type": "movie", "meta": {"name": "Dub"}})
         self.assertEqual(result["status"], "done", result)
         self.assertTrue(destination.exists())
-        self.assertTrue(agent.has_arabic_audio(agent.tracks(str(destination))))
+        self.assertTrue(agent.has_target_audio(agent.tracks(str(destination))))
         self.assertEqual(self.toasts, ["Kizuna: movie ready"])
 
     def test_real_subtitle_extraction_style_mux_and_verification_before_delivery(self):
