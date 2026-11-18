@@ -87,6 +87,11 @@ def install(app):
 
 
 def make_folders():
+    """Create the folders; when they differ from the ones this run uses, restart Kizuna (the supervisor brings it
+    back in ~10 s) so the watcher, the queue and cleanup use the new ones."""
+    import sys
+    import threading
+    import cleanup
     import settings
     s = settings.get()
     made = []
@@ -95,7 +100,13 @@ def make_folders():
         if not p.exists():
             p.mkdir(parents=True, exist_ok=True)
             made.append(str(p))
-    return {"made": made, **check()}
+    using = {"folder_inbox": agent.FOLDER, "folder_weekly": agent.LIBRARY, "folder_anime": cleanup.ANIME}
+    restart = "--child" in sys.argv and any(os.path.normcase(os.path.abspath(s[k])) != os.path.normcase(os.path.abspath(v))
+                                            for k, v in using.items())
+    if restart:
+        agent.log("setup: folders changed, restarting to use them")
+        threading.Timer(1.5, os._exit, [0]).start()
+    return {"made": made, "restarting": restart, **check()}
 
 
 def stremio_login(email, password):

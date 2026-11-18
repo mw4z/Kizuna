@@ -61,6 +61,8 @@ exact: {
   "Arabic preparation or delivery failed; original retained. Automatic retry scheduled.": "فشل تجهيز الترجمة أو تسليمها؛ الأصل محفوظ. ستُعاد المحاولة تلقائيًا.",
   "Arabic dub already present; original unchanged": "الدبلجة العربية موجودة؛ الملف الأصلي لم يتغير", "Arabic dub preserved": "الدبلجة العربية محفوظة",
   // setup wizard (2026-11-18)
+  "Kizuna is restarting to use the new folders…": "يُعاد تشغيل Kizuna لاستخدام المجلدات الجديدة…",
+  "Kizuna did not come back. Start it again from the Start menu.": "لم يعد Kizuna للعمل. شغّله مجددًا من قائمة ابدأ.",
   "Welcome to Kizuna": "مرحبًا بك في Kizuna",
   "A few steps and Kizuna is ready: it fetches new episodes and movies, adds subtitles in your language and puts them in Jellyfin. Each step checks itself; come back here any time from Settings.": "بضع خطوات ويصبح Kizuna جاهزًا: يجلب الحلقات والأفلام الجديدة، ويضيف الترجمة بلغتك، ويضعها في Jellyfin. كل خطوة تتحقق من نفسها، ويمكنك العودة إلى هنا في أي وقت من الإعدادات.",
   "Checking this PC…": "جارٍ فحص هذا الجهاز…",

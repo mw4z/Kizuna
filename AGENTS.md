@@ -22,7 +22,7 @@ the user. If you need an isolated environment, create one that reuses its packag
     node test_picker.cjs
     node test_i18n.cjs
 
-Expected: 313 tests OK (2026-11-18, about 2 minutes: test_reliability runs real ffmpeg/mkvmerge, Windows
+Expected: 319 tests OK (2026-11-18, about 2 minutes: test_reliability runs real ffmpeg/mkvmerge, Windows
 file locks and a slow proxy stream) and "Picker checks passed".
 
 Rules the 2026-11-18 reliability audit added (keep them):

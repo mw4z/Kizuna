@@ -26,6 +26,7 @@ def prepare(folder):
     agent.PFILE = str(folder / "progress.json")
     agent.LOG = str(folder / "worker.log")
     state = agent.load_state()
+    language.require()                           # damaged settings.json: fail this attempt; the queue retries later
     original = agent.target_track
     agent.target_track = lambda path: original(path, include_named=True)
     try:

@@ -24,6 +24,8 @@ ARABIC_WORD = re.compile(r"[ء-ي]{2,}")
 
 
 def word_pattern():
+    if language.code() == "ar":            # the original Arabic letters only (no digits or punctuation)
+        return ARABIC_WORD
     script = language.info()["script"]
     return re.compile(f"[{script}]{{2,}}") if script else None
 

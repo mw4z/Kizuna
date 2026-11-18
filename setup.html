@@ -124,7 +124,11 @@ function note(id,text,tone){$(id).textContent=K.t(text);$(id).className='k-note'
 $('saveLang').onclick=async()=>{try{const before=meta.settings.language;await K.api('settings',{language:$('language').value,subtitle_language:$('subtitle_language').value});
   if($('language').value!==before)return location.reload();note('langNote','Saved.','ok');refresh()}catch(e){note('langNote',e.message,'bad')}};
 $('makeFolders').onclick=async()=>{try{await K.api('settings',{folder_inbox:$('folder_inbox').value,folder_weekly:$('folder_weekly').value,folder_anime:$('folder_anime').value});
-  const d=await K.api('setup-folders',{});note('folderNote',d.made.length?'Folders created.':'The folders already exist.','ok');refresh()}catch(e){note('folderNote',e.message,'bad')}};
+  const d=await K.api('setup-folders',{});
+  if(d.restarting){note('folderNote','Kizuna is restarting to use the new folders…');return waitForRestart()}
+  note('folderNote',d.made.length?'Folders created.':'The folders already exist.','ok');refresh()}catch(e){note('folderNote',e.message,'bad')}};
+async function waitForRestart(){for(let i=0;i<40;i++){await new Promise(r=>setTimeout(r,3000));
+  try{await K.api('setup-check');return location.reload()}catch{}}note('folderNote','Kizuna did not come back. Start it again from the Start menu.','bad')}
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-install]');if(b){try{const d=await K.api('setup-install',{app:b.dataset.install});
     b.textContent=K.t('Installer opened · Check again when it finishes')}catch(err){b.textContent=err.message}}
   const c=e.target.closest('.copy');if(c){navigator.clipboard?.writeText($(c.dataset.for).textContent);c.textContent=K.t('Copied')}});

@@ -80,7 +80,9 @@ def ranked(subs, mode):
     """Candidates in the subtitle language allowed by the policy, best first: [(score, name, sub)]."""
     out, groups = [], fansub_pattern()
     for sub in subs:
-        if not language.is_code(sub.get("lang", "")) or not sub.get("url"):
+        lang = str(sub.get("lang", "")).lower()
+        legacy_ar = language.code() == "ar" and lang.startswith(("ar", "ara"))   # the original Arabic match, exactly
+        if not (language.is_code(lang) or legacy_ar) or not sub.get("url"):
             continue
         name = release_name(sub)
         if MACHINE.search(name):

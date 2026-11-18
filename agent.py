@@ -45,8 +45,9 @@ def folder_setting(key):
     try:
         with open(os.path.join(HERE, "settings.json"), encoding="utf-8") as f:
             value = json.load(f).get(key)
-        if isinstance(value, str) and os.path.isabs(value.strip()):
-            return os.path.normpath(value.strip())
+        value = value.strip().strip('"') if isinstance(value, str) else ""
+        if os.path.isabs(value) and len(value) < 260 and not any(c in value[2:] for c in '<>"|?*'):
+            return os.path.normpath(value)
     except (OSError, ValueError, AttributeError):
         pass
     return FOLDER_DEFAULTS[key]
@@ -668,6 +669,11 @@ def main():
     with open(lock, "w") as f:
         f.write(str(os.getpid()))
     try:
+        try:
+            language.require()
+        except language.SettingsUnreadable as e:       # never guess the language: wait, nothing counts as failed
+            log(f"agent: {e}")
+            return
         clean_tmp()
         state = load_state()
         for video in [TARGET] if TARGET else sorted(glob.glob(os.path.join(FOLDER, "*.mkv"))):

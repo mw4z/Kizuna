@@ -176,6 +176,8 @@ def single_instance():
 def main():
     global MUTEX
     MUTEX = single_instance()             # held for the process lifetime
+    import status                         # http://localhost:8097 pages first: a new install's inbox only exists
+    threading.Thread(target=status.serve, args=(lambda: dict(pending),), daemon=True).start()   # once setup made it
     while not os.path.isdir(FOLDER):      # OneDrive may mount the folder late after logon
         time.sleep(30)
     for fn in os.listdir(FOLDER):         # arrived while the PC was off
@@ -186,8 +188,6 @@ def main():
     w.start()
     threading.Thread(target=dkb.run, args=(FOLDER, queue), daemon=True).start()
     threading.Thread(target=shows.run_stremio, daemon=True).start()   # Stremio: second source for weekly episodes
-    import status                         # http://localhost:8097 status page, lives with the watcher
-    threading.Thread(target=status.serve, args=(lambda: dict(pending),), daemon=True).start()
     import cleanup                        # recycle weekly episodes 1 day after they were fully watched
     threading.Thread(target=cleanup.run, daemon=True).start()
     import library_processing

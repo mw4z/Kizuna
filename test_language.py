@@ -1,6 +1,7 @@
 """Subtitle language other than Arabic (Settings > Subtitles > Language): detection, conversion, naming, the add-on
 picker, a real mkvmerge mux in English, and libass previews for every language. The rest of the suite pins Arabic."""
 import base64
+import json
 import os
 from pathlib import Path
 import shutil
@@ -150,6 +151,76 @@ class Saved(unittest.TestCase):
             settings.update({"subtitle_language": "xx"})
         with self.assertRaises(settings.SettingsError):
             settings.update({"folder_inbox": "relative\\path"})
+
+
+class ReviewFixes(unittest.TestCase):
+    """Cases the independent review of the worldwide change found (2026-11-18)."""
+    AR = {"KIZUNA_SUBTITLE_LANGUAGE": "ar"}
+
+    def test_arabic_burned_in_check_ignores_digits_and_punctuation(self):
+        with mock.patch.dict(os.environ, self.AR):
+            self.assertEqual(hardsub.dialogue_words("٢٠٢٤ ١٢:٣٠ ؟؟ ،،"), [])
+            self.assertEqual(hardsub.dialogue_words("هل ستأتي الليلة"), ["هل", "ستأتي", "الليلة"])
+
+    def test_arabic_addon_labels_match_as_before(self):
+        subs = [{"id": f"x|{n}", "lang": n, "url": n} for n in ("Arabic (Egypt)", "arb", "ar-SA", "eng")]
+        with mock.patch.dict(os.environ, self.AR):
+            self.assertEqual(sorted(n for _, n, _ in fansub.ranked(subs, "official_ok")), ["Arabic (Egypt)", "ar-SA", "arb"])
+
+    def test_damaged_settings_never_switch_the_language(self):
+        with mock.patch.dict(os.environ, {"KIZUNA_SUBTITLE_LANGUAGE": ""}), mock.patch.object(settings, "damaged", return_value=True):
+            with self.assertRaises(language.SettingsUnreadable):
+                language.require()
+            with mock.patch.object(agent, "lock_held", return_value=False), mock.patch.object(agent, "load_state") as load, \
+                    mock.patch.object(agent, "log"), mock.patch("builtins.open", mock.mock_open()), mock.patch("os.remove"), \
+                    mock.patch("os.makedirs"):
+                agent.main()
+            load.assert_not_called()                                    # nothing processed, nothing marked failed
+        with mock.patch.dict(os.environ, self.AR), mock.patch.object(settings, "damaged", return_value=True):
+            self.assertEqual(language.require(), "ar")                  # an explicit override still works
+
+    def test_hand_edited_folders_are_validated(self):
+        d = Path(tempfile.mkdtemp())
+        try:
+            (d / "settings.json").write_text(json.dumps({"folder_inbox": "C:\\ok\\in", "folder_weekly": "rel\\path",
+                                                         "folder_anime": "C:\\bad|x"}), encoding="utf-8")
+            with mock.patch.object(agent, "HERE", str(d)):
+                self.assertEqual(agent.folder_setting("folder_inbox"), "C:\\ok\\in")
+                self.assertEqual(agent.folder_setting("folder_weekly"), agent.FOLDER_DEFAULTS["folder_weekly"])
+                self.assertEqual(agent.folder_setting("folder_anime"), agent.FOLDER_DEFAULTS["folder_anime"])
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_new_install_serves_the_pages_before_waiting_for_the_inbox(self):
+        import status
+        import watcher
+        started = []
+
+        class Stop(Exception):
+            pass
+
+        def isdir(path):
+            raise Stop                                                  # the inbox wait: pages must already be up
+        with mock.patch.object(watcher, "single_instance"), mock.patch.object(status, "serve") as serve, \
+                mock.patch("threading.Thread", side_effect=lambda target=None, **k: started.append(target) or mock.Mock()), \
+                mock.patch("os.path.isdir", side_effect=isdir), self.assertRaises(Stop):
+            watcher.main()
+        self.assertIn(serve, started)
+
+    def test_wizard_folder_change_restarts_kizuna(self):
+        import cleanup
+        import setup
+        d = Path(tempfile.mkdtemp())
+        folders = {k: str(d / k) for k in settings.FOLDERS}
+        try:
+            with mock.patch.object(settings, "get", return_value=folders), mock.patch.object(setup, "check", return_value={}), \
+                    mock.patch.object(agent, "FOLDER", folders["folder_inbox"]), mock.patch.object(agent, "LIBRARY", "C:\\old"), \
+                    mock.patch.object(cleanup, "ANIME", folders["folder_anime"]), mock.patch("threading.Timer") as timer, \
+                    mock.patch.object(agent, "log"), mock.patch("sys.argv", ["watcher.py", "--child"]):
+                self.assertTrue(setup.make_folders()["restarting"])
+            timer.assert_called_once()
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
 
 
 class RealTools(unittest.TestCase):

@@ -80,6 +80,19 @@ def code():
         return DEFAULT
 
 
+class SettingsUnreadable(RuntimeError):
+    """settings.json exists but can't be read: don't guess the subtitle language."""
+
+
+def require():
+    """For the agent and the worker: the subtitle language, or SettingsUnreadable (they retry later)."""
+    if not os.environ.get("KIZUNA_SUBTITLE_LANGUAGE"):
+        import settings
+        if settings.damaged():
+            raise SettingsUnreadable("settings.json can't be read; subtitles wait until it is fixed")
+    return code()
+
+
 def info(c=None):
     return TABLE[c or code()]
 

@@ -14,7 +14,7 @@ without you lifting a finger.
 [![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Jellyfin](https://img.shields.io/badge/Jellyfin-library-AA5CC3?logo=jellyfin&logoColor=white)](https://jellyfin.org/)
 [![Stremio](https://img.shields.io/badge/Stremio-add--ons-8A5AAB)](https://www.stremio.com/)
-[![Tests](https://img.shields.io/badge/tests-313%20passing-2EA44F)](#tests)
+[![Tests](https://img.shields.io/badge/tests-319%20passing-2EA44F)](#tests)
 
 [Highlights](#highlights) · [Install](#install) · [First-run setup](#first-run-setup) · [How it works](#how-it-works) ·
 [Privacy](#your-data-stays-yours) · [Tests](#tests) · [Operations guide](docs/OPERATIONS.md)
@@ -162,7 +162,7 @@ node test_picker.cjs
 node test_i18n.cjs        # every page string and message has an Arabic translation
 ```
 
-**313 tests**, all in temporary folders: real ffmpeg, ffprobe and MKVToolNix runs on tiny generated videos (in Arabic
+**319 tests**, all in temporary folders: real ffmpeg, ffprobe and MKVToolNix runs on tiny generated videos (in Arabic
 and English), Windows file locks, simulated crashes and restarts, the network proxy's rules, and the language checks
 for every supported language. They never touch real media. [`AGENTS.md`](AGENTS.md) has the rules for developing on
 a live system.
