@@ -9,7 +9,7 @@
 .n-tabs button[aria-pressed=true]{background:var(--k-raised);color:var(--k-text);box-shadow:inset 0 0 0 1px var(--k-line-strong)}
 .n-status{display:flex;align-items:center;gap:12px;margin-top:10px}
 .fresh{display:none;align-items:center;gap:8px;height:30px;padding:0 14px;border-radius:999px;border:0;cursor:pointer;
-  background:var(--k-accent);color:#fff;font:600 12.5px var(--k-font);animation:k-in .3s var(--k-ease)}
+  background:var(--k-accent);color:var(--k-accent-ink);font:600 12.5px var(--k-font);animation:k-in .3s var(--k-ease)}
 .fresh.show{display:inline-flex}
 /* lead story + top stories */
 .lead-wrap{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr);gap:28px;margin-top:26px}
@@ -45,7 +45,7 @@
 .side .thumb{aspect-ratio:16/10;border-radius:6px;overflow:hidden;background:var(--k-raised);position:relative}
 .side .thumb img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s}.side .thumb img.in{opacity:1}
 .side h3{font:600 14px/1.35 var(--k-font-display);margin:0 0 6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.side a:hover h3,.card:hover h3{color:#fff;text-decoration:underline;text-decoration-color:rgba(255,255,255,.3);text-underline-offset:3px}
+.side a:hover h3,.card:hover h3{color:var(--k-text-hi);text-decoration:underline;text-decoration-color:var(--k-line-hover);text-underline-offset:3px}
 .meta{font-size:12px;color:var(--k-text-3)}
 .meta b{font-weight:600;color:var(--k-text-2)}
 /* grid */
@@ -66,7 +66,7 @@
 .sk{border-radius:var(--k-r-art)}
 [dir=rtl] .lead .slide::after{background:linear-gradient(180deg,rgba(8,8,10,0) 30%,rgba(8,8,10,.55) 58%,rgba(8,8,10,.96) 100%),linear-gradient(270deg,rgba(8,8,10,.55),rgba(8,8,10,0) 60%)}
 [dir=rtl] .tile .src{letter-spacing:0;text-transform:none;font-size:12px}
-.lang{background:rgba(255,255,255,.08);color:var(--k-text-2)}
+.lang{background:var(--k-fill-2);color:var(--k-text-2)}
 @media (max-width:980px){.lead-wrap{grid-template-columns:1fr}.lead{min-height:340px}.lead h2{font-size:25px}}
 @media (max-width:600px){.lead-body{padding:20px}.lead h2{font-size:21px}.side a{grid-template-columns:84px minmax(0,1fr)}}
 </style></head><body>

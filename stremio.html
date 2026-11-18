@@ -40,8 +40,8 @@
 .job{display:grid;gap:6px;margin-top:24px;padding:16px 18px;background:var(--k-surface);border:1px solid var(--k-line);border-radius:var(--k-r-art)}
 .job strong{font:600 15px/1.35 var(--k-font-display)}
 .job p{margin:0;color:var(--k-text-2);font-size:13px}
-progress{appearance:none;width:100%;height:4px;border:0;border-radius:2px;background:rgba(255,255,255,.08);margin:6px 0 2px;overflow:hidden}
-progress::-webkit-progress-bar{background:rgba(255,255,255,.08);border-radius:2px}
+progress{appearance:none;width:100%;height:4px;border:0;border-radius:2px;background:var(--k-fill-2);margin:6px 0 2px;overflow:hidden}
+progress::-webkit-progress-bar{background:var(--k-fill-2);border-radius:2px}
 progress::-webkit-progress-value{background:var(--k-download);border-radius:2px;transition:width .8s var(--k-ease)}
 progress::-moz-progress-bar{background:var(--k-download)}
 .job-numbers{display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:12.5px;color:var(--k-text-2)}
@@ -61,19 +61,19 @@ progress::-moz-progress-bar{background:var(--k-download)}
 #recent .chip{display:inline-flex;align-items:center;border:1px solid var(--k-line-strong);border-radius:999px;background:var(--k-raised);overflow:hidden}
 #recent .chip button{all:unset;cursor:pointer;font:500 12.5px/1 var(--k-font);color:var(--k-text-2);padding:7px 10px 7px 12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #recent .chip button.x{padding:7px 10px 7px 4px;color:var(--k-text-3)}
-#recent .chip:hover{border-color:rgba(255,255,255,.25)}#recent .chip button:hover{color:var(--k-text)}
+#recent .chip:hover{border-color:var(--k-line-hover)}#recent .chip button:hover{color:var(--k-text)}
 #recent button.clear{all:unset;cursor:pointer;font-size:12px;color:var(--k-text-3);text-decoration:underline;text-underline-offset:3px;margin-inline-start:4px}
 #recent button:focus-visible{outline:2px solid var(--k-accent);outline-offset:2px}
 .search .primary{height:44px;padding:0 22px}
 .suggestions{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:20;background:var(--k-raised);border:1px solid var(--k-line-strong);
-  border-radius:var(--k-r-art);box-shadow:0 24px 48px -12px rgba(0,0,0,.85);max-height:440px;overflow:auto;padding:4px}
+  border-radius:var(--k-r-art);box-shadow:0 24px 48px -12px var(--k-shadow,rgba(0,0,0,.85));max-height:440px;overflow:auto;padding:4px}
 .suggestion{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:var(--k-r);cursor:pointer}
 .suggestion:hover,.suggestion[aria-selected="true"]{background:var(--k-hover)}
 .suggestion img,.suggestion .placeholder{width:34px;height:51px;object-fit:cover;border-radius:4px;flex:none;background:var(--k-surface);display:grid;place-items:center;color:var(--k-text-3);font-size:13px}
 .suggestion strong{display:block;font-size:13.5px;font-weight:600}
 .suggestion small{display:block;color:var(--k-text-3);font-size:12px}
 .suggestion-note{padding:12px;color:var(--k-text-3);font-size:13px}
-.skeleton{display:block;background:linear-gradient(100deg,#17171b 30%,#222228 50%,#17171b 70%);background-size:250% 100%;animation:k-sh 1.5s ease-in-out infinite;border-radius:var(--k-r-sm)}
+.skeleton{display:block;background:linear-gradient(100deg,var(--k-sk-1) 30%,var(--k-sk-2) 50%,var(--k-sk-1) 70%);background-size:250% 100%;animation:k-sh 1.5s ease-in-out infinite;border-radius:var(--k-r-sm)}
 .skeleton-line{height:12px;margin:10px 0;width:75%}.skeleton-line.short{width:45%}.skeleton-poster{width:100%;aspect-ratio:2/3;border-radius:var(--k-r-art)}
 .skeleton-row{display:grid;grid-template-columns:70px 1fr 110px;gap:24px;padding:20px 0;border-top:1px solid var(--k-line)}
 .skeleton-badge{height:36px}.skeleton-note{height:12px;width:65%;margin:8px 0}.loading-detail{margin:20px 0;max-width:620px}
@@ -85,8 +85,8 @@ progress::-moz-progress-bar{background:var(--k-download)}
 #results[aria-busy="true"]{margin-top:28px}
 .poster{display:flex;flex-direction:column;gap:3px;padding:0;border:0;background:none;color:inherit;text-align:start;cursor:pointer;font:inherit;min-width:0}
 .poster img,.poster .placeholder{display:grid;place-items:center;width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:var(--k-r-art);background:var(--k-raised);
-  color:rgba(255,255,255,.18);font:600 34px/1 var(--k-font-display);margin-bottom:7px;transition:transform .35s var(--k-ease),box-shadow .35s var(--k-ease)}
-.poster:hover img,.poster:hover .placeholder,.poster:focus-visible img{transform:translateY(-4px);box-shadow:0 18px 34px -12px rgba(0,0,0,.8)}
+  color:var(--k-ghost);font:600 34px/1 var(--k-font-display);margin-bottom:7px;transition:transform .35s var(--k-ease),box-shadow .35s var(--k-ease)}
+.poster:hover img,.poster:hover .placeholder,.poster:focus-visible img{transform:translateY(-4px);box-shadow:0 18px 34px -12px var(--k-shadow,rgba(0,0,0,.8))}
 .poster:focus-visible{outline:none}.poster:focus-visible img,.poster:focus-visible .placeholder{outline:2px solid var(--k-accent);outline-offset:3px}
 .poster strong{font-size:13.5px;line-height:1.3;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .poster small{color:var(--k-text-3);font-size:12.5px}
@@ -129,15 +129,15 @@ p{max-width:75ch}
 .episode-check{display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid var(--k-line);font-size:13px;cursor:pointer}
 .episode-check span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
 .episode-check input{accent-color:var(--k-accent);width:15px;height:15px;flex:none}
-.filler-badge{color:var(--k-wait);background:rgba(216,166,74,.12);border-radius:999px;padding:1px 8px;font-size:11.5px;white-space:nowrap}
+.filler-badge{color:var(--k-wait);background:color-mix(in srgb,var(--k-wait) 12%,transparent);border-radius:999px;padding:1px 8px;font-size:11.5px;white-space:nowrap}
 .episode-type{font-size:11.5px;color:var(--k-text-3);white-space:nowrap}
 /* generic controls used by the script: plain button/input/select get the system look */
 main button:not(.poster):not(.k-btn):not(.k-card){display:inline-flex;align-items:center;justify-content:center;gap:8px;height:34px;padding:0 14px;border-radius:var(--k-r);
   border:1px solid var(--k-line-strong);background:var(--k-raised);color:var(--k-text);font:500 13.5px/1 var(--k-font);cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s}
-main button:not(.poster):not(.k-btn):not(.k-card):hover{background:var(--k-hover);border-color:rgba(255,255,255,.2)}
+main button:not(.poster):not(.k-btn):not(.k-card):hover{background:var(--k-hover);border-color:var(--k-line-hover)}
 main button.icon:not(.poster):not(.k-btn):not(.k-card){width:30px;height:30px;padding:0;border-radius:50%}   /* round icon buttons (pause, cancel): the generic padding squeezed their icons to nothing */
 main button:disabled{opacity:.42;cursor:default}
-main button.primary:not(.poster):not(.k-btn):not(.k-card){background:var(--k-accent);border-color:var(--k-accent);color:#fff;font-weight:600}
+main button.primary:not(.poster):not(.k-btn):not(.k-card){background:var(--k-accent);border-color:var(--k-accent);color:var(--k-accent-ink);font-weight:600}
 main button.primary:not(.poster):not(.k-btn):not(.k-card):hover{background:var(--k-accent-hi);border-color:var(--k-accent-hi)}
 main .search button.primary:not(.poster):not(.k-btn):not(.k-card){height:44px;padding:0 24px;font-size:14px}
 main select,main input:not([type=checkbox]){width:100%;height:36px;padding:0 12px;border-radius:var(--k-r);border:1px solid var(--k-line-strong);background:var(--k-sunken);color:var(--k-text);font:14px var(--k-font)}

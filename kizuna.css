@@ -7,17 +7,49 @@
 @font-face{font-family:"Kizuna Arabic";src:url("/fonts/Cairo-Bold.ttf") format("truetype");font-weight:700;font-display:swap;
   unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF}
 
-:root{
+/* Colour tokens. Dark is the default; the server stamps <html data-theme="dark|light|system">.
+   Things drawn on artwork (banners, poster badges, the subtitle preview) re-declare the dark set so they stay dark in light. */
+:root,.hero,.nextup,.lead,.subview,.k-art .k-badge{
   color-scheme:dark;
   /* surfaces */
   --k-bg:#0b0b0d; --k-surface:#121215; --k-raised:#18181c; --k-sunken:#08080a; --k-hover:#1e1e23;
-  --k-line:rgba(255,255,255,.07); --k-line-strong:rgba(255,255,255,.13);
+  --k-line:rgba(255,255,255,.07); --k-line-strong:rgba(255,255,255,.13); --k-line-hover:rgba(255,255,255,.2);
+  --k-fill-1:rgba(255,255,255,.06); --k-fill-2:rgba(255,255,255,.08); --k-ghost:rgba(255,255,255,.18);
+  --k-top-bg:rgba(11,11,13,.94); --k-backdrop:rgba(5,5,7,.72); --k-sk-1:#17171b; --k-sk-2:#222228;
+  --k-art-fallback:linear-gradient(160deg,#1d1d23,#121216); --k-switch-off:#2a2a31; --k-switch-knob:#d9d9de;
   /* text */
-  --k-text:#ececef; --k-text-2:#a6a6b0; --k-text-3:#71717b;
+  --k-text:#ececef; --k-text-2:#a6a6b0; --k-text-3:#71717b; --k-text-hi:#fff; --k-log-text:#a9a9b3;
   /* brand */
-  --k-accent:#c8364f; --k-accent-hi:#da4a62; --k-accent-ink:#fff; --k-accent-soft:rgba(200,54,79,.14);
+  --k-accent:#c8364f; --k-accent-hi:#da4a62; --k-accent-ink:#fff; --k-accent-soft:rgba(200,54,79,.14); --k-accent-text:#ff9fb0;
   /* states */
   --k-download:#7ea6ff; --k-process:#b18cff; --k-wait:#d8a64a; --k-ready:#55c08c; --k-fail:#ec6a72; --k-paused:#8f8f99;
+}
+/* light: the same set twice, because a selector can't be OR'd with a media query */
+:root[data-theme=light]{
+  color-scheme:light;
+  --k-bg:#f5f5f7; --k-surface:#fff; --k-raised:#fff; --k-sunken:#eceef1; --k-hover:#f0f0f3;
+  --k-line:rgba(0,0,0,.08); --k-line-strong:rgba(0,0,0,.14); --k-line-hover:rgba(0,0,0,.24);
+  --k-fill-1:rgba(0,0,0,.045); --k-fill-2:rgba(0,0,0,.065); --k-ghost:rgba(0,0,0,.14);
+  --k-top-bg:rgba(245,245,247,.92); --k-backdrop:rgba(24,24,30,.38); --k-sk-1:#e7e8eb; --k-sk-2:#f4f5f7;
+  --k-art-fallback:linear-gradient(160deg,#e9eaee,#dfe0e5); --k-switch-off:#cfd0d7; --k-switch-knob:#fff;
+  --k-text:#17171a; --k-text-2:#4a4a55; --k-text-3:#74747f; --k-text-hi:#000; --k-log-text:#4a4a55;
+  --k-accent:#b8304a; --k-accent-hi:#9f2740; --k-accent-ink:#fff; --k-accent-soft:rgba(184,48,74,.1); --k-accent-text:#b8304a;
+  --k-download:#2f63d4; --k-process:#7448d0; --k-wait:#9a6608; --k-ready:#1b8752; --k-fail:#c8323f; --k-paused:#6e6e78;
+  --k-shadow:rgba(30,30,50,.2);
+}
+@media (prefers-color-scheme:light){:root[data-theme=system]{
+  color-scheme:light;
+  --k-bg:#f5f5f7; --k-surface:#fff; --k-raised:#fff; --k-sunken:#eceef1; --k-hover:#f0f0f3;
+  --k-line:rgba(0,0,0,.08); --k-line-strong:rgba(0,0,0,.14); --k-line-hover:rgba(0,0,0,.24);
+  --k-fill-1:rgba(0,0,0,.045); --k-fill-2:rgba(0,0,0,.065); --k-ghost:rgba(0,0,0,.14);
+  --k-top-bg:rgba(245,245,247,.92); --k-backdrop:rgba(24,24,30,.38); --k-sk-1:#e7e8eb; --k-sk-2:#f4f5f7;
+  --k-art-fallback:linear-gradient(160deg,#e9eaee,#dfe0e5); --k-switch-off:#cfd0d7; --k-switch-knob:#fff;
+  --k-text:#17171a; --k-text-2:#4a4a55; --k-text-3:#74747f; --k-text-hi:#000; --k-log-text:#4a4a55;
+  --k-accent:#b8304a; --k-accent-hi:#9f2740; --k-accent-ink:#fff; --k-accent-soft:rgba(184,48,74,.1); --k-accent-text:#b8304a;
+  --k-download:#2f63d4; --k-process:#7448d0; --k-wait:#9a6608; --k-ready:#1b8752; --k-fail:#c8323f; --k-paused:#6e6e78;
+  --k-shadow:rgba(30,30,50,.2);
+}}
+:root{
   /* type */
   --k-font:"Kizuna Arabic","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
   --k-font-display:"Kizuna Arabic","Segoe UI Variable Display","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
@@ -39,7 +71,7 @@ img{max-width:100%}
 .k-num{font-variant-numeric:tabular-nums}
 
 /* ---------------------------------------------------------------- app shell */
-.k-top{position:sticky;top:0;z-index:30;background:rgba(11,11,13,.94);border-bottom:1px solid var(--k-line)}
+.k-top{position:sticky;top:0;z-index:30;background:var(--k-top-bg);border-bottom:1px solid var(--k-line)}
 .k-top-in{max-width:var(--k-page);margin:0 auto;height:56px;padding:0 var(--k-5);display:flex;align-items:center;gap:var(--k-6)}
 .k-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--k-text);flex:none}
 .k-seal{width:28px;height:28px;display:block;flex:none}   /* the app icon (app.png, ribbon K) */
@@ -72,14 +104,14 @@ img{max-width:100%}
 .k-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:34px;padding:0 14px;border-radius:var(--k-r);
   border:1px solid var(--k-line-strong);background:var(--k-raised);color:var(--k-text);font:500 13.5px/1 var(--k-font);
   cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .15s,border-color .15s,color .15s}
-.k-btn:hover{background:var(--k-hover);border-color:rgba(255,255,255,.2)}
+.k-btn:hover{background:var(--k-hover);border-color:var(--k-line-hover)}
 .k-btn:disabled{opacity:.42;cursor:default}
 .k-btn-primary{background:var(--k-accent);border-color:var(--k-accent);color:var(--k-accent-ink);font-weight:600}
 .k-btn-primary:hover{background:var(--k-accent-hi);border-color:var(--k-accent-hi)}
 .k-btn-ghost{background:none;border-color:transparent;color:var(--k-text-2)}
 .k-btn-ghost:hover{background:var(--k-surface);color:var(--k-text);border-color:transparent}
 .k-btn-danger{color:var(--k-fail)}
-.k-btn-danger.armed{background:var(--k-fail);border-color:var(--k-fail);color:#fff}
+.k-btn-danger.armed{background:var(--k-fail);border-color:var(--k-fail);color:var(--k-accent-ink)}
 .k-btn-icon{width:34px;padding:0}
 .k-btn-icon svg{width:14px;height:14px}
 .k-btn-sm{height:28px;padding:0 10px;font-size:12.5px}
@@ -104,11 +136,11 @@ img{max-width:100%}
 .k-state.live::before{animation:k-pulse 1.6s var(--k-ease) infinite}
 @keyframes k-pulse{0%{box-shadow:0 0 0 0 currentColor}70%{box-shadow:0 0 0 5px transparent}100%{box-shadow:0 0 0 0 transparent}}
 .k-tag{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;font-size:11.5px;font-weight:500;
-  color:var(--k-text-2);background:rgba(255,255,255,.06);white-space:nowrap}
-.k-tag.on{color:var(--k-ready);background:rgba(85,192,140,.12)}
-.k-tag.warn{color:var(--k-wait);background:rgba(216,166,74,.12)}
-.k-tag.accent{color:#ff9fb0;background:var(--k-accent-soft)}
-.k-progress{height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden}
+  color:var(--k-text-2);background:var(--k-fill-1);white-space:nowrap}
+.k-tag.on{color:var(--k-ready);background:color-mix(in srgb,var(--k-ready) 12%,transparent)}
+.k-tag.warn{color:var(--k-wait);background:color-mix(in srgb,var(--k-wait) 12%,transparent)}
+.k-tag.accent{color:var(--k-accent-text);background:var(--k-accent-soft)}
+.k-progress{height:4px;border-radius:2px;background:var(--k-fill-2);overflow:hidden}
 .k-progress>i{display:block;height:100%;width:0;border-radius:2px;background:var(--k-download);transition:width .8s var(--k-ease)}
 .k-progress[data-state=processing]>i{background:var(--k-process)}
 .k-progress[data-state=waiting]>i,.k-progress[data-state=paused]>i{background:var(--k-paused)}
@@ -126,11 +158,11 @@ img{max-width:100%}
   box-shadow:0 1px 0 rgba(255,255,255,.04) inset;transition:transform .35s var(--k-ease),box-shadow .35s var(--k-ease)}
 .k-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s}
 .k-art img.in{opacity:1}
-.k-art .k-fallback{position:absolute;inset:0;display:grid;place-items:center;font:600 34px/1 var(--k-font-display);color:rgba(255,255,255,.18);
-  background:linear-gradient(160deg,#1d1d23,#121216)}
+.k-art .k-fallback{position:absolute;inset:0;display:grid;place-items:center;font:600 34px/1 var(--k-font-display);color:var(--k-ghost);
+  background:var(--k-art-fallback)}
 .k-art .k-badge{position:absolute;left:8px;top:8px}
 .k-art .k-badge .k-tag{background:rgba(11,11,13,.82);backdrop-filter:none}
-.k-card:hover .k-art,.k-card:focus-visible .k-art{transform:translateY(-4px);box-shadow:0 18px 34px -12px rgba(0,0,0,.8)}
+.k-card:hover .k-art,.k-card:focus-visible .k-art{transform:translateY(-4px);box-shadow:0 18px 34px -12px var(--k-shadow,rgba(0,0,0,.8))}
 .k-card:disabled:hover .k-art{transform:none;box-shadow:none}
 .k-card:focus-visible{outline:none}.k-card:focus-visible .k-art{outline:2px solid var(--k-accent);outline-offset:3px}
 .k-card-title{margin-top:10px;font-weight:600;font-size:13.5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -151,13 +183,13 @@ img{max-width:100%}
 .k-note.error,.k-note.bad{color:var(--k-fail)}.k-note.ok{color:var(--k-ready)}
 .k-empty{padding:28px 0;color:var(--k-text-3);text-align:center;border:1px dashed var(--k-line-strong);border-radius:var(--k-r-art)}
 .k-empty strong{display:block;color:var(--k-text-2);font-weight:600;margin-bottom:4px}
-.k-sk{background:linear-gradient(100deg,#17171b 30%,#222228 50%,#17171b 70%);background-size:250% 100%;animation:k-sh 1.5s ease-in-out infinite;border-radius:var(--k-r-sm)}
+.k-sk{background:linear-gradient(100deg,var(--k-sk-1) 30%,var(--k-sk-2) 50%,var(--k-sk-1) 70%);background-size:250% 100%;animation:k-sh 1.5s ease-in-out infinite;border-radius:var(--k-r-sm)}
 @keyframes k-sh{from{background-position:150% 0}to{background-position:-100% 0}}
 
 /* ---------------------------------------------------------------- dialog */
 .k-dialog{background:var(--k-surface);color:var(--k-text);border:1px solid var(--k-line-strong);border-radius:12px;padding:0;
-  width:min(640px,94vw);max-height:92vh;box-shadow:0 40px 80px -20px rgba(0,0,0,.9)}
-.k-dialog::backdrop{background:rgba(5,5,7,.72)}
+  width:min(640px,94vw);max-height:92vh;box-shadow:0 40px 80px -20px var(--k-shadow,rgba(0,0,0,.9))}
+.k-dialog::backdrop{background:var(--k-backdrop)}
 .k-dialog[open]{animation:k-rise .25s var(--k-ease)}
 @keyframes k-rise{from{opacity:0;transform:translateY(8px) scale(.99)}to{opacity:1;transform:none}}
 
