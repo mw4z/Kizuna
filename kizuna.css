@@ -216,3 +216,5 @@ img{max-width:100%}
 }
 @media (max-width:520px){.k-activity span:last-child{display:none}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.k-art img{opacity:1}}
+/* an empty auto-direction box follows the page (its Arabic placeholder reads right to left); typed text still picks its own direction */
+[dir=rtl] input[dir=auto]:placeholder-shown,[dir=rtl] textarea[dir=auto]:placeholder-shown{direction:rtl}
