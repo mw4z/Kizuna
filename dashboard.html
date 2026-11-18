@@ -127,8 +127,8 @@ async function tick(){
   try{d=await (await fetch('/api/status',{cache:'no-store'})).json();jb=await K.api('job').catch(()=>null);$('offline').hidden=true}
   catch{$('offline').hidden=false;$('dot').dataset.state='failed';return}
   $('dot').dataset.state=TONE[d.tone]||'idle';$('dot').classList.toggle('live',d.tone==='busy');
-  if($('headline').textContent!==d.headline)$('headline').textContent=d.headline;
-  const f=d.finished[0];$('sub').textContent=f?`Last ready: ${f.name}, ${K.ago(d.now-f.at)}.`:'Nothing has finished yet.';
+  if($('headline').dataset.v!==d.headline){$('headline').dataset.v=d.headline;$('headline').textContent=d.headline}
+  const f=d.finished[0],sub=f?`Last ready: ${f.name}, ${K.ago(d.now-f.at)}.`:'Nothing has finished yet.';if($('sub').dataset.v!==sub){$('sub').dataset.v=sub;$('sub').textContent=sub}
   // in progress: Arabic preparation + Stremio download + season batch, in one place
   const tasks=[];const job=jb&&jb.job,batch=jb&&jb.batch;
   if(job&&(job.status==='running'||job.status==='waiting')&&!(job.phase==='processing'&&d.job)){

@@ -105,7 +105,7 @@ async function loadList(){
 
 let cards=[];
 function drawCards(list){if(K.lang==='ar')list.forEach(c=>{if(c.local_title){c.title=c.local_title;c.poster=c.local_poster||c.poster}});cards=list;$('grid').innerHTML=list.map((c,i)=>`<button type="button" class="k-card" data-pick="${i}" data-title="${esc(c.title)}" ${c.followed?'aria-disabled="true"':''}>
- <div class="k-art">${art(c.poster,c.title)}${c.followed?'<span class="k-badge"><span class="k-tag on">Followed</span></span>':c.new?'<span class="k-badge"><span class="k-tag accent">New this season</span></span>':''}</div>
+ <div class="k-art">${art(c.poster,c.title)}${c.followed?`<span class="k-badge"><span class="k-tag on">${K.lang==='ar'?'Followed':'Following'}</span></span>`:c.new?'<span class="k-badge"><span class="k-tag accent">New this season</span></span>':''}</div>
  <div class="k-card-title"><bdi>${esc(c.title)}</bdi></div>
  <div class="k-card-meta">${c.next?`Ep ${esc(c.next)}${c.episodes?` of ${esc(c.episodes)}`:''} · <span class="when">${esc(soon(c.at))}</span>`:c.year?esc(c.year):''}</div></button>`).join('');
  say($('gridMsg'),list.length?'':'Nothing found. Try another name.')}

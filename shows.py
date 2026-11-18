@@ -247,7 +247,10 @@ def local_series():
     data = {"folder": {}, "original": {}}
     try:
         with agent.jellyfin_db() as c:
-            rows = c.execute("select Id, Name, OriginalTitle, Path, Overview from BaseItems where Type like '%.Series'").fetchall()
+            try:
+                rows = c.execute("select Id, Name, OriginalTitle, Path, Overview from BaseItems where Type like '%.Series'").fetchall()
+            except Exception:                  # a Jellyfin version without Overview: titles and posters still work
+                rows = [r + (None,) for r in c.execute("select Id, Name, OriginalTitle, Path from BaseItems where Type like '%.Series'").fetchall()]
         for item_id, name, original, path, overview in rows:
             if not name or not item_id:
                 continue

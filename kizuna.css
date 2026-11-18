@@ -116,6 +116,8 @@ img{max-width:100%}
 .k-progress[data-state=failed]>i{background:var(--k-fail)}
 .k-progress.indeterminate>i{width:30%!important;animation:k-slide 1.4s ease-in-out infinite}
 @keyframes k-slide{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
+@keyframes k-slide-rtl{from{transform:translateX(100%)}to{transform:translateX(-340%)}}
+[dir=rtl] .k-progress.indeterminate>i{animation-name:k-slide-rtl}
 
 /* ---------------------------------------------------------------- artwork */
 .k-shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:28px 20px}

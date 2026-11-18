@@ -26,7 +26,8 @@ function t(s){
   const out=tr(m[2].replace(/\s+/g,' '));return out==null?str:m[1]+out+m[3]}
 // never translated: titles, release and file names, the log
 const SKIP='bdi,pre,code,script,style,textarea,[translate=no],.notr,.poster strong,.suggestion strong,#title,#description,'+
-  '.release strong,.release p,.release small,select#episode,.episode-check>span:first-of-type';
+  '.release strong,.release p,.release small,select#episode,.episode-check>span:first-of-type,'+
+  'select#library,select#library_movie,select#library_series,select#library_anime,select#language';   // your library names, language names
 const ATTRS=['placeholder','aria-label','title'];
 function translateTree(root){
   if(LANG!=='ar'||!AR||!root)return;
@@ -71,7 +72,7 @@ async function activity(){
   if(job&&job.status==='running'&&job.phase!=='processing')
     return set(job.paused?'paused':'downloading',`<b>${t(job.paused?'Paused':'Downloading')}</b> <bdi>${esc(job.name)}</bdi>${job.pct!=null?` · ${Math.round(job.pct)}%`:''}`,'/stremio',!job.paused);
   if(batch&&['running','stopping'].includes(batch.status)){const c=batch.counts||{};
-    return set('downloading',`<b>${t('Season download')}</b> <bdi>${esc(batch.name)}</bdi> · ${(c.done||0)+(c.existing||0)}/${batch.total||'?'}`,'/stremio',true)}
+    return set('downloading',`<b>${t('Season download')}</b> <bdi>${esc(batch.name)}</bdi> · ${(c.done||0)+(c.existing||0)} of ${batch.total||'?'}`,'/stremio',true)}
   if(st.job)return set('processing',`<b>${t('Arabic')}</b> <bdi>${esc(st.job.name)}</bdi> · ${Math.round(st.job.pct||0)}%`,'/',true);
   if(job&&job.status==='running')return set('processing',`<b>${t('Arabic')}</b> <bdi>${esc(job.name)}</bdi>`,'/',true);
   const n=(st.attention||[]).length;
