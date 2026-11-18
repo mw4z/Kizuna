@@ -58,7 +58,7 @@ function ago(s){s=Math.max(0,s);return t(s<90?'just now':s<3600?Math.round(s/60)
 
 function shell(page){
   const top=document.querySelector('.k-top');if(!top)return;
-  top.innerHTML=`<div class="k-top-in"><a class="k-brand" href="/" aria-label="Kizuna home"><span class="k-seal" aria-hidden="true">絆</span><span class="k-word">Kizuna</span></a>
+  top.innerHTML=`<div class="k-top-in"><a class="k-brand" href="/" aria-label="Kizuna home"><img class="k-seal" src="/app.png" alt="" width="28" height="28"><span class="k-word">Kizuna</span></a>
   <nav class="k-nav" aria-label="${t('Main')}">${NAV.map(([id,href,label])=>`<a href="${href}"${id===page?' aria-current="page"':''}>${t(label)}</a>`).join('')}</nav>
   <a class="k-activity" id="kActivity" href="/"><span class="k-state" data-state="idle"></span><span>Checking…</span></a></div>`;
   activity();setInterval(activity,4000);

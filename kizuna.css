@@ -42,8 +42,7 @@ img{max-width:100%}
 .k-top{position:sticky;top:0;z-index:30;background:rgba(11,11,13,.94);border-bottom:1px solid var(--k-line)}
 .k-top-in{max-width:var(--k-page);margin:0 auto;height:56px;padding:0 var(--k-5);display:flex;align-items:center;gap:var(--k-6)}
 .k-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--k-text);flex:none}
-.k-seal{width:24px;height:24px;border-radius:5px;background:var(--k-accent);color:#fff;display:grid;place-items:center;
-  font:600 14px/1 "Yu Gothic UI","Meiryo UI","Segoe UI",sans-serif;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.k-seal{width:28px;height:28px;display:block;flex:none}   /* the app icon (app.png, ribbon K) */
 .k-word{font:600 12.5px/1 var(--k-font-display);letter-spacing:.34em;text-transform:uppercase;padding-left:1px}
 .k-nav{display:flex;gap:2px;height:100%}
 .k-nav a{position:relative;display:flex;align-items:center;padding:0 14px;color:var(--k-text-2);text-decoration:none;font-weight:500;transition:color .15s}
