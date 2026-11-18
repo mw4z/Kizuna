@@ -380,6 +380,8 @@ def make_handler(pending=None):
                     data = {"job": stremio.job_status(), "batch": stremio_batch.status()}
                 elif not post and action == "search":
                     data = stremio.search(params.get("q", ""), params.get("type", ""))
+                elif not post and action == "open-id":
+                    data = stremio.open_id(params.get("type"), params.get("id"), params.get("name"), params.get("poster", ""))
                 elif not post and action == "open-anilist":
                     data = stremio.open_anilist(params.get("id", ""))
                 elif not post and action == "details":

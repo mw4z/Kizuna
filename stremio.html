@@ -57,14 +57,23 @@ progress::-moz-progress-bar{background:var(--k-download)}
 .title-search{position:relative;min-width:0}
 .title-search label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 #query{height:44px;font-size:15px;padding:0 16px}
-#recent{display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:760px;margin:4px 0 10px}
-#recent .lbl{font-size:12px;color:var(--k-text-3);margin-inline-end:2px}
-#recent .chip{display:inline-flex;align-items:center;border:1px solid var(--k-line-strong);border-radius:999px;background:var(--k-raised);overflow:hidden}
-#recent .chip button{all:unset;cursor:pointer;font:500 12.5px/1 var(--k-font);color:var(--k-text-2);padding:7px 10px 7px 12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#recent .chip button.x{padding:7px 10px 7px 4px;color:var(--k-text-3)}
-#recent .chip:hover{border-color:var(--k-line-hover)}#recent .chip button:hover{color:var(--k-text)}
-#recent button.clear{all:unset;cursor:pointer;font-size:12px;color:var(--k-text-3);text-decoration:underline;text-underline-offset:3px;margin-inline-start:4px}
+#recent{margin:14px 0 6px}
+#recent .head{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
+#recent .lbl{font-size:12.5px;font-weight:600;color:var(--k-text-2)}
+#recent .row{display:flex;gap:12px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:thin}
+#recent .rc{position:relative;flex:none;width:96px}
+#recent .rc>button.go{all:unset;cursor:pointer;display:block;width:96px}
+#recent .rc .art{display:block;aspect-ratio:2/3;border-radius:8px;overflow:hidden;background:var(--k-surface);border:1px solid var(--k-line);transition:transform .2s var(--k-ease),border-color .2s}
+#recent .rc .art img{width:100%;height:100%;object-fit:cover}
+#recent .rc .art .ph{display:grid;place-items:center;height:100%;color:var(--k-text-3);font-size:22px}
+#recent .rc .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:6px;font-size:12px;line-height:1.35;color:var(--k-text-2)}
+#recent .rc:hover .art{transform:translateY(-2px);border-color:var(--k-line-hover)}
+#recent .rc button.x{all:unset;cursor:pointer;position:absolute;top:5px;inset-inline-end:5px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(0,0,0,.65);color:#fff;font-size:14px;opacity:0;transition:opacity .15s}
+#recent .rc:hover button.x,#recent .rc button.x:focus-visible{opacity:1}
+#recent button.clear{all:unset;cursor:pointer;font-size:12px;color:var(--k-text-3);text-decoration:underline;text-underline-offset:3px}
 #recent button:focus-visible{outline:2px solid var(--k-accent);outline-offset:2px}
+.suggestion .clock{width:34px;height:22px;flex:none;display:grid;place-items:center;color:var(--k-text-3)}
 .search .primary{height:44px;padding:0 22px}
 .suggestions{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:20;background:var(--k-raised);border:1px solid var(--k-line-strong);
   border-radius:var(--k-r-art);box-shadow:0 24px 48px -12px var(--k-shadow,rgba(0,0,0,.85));max-height:440px;overflow:auto;padding:4px}
@@ -180,7 +189,7 @@ section,#results,#message,#subtitle{scroll-margin-top:76px}
 <section id="job" class="job" hidden aria-live="polite"><strong id="jobName" dir="auto"></strong><p id="jobStage"></p><progress id="jobProgress" max="100" value="0" aria-describedby="jobPercent jobEta"></progress><div class="job-numbers"><strong id="jobPercent"></strong><span class="job-tail"><span id="jobEta"></span><button id="jobPause" class="icon" type="button" title="Pause" aria-label="Pause download"></button><button id="jobCancel" class="icon" type="button" title="Cancel" aria-label="Cancel download"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></span></div><button id="jobDismiss" type="button" hidden>Dismiss</button></section>
 <section id="batch" class="job" hidden aria-live="polite"><strong id="batchName" dir="auto"></strong><p id="batchStage"></p><p id="batchCounts" class="subtle"></p><progress id="batchProgress" max="100" value="0"></progress><div class="toolbar"><button id="batchStop">Stop after current episode</button><button id="batchResume">Resume / retry remaining</button><button id="batchDismiss" type="button">Dismiss</button></div><ul id="batchProblems" class="batch-problems"></ul></section>
 <form class="search" id="searchForm" role="search"><div class="title-search"><label for="query">Title</label><input id="query" type="search" required minlength="2" maxlength="150" placeholder="Search movies, shows and anime" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="suggestions" aria-expanded="false" dir="auto"><div id="suggestions" class="suggestions" role="listbox" aria-label="Suggested titles" hidden></div></div><button class="primary" id="searchButton">Search</button></form>
-<div id="recent" class="recent" role="group" aria-label="Recent searches" hidden></div>
+<div id="recent" class="recent" role="group" aria-label="Recently opened" hidden></div>
 <div id="message" role="status" aria-live="polite"></div><div id="results"></div>
 <section id="hero" class="hero" hidden role="region" aria-roledescription="carousel" aria-label="Airing now"></section>
 <section id="landing" class="k-section" style="margin-top:36px" aria-labelledby="hLanding" hidden><div class="k-section-head"><h2 class="k-h" id="hLanding">Airing this season</h2><span class="k-meta">Pick one to find its releases · <a href="/weekly">follow weekly →</a></span></div><div class="k-shelf" id="landingShelf"></div></section>
@@ -216,15 +225,15 @@ async function api(path,data,signal){const r=await fetch('/api/stremio/'+path,{m
 // Title suggestions
 let suggestionTimer,suggestionRequest,suggestionVersion=0,suggestedTitles=[],suggestionIndex=-1;
 function hideSuggestions(){clearTimeout(suggestionTimer);suggestionRequest?.abort();++suggestionVersion;$('suggestions').hidden=true;$('query').setAttribute('aria-expanded','false');$('query').removeAttribute('aria-activedescendant');suggestionIndex=-1}
-function selectSuggestion(index){const title=suggestedTitles[index];if(!title)return;const row=$('suggestions').children[index];hideSuggestions();$('query').value=title.name;openTitle(title,row)}
+function selectSuggestion(index){const title=suggestedTitles[index];if(!title)return;if(title.recentQuery){hideSuggestions();$('query').value=title.name;$('searchForm').requestSubmit();return}const row=$('suggestions').children[index];hideSuggestions();$('query').value=title.name;openTitle(title,row)}
 function showSuggestions(results,note=''){
  suggestedTitles=results.slice(0,8);suggestionIndex=-1;const list=$('suggestions');list.replaceChildren();
- suggestedTitles.forEach((title,index)=>{const row=el('div',undefined,'suggestion');row.id='suggestion-'+index;row.setAttribute('role','option');row.setAttribute('aria-selected','false');if(title.poster){const img=el('img');img.src=title.poster;img.alt='';img.referrerPolicy='no-referrer';row.append(img)}const text=el('div');text.append(el('strong',title.name),el('small',[title.year,title.type].filter(Boolean).join(' · ')));row.append(text);row.onclick=()=>selectSuggestion(index);list.append(row)});
+ suggestedTitles.forEach((title,index)=>{const row=el('div',undefined,'suggestion');row.id='suggestion-'+index;row.setAttribute('role','option');row.setAttribute('aria-selected','false');if(title.recentQuery){const c=el('span',undefined,'clock');c.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';row.append(c)}else if(title.poster){const img=el('img');img.src=title.poster;img.alt='';img.referrerPolicy='no-referrer';row.append(img)}const text=el('div');text.append(el('strong',title.name),el('small',title.recentQuery?'Recent search':[title.year,title.type].filter(Boolean).join(' · ')));row.append(text);row.onclick=()=>selectSuggestion(index);list.append(row)});
  if(!suggestedTitles.length){const status=el('div',note||'No matching titles. Try another name.','suggestion-note');if(note==='Finding titles…')status.append(el('span',undefined,'skeleton skeleton-note'),el('span',undefined,'skeleton skeleton-note'));list.append(status)}
  list.hidden=false;$('query').setAttribute('aria-expanded','true');$('query').removeAttribute('aria-activedescendant');
 }
 function scheduleSuggestions(event){
- hideSuggestions();if(event?.isComposing)return;const query=$('query').value.trim(),type='all';if(query.length<2)return;const version=suggestionVersion;
+ hideSuggestions();if(event?.isComposing)return;const query=$('query').value.trim(),type='all';if(query.length<2){if(!query&&recentGet().length&&document.activeElement===$('query'))showSuggestions(recentGet().map(q=>({name:q,recentQuery:true})));return}const version=suggestionVersion;
  suggestionTimer=setTimeout(async()=>{showSuggestions([],'Finding titles…');suggestionRequest=new AbortController();try{const data=await api('search?'+new URLSearchParams({q:query,type}),undefined,suggestionRequest.signal);if(version!==suggestionVersion)return;showSuggestions(data.results,data.failed_addons?'Catalogs are still loading. Keep typing or press Search.':'')}catch(error){if(version===suggestionVersion&&error.name!=='AbortError')showSuggestions([],'Suggestions unavailable. Press Search to try again.')}},350);
 }
 $('query').addEventListener('input',scheduleSuggestions);$('query').addEventListener('focus',scheduleSuggestions);
@@ -244,11 +253,18 @@ const RECENT='kizuna-recent-searches';
 function recentGet(){try{const a=JSON.parse(localStorage.getItem(RECENT)||'[]');return Array.isArray(a)?a.filter(x=>typeof x==='string'):[]}catch{return[]}}
 function recentSet(a){try{localStorage.setItem(RECENT,JSON.stringify(a.slice(0,8)))}catch{}renderRecent()}
 function rememberSearch(q){q=q.trim();if(q.length>=2)recentSet([q,...recentGet().filter(x=>x.toLowerCase()!==q.toLowerCase())])}
-function renderRecent(){const a=recentGet(),box=$('recent'),E=Kizuna.esc;box.hidden=!a.length;
- box.innerHTML=a.length?`<span class="lbl">Recent</span>${a.map((q,i)=>`<span class="chip"><button type="button" class="go" data-i="${i}" title="${E(q)}"><bdi>${E(q)}</bdi></button><button type="button" class="x" data-x="${i}" aria-label="Remove from recent">×</button></span>`).join('')}<button type="button" class="clear">Clear</button>`:''}
-$('recent').addEventListener('click',e=>{const a=recentGet(),go=e.target.closest('[data-i]'),x=e.target.closest('[data-x]');
- if(go){$('query').value=a[+go.dataset.i];hideSuggestions();$('searchForm').requestSubmit()}
- else if(x)recentSet(a.filter((_,i)=>i!==+x.dataset.x));else if(e.target.closest('.clear'))recentSet([])});
+// recently opened shows: poster cards under the search box that reopen the show itself (kept in this browser only)
+const RECENT_SHOWS='kizuna-recent-shows';
+function shownGet(){try{const a=JSON.parse(localStorage.getItem(RECENT_SHOWS)||'[]');return Array.isArray(a)?a.filter(x=>x&&x.id&&x.name):[]}catch{return[]}}
+function shownSet(a){try{localStorage.setItem(RECENT_SHOWS,JSON.stringify(a.slice(0,10)))}catch{}renderRecent()}
+function rememberShow(s){if(s.id&&s.name)shownSet([s,...shownGet().filter(x=>!(x.id===s.id&&x.type===s.type))])}
+function renderRecent(){const a=shownGet(),box=$('recent'),E=Kizuna.esc;box.hidden=!a.length;
+ box.innerHTML=a.length?`<div class="head"><span class="lbl">Recently opened</span><button type="button" class="clear">Clear</button></div><div class="row">${a.map((s,i)=>`<div class="rc"><button type="button" class="go" data-i="${i}" title="${E(s.name)}"><span class="art">${s.poster?`<img src="${E(s.poster)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:`<span class="ph" aria-hidden="true">${E(s.name[0]||'?')}</span>`}</span><span class="nm"><bdi>${E(s.name)}</bdi></span></button><button type="button" class="x" data-x="${i}" aria-label="Remove from recent">×</button></div>`).join('')}</div>`:''}
+$('recent').addEventListener('click',async e=>{const a=shownGet(),go=e.target.closest('[data-i]'),x=e.target.closest('[data-x]');
+ if(go){const s=a[+go.dataset.i];go.disabled=true;$('landing').hidden=true;$('hero').hidden=true;
+  try{const t=await api('open-id?'+new URLSearchParams({type:s.type,id:s.id,name:s.name,poster:s.poster||''}));t.season=s.season;go.disabled=false;await openTitle(t,go)}
+  catch(err){go.disabled=false;message(err.message,true)}}
+ else if(x)shownSet(a.filter((_,i)=>i!==+x.dataset.x));else if(e.target.closest('.clear'))shownSet([])});
 renderRecent();
 $('searchForm').onsubmit=async e=>{
  e.preventDefault();rememberSearch($('query').value);messageHost=$('results');const version=++searchVersion;++inspectVersion;$('searchButton').disabled=true;$('detail').hidden=true;$('results').hidden=false;showSkeletons($('results'),true);message('Searching your Stremio catalogs…');
@@ -268,7 +284,7 @@ async function openShow(c,b){b.disabled=true;$('landing').hidden=true;$('hero').
 function renderTitles(){$('results').replaceChildren();for(const [type,label] of [['movie','Movies'],['series','Series'],['anime','Anime']]){const matching=titles.filter(t=>t.type===type);if(!matching.length)continue;const section=el('section',undefined,'result-group'),grid=el('div',undefined,'grid');section.append(el('h2',label),grid);for(const t of matching){const b=el('button',undefined,'poster');b.type='button';if(t.poster){const img=el('img');img.src=t.poster;img.alt='';img.loading='lazy';img.referrerPolicy='no-referrer';b.append(img)}else b.append(el('span','', 'placeholder'));b.append(el('strong',t.name),el('small',t.year||t.type));b.onclick=()=>openTitle(t,b);grid.append(b)}$('results').append(section)}}
 async function openTitle(t,b){
  messageHost=$('detail');const version=++searchVersion;++inspectVersion;++fillerVersion;fillerLabels={};episodeChoices.clear();$('fillerSource').hidden=true;selected=null;currentType=t.type;videos=[];updateDownloadButtons();b.disabled=true;$('results').hidden=true;$('detail').hidden=false;$('title').textContent=t.name;$('description').textContent='';showArt(t.poster,'',{});$('episodes').hidden=true;$('bulkControls').hidden=true;$('sourcesSection').hidden=true;$('selection').hidden=true;$('selectionLoading').hidden=true;$('detailLoading').hidden=false;message('Loading title and episodes…');
- try{const d=await api('details?'+new URLSearchParams({key:t.key}));if(version!==searchVersion)return;currentType=t.type;videos=d.videos;$('title').textContent=d.name;$('description').textContent=d.description;showArt(d.poster||t.poster,d.background,d);$('detailLoading').hidden=true;$('episodes').hidden=t.type==='movie';if(t.type==='movie'&&videos.length){await loadSources(videos[0].key)}else{const seasons=[...new Set(videos.map(v=>v.season))].sort((a,b)=>a-b);$('season').replaceChildren();seasons.forEach(s=>option($('season'),s,s===0?'Specials':'Season '+s));const regular=seasons.includes(t.season)?t.season:seasons.find(s=>s>0);if(regular!==undefined)$('season').value=String(regular);renderEpisodes();loadFillers(t.key);moveTo('episodes');message(videos.length?'Choose a season and episode.':'This catalog did not return an episode list. Try another result.')}}
+ try{const d=await api('details?'+new URLSearchParams({key:t.key}));if(version!==searchVersion)return;currentType=t.type;videos=d.videos;$('title').textContent=d.name;$('description').textContent=d.description;showArt(d.poster||t.poster,d.background,d);rememberShow({type:t.type,id:d.id,name:d.name,poster:d.poster||t.poster||'',season:t.season});$('detailLoading').hidden=true;$('episodes').hidden=t.type==='movie';if(t.type==='movie'&&videos.length){await loadSources(videos[0].key)}else{const seasons=[...new Set(videos.map(v=>v.season))].sort((a,b)=>a-b);$('season').replaceChildren();seasons.forEach(s=>option($('season'),s,s===0?'Specials':'Season '+s));const regular=seasons.includes(t.season)?t.season:seasons.find(s=>s>0);if(regular!==undefined)$('season').value=String(regular);renderEpisodes();loadFillers(t.key);moveTo('episodes');message(videos.length?'Choose a season and episode.':'This catalog did not return an episode list. Try another result.')}}
  catch(e){if(version===searchVersion)message(e.message,true)}finally{if(version===searchVersion){$('detailLoading').hidden=true;$('bulkControls').hidden=currentType==='movie'||!videos.length;updateDownloadButtons()}b.disabled=false}
 }
 function renderEpisodes(){episodeChoices.clear();renderEpisodeChecks();$('episode').replaceChildren();videos.filter(v=>String(v.season)===$('season').value).sort((a,b)=>a.episode-b.episode).forEach(v=>option($('episode'),v.key,`${v.episode}. ${v.name}`))}

@@ -35,6 +35,17 @@
 [dir=rtl] .nextup .label{letter-spacing:0;text-transform:none;font-size:12.5px}
 /* attention + pending rows */
 .pend-side{display:flex;align-items:center;gap:12px;flex:none}
+/* waiting episodes of one season collapse into one row; open it to see (and cancel) single episodes */
+.k-row.pgroup{display:block;padding:0}
+.pgroup>details>summary{display:flex;align-items:center;gap:16px;padding:14px 0;cursor:pointer;list-style:none}
+.pgroup>details>summary::-webkit-details-marker{display:none}
+.pgroup>details>summary .k-row-main{flex:1;min-width:0}
+.pgroup .chev{width:18px;height:18px;flex:none;color:var(--k-text-3);transition:transform .25s var(--k-ease)}
+.pgroup details[open] .chev{transform:rotate(90deg)}
+[dir=rtl] .pgroup .chev{transform:scaleX(-1)}[dir=rtl] .pgroup details[open] .chev{transform:rotate(90deg)}
+.pgroup .eps{color:var(--k-text-3);font-variant-numeric:tabular-nums}
+.pgroup .k-rows{margin:0 0 10px;padding-inline-start:34px;border-top:1px solid var(--k-line)}
+.pgroup .k-rows .k-row{padding:9px 0}
 .k-row .cancel{height:28px;padding:0 12px;font-size:12px;flex:none}
 .k-row .cancel.armed{border-color:var(--k-accent);color:var(--k-accent-ink);background:var(--k-accent)}
 .k-row .k-state{justify-self:end}
@@ -152,7 +163,15 @@ async function tick(){
   $('attention').hidden=!att.length;$('attentionCount').textContent=att.length||'';
   put('attentionList',att.map(x=>{const [st,label]=KIND[x.kind]||KIND.failed;return `<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.reason)}</div></div><span class="k-state" data-state="${st}">${label}</span></li>`}).join(''));
   $('pending').hidden=!pend.length;$('pendingCount').textContent=pend.length||'';
-  put('pendingList',pend.map(x=>`<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.reason)}</div></div><div class="pend-side"><span class="k-row-aside">${x.retry_at?'Next check '+esc(K.time(x.retry_at)):'Checking hourly'}</span>${x.key?`<button type="button" class="k-btn k-btn-ghost cancel" data-key="${esc(x.key)}">Cancel</button>`:''}</div></li>`).join(''));
+  const next=x=>x.retry_at?'Next check '+esc(K.time(x.retry_at)):'Checking hourly',
+    cancel=keys=>keys.length?`<button type="button" class="k-btn k-btn-ghost cancel" data-key="${esc(keys.join(' '))}">${keys.length>1?'Cancel all':'Cancel'}</button>`:'',
+    row=x=>`<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.reason)}</div></div><div class="pend-side"><span class="k-row-aside">${next(x)}</span>${cancel(x.key?[x.key]:[])}</div></li>`;
+  put('pendingList',groupPending(pend).map(g=>g.items.length<2?row(g.items[0]):`<li class="k-row pgroup"><details data-g="${esc(g.id)}"${openGroups.has(g.id)?' open':''}><summary>
+    <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+    <div class="k-row-main"><div class="k-row-title"><bdi>${esc(g.show)}</bdi> · <span>Season ${g.season}</span></div>
+    <div class="why"><span>${g.items.length} episodes</span> · <bdi class="eps">${esc(g.range)}</bdi> · <span>${esc(g.items[0].reason)}</span></div></div>
+    <div class="pend-side"><span class="k-row-aside">${next(g.items[0])}</span>${cancel(g.items.filter(x=>x.key).map(x=>x.key))}</div></summary>
+    <ul class="k-rows">${g.items.map(row).join('')}</ul></details></li>`).join(''));
   // weekly shows
   $('showCount').textContent=d.shows.length||'';
   // titles stay original in every language (no translated names); posters come from the library
@@ -183,6 +202,17 @@ async function tick(){
 function fill(s,ep){const l=(s.fillers||{})[String(ep)];return l?`<span class="k-tag ${l==='Filler'?'warn':''} fill">${esc(l)}</span>`:''}
 function etaText(s){if(!Number.isFinite(s))return'';if(s<60)return'Less than a minute left';const m=Math.ceil(s/60);return`About ${m>=60?Math.floor(m/60)+' h '+(m%60)+' min':m+' min'} left`}
 // even rows on the shelf: as many columns as fit (min 120 px), then spread the shows evenly over the rows needed
+// "Show · S14E03" rows of the same show and season form one group; episodes become a compact range (E01–E07, E09)
+const openGroups=new Set();
+document.addEventListener('toggle',e=>{const d=e.target;if(d.dataset&&d.dataset.g){d.open?openGroups.add(d.dataset.g):openGroups.delete(d.dataset.g);delete $('pendingList').dataset.h}},true);
+function groupPending(list){const groups=new Map(),out=[];
+  for(const x of list){const m=/^(.*) · S(\d+)E(\d+)$/.exec(x.name||'');const id=m?m[1]+'|S'+(+m[2]):'|1|'+(x.key||x.name);
+    if(!groups.has(id)){const g={id,show:m?m[1]:x.name,season:m?+m[2]:null,items:[],eps:[]};groups.set(id,g);out.push(g)}
+    const g=groups.get(id);g.items.push(x);if(m)g.eps.push(+m[3])}
+  for(const g of out){const e=[...new Set(g.eps)].sort((a,b)=>a-b),p=n=>'E'+String(n).padStart(2,'0'),parts=[];
+    for(let i=0;i<e.length;){let j=i;while(j+1<e.length&&e[j+1]===e[j]+1)j++;parts.push(j>i?p(e[i])+'–'+p(e[j]):p(e[i]));i=j+1}
+    g.range=parts.join(', ');g.items.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}))}
+  return out}
 function balance(){const shelf=$('shows'),n=shelf.querySelectorAll('.k-card').length;if(!n)return;
   const fit=Math.max(2,Math.floor((shelf.clientWidth+16)/(120+16))),rows=Math.ceil(n/fit);shelf.style.setProperty('--cols',Math.min(fit,Math.ceil(n/rows)))}
 new ResizeObserver(balance).observe($('shows'));new MutationObserver(balance).observe($('shows'),{childList:true});
@@ -190,5 +220,7 @@ tick();setInterval(tick,3000);
 // cancel a waiting episode: first click asks "Remove?", a second click within 4 s confirms
 document.addEventListener('click',async e=>{const b=e.target.closest('button.cancel[data-key]');if(!b)return;
   if(!b.dataset.armed){b.dataset.armed='1';b.textContent=K.t('Remove?');b.classList.add('armed');setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent=K.t('Cancel');b.classList.remove('armed')}},4000);return}
-  b.disabled=true;try{await K.api('queue-cancel',{key:b.dataset.key});b.closest('li').remove();delete $('pendingList').dataset.h;tick()}catch(err){b.disabled=false;b.textContent=err.message}});
+  e.preventDefault();b.disabled=true;let failed='';
+  for(const key of b.dataset.key.split(' ')){try{await K.api('queue-cancel',{key})}catch(err){failed=err.message}}
+  delete $('pendingList').dataset.h;tick();if(failed&&b.isConnected){b.disabled=false;b.textContent=failed}});
 </script></body></html>
