@@ -110,7 +110,8 @@ def _shows(lines=()):
         rows.append({"title": re.sub(r"\s*\(\d{4}\)$", "", folder), "latest": latest, "count": len(eps),
                      "next": air.get("next"), "at": air.get("at"), "total": air.get("total"),
                      "poster": f"{JF}/Items/{sid}/Images/Primary?maxHeight=420" if sid else None,
-                     "manual": show.get("policy") == "manual"})
+                     "manual": show.get("policy") == "manual", "banner": air.get("banner", ""),
+                     "cover": show.get("poster", "")})
     return rows
 
 
@@ -151,7 +152,7 @@ def _airing():
     if time.time() - _air["t"] < 1800 and ids == _air["ids"]:
         return _air["data"]
     _air["ids"] = ids
-    q = "query($ids:[Int]){Page(perPage:50){media(id_in:$ids){id episodes nextAiringEpisode{episode airingAt}}}}"
+    q = "query($ids:[Int]){Page(perPage:50){media(id_in:$ids){id episodes bannerImage nextAiringEpisode{episode airingAt}}}}"
     try:
         req = urllib.request.Request("https://graphql.anilist.co",
                                      data=json.dumps({"query": q, "variables": {"ids": list(ids)}}).encode(),
@@ -159,7 +160,8 @@ def _airing():
                                               "User-Agent": "AnimeFYA-status"})
         media = json.load(urllib.request.urlopen(req, timeout=15))["data"]["Page"]["media"]
         _air["data"] = {m["id"]: {"next": (m["nextAiringEpisode"] or {}).get("episode"),
-                                  "at": (m["nextAiringEpisode"] or {}).get("airingAt"), "total": m["episodes"]}
+                                  "at": (m["nextAiringEpisode"] or {}).get("airingAt"), "total": m["episodes"],
+                                  "banner": m["bannerImage"] if str(m.get("bannerImage") or "").startswith("https://s4.anilist.co/") else ""}
                         for m in media}
         _air["t"] = time.time()
     except Exception:
