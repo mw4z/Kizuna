@@ -275,7 +275,7 @@ exact: {
   "Audio, resolution and HDR come from the add-on until you check a release; checking reads the real tracks. Unknown audio is listed as Unspecified.": "الصوت والدقة و HDR تأتي من الإضافة حتى تفحص الإصدار؛ الفحص يقرأ المسارات الفعلية. الصوت المجهول يظهر كغير محدد.",
   "Checking available tracks": "جارٍ فحص المسارات المتاحة", "Choose your tracks": "اختر مساراتك",
   "Before it reaches Jellyfin, every download gets Arabic subtitles: found, styled in Cairo, timed and verified. Arabic dubs skip this. If no Arabic exists yet, it waits and retries.": "قبل وصوله إلى Jellyfin يحصل كل تنزيل على ترجمة عربية: يُعثر عليها وتُنسَّق بخط Cairo وتُطابق توقيتًا وتُتحقق. الدبلجة العربية تتخطى ذلك، وإن لم تتوفر ترجمة بعد فسينتظر ويُعيد المحاولة.",
-  "Extra subtitles": "ترجمة إضافية", "Jellyfin library": "مكتبة Jellyfin", "Find add-on subtitles": "ابحث عن ترجمات الإضافات", "Download to Jellyfin": "نزّل إلى Jellyfin",
+  "Extra subtitles": "ترجمة إضافية", "Jellyfin library": "مكتبة Jellyfin", "Find add-on subtitles": "ابحث عن ترجمات الإضافات", "Download this episode only": "نزّل هذه الحلقة فقط", "Download this movie": "نزّل هذا الفيلم", "Download to Jellyfin": "نزّل إلى Jellyfin",
   "Choose episodes from this season": "اختر حلقات من هذا الموسم", "Filler status unavailable.": "حالة الحلقات الحشو غير متاحة.", "View filler guide": "عرض دليل الحشو",
   "Select all": "تحديد الكل", "Clear": "مسح", "Uncheck fillers": "إلغاء تحديد الحشو", "Filler": "حشو", "Canon": "أساسية", "Mixed canon/filler": "مختلطة",
   "Stop after current episode": "توقف بعد الحلقة الحالية", "Resume / retry remaining": "استئناف / إعادة المتبقي", "Dismiss": "إخفاء",
