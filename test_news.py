@@ -35,6 +35,48 @@ class Parse(unittest.TestCase):
         self.assertTrue(title.endswith("…"))
 
 
+class Arabic(unittest.TestCase):
+    MIXED = """<rss><channel>
+<item><title>لعبة جديدة</title><link>https://me.ign.com/ar/g</link><category>أخبار</category><category>PlayStation 5</category></item>
+<item><title>مراجعة فيلم</title><link>https://me.ign.com/ar/f</link><category>Entertainment</category><category>افلام</category></item>
+<item><title>موسم جديد من الأنمي</title><link>https://me.ign.com/ar/a</link><category>أنمي</category></item>
+</channel></rss>""".encode("utf-8")
+
+    def test_mixed_site_keeps_only_film_tv_and_anime(self):
+        items = news.parse(self.MIXED, "IGN عربي", "mixed", "ar")
+        self.assertEqual([(i["title"], i["kind"], i["lang"]) for i in items],
+                         [("مراجعة فيلم", "screen", "ar"), ("موسم جديد من الأنمي", "anime", "ar")])
+
+    def test_arabic_interface_puts_arabic_stories_first(self):
+        saved = dict(news._state)
+        try:
+            news._state.update(items=[{"title": "en", "link": "https://e/1", "kind": "anime", "lang": "en", "at": 9},
+                                      {"title": "ar", "link": "https://e/2", "kind": "anime", "lang": "ar", "at": 1}],
+                               updated=time.time(), refreshing=False, failed=[])
+            self.assertEqual([i["title"] for i in news.latest("all", "ar")["items"]], ["ar", "en"])
+            self.assertEqual([i["title"] for i in news.latest("all", "en")["items"]], ["en", "ar"])
+        finally:
+            news._state.clear()
+            news._state.update(saved)
+
+
+class Slow(unittest.TestCase):
+    def test_a_trickling_feed_hits_its_deadline(self):
+        class Trickle:
+            def __enter__(self): return self
+            def __exit__(self, *a): pass
+            def read(self, n): return b" "
+        clock = iter(range(0, 1000, 5))
+        with mock.patch.object(news.urllib.request, "urlopen", return_value=Trickle()), \
+                mock.patch.object(news.time, "monotonic", side_effect=lambda: next(clock)):
+            with self.assertRaises(TimeoutError):
+                news.fetch("Slow", "anime", "https://slow.example/feed")
+
+    def test_odd_dates_do_not_break_a_feed(self):
+        rss = b"<rss><channel><item><title>Old</title><link>https://e.com/o</link><pubDate>Mon, 01 Jan 1900 00:00:00</pubDate></item></channel></rss>"
+        self.assertEqual(len(news.parse(rss, "S", "anime")), 1)
+
+
 class Refresh(unittest.TestCase):
     def setUp(self):
         self.saved = dict(news._state)
@@ -49,7 +91,7 @@ class Refresh(unittest.TestCase):
                 "at": 1000 + n, "summary": "", "image": ""}
 
     def test_one_broken_feed_never_hides_the_others_and_busy_sites_are_capped(self):
-        def fetch(source, kind, url):
+        def fetch(source, kind, url, language="en"):
             if source == "Deadline":
                 raise OSError("down")
             return [self.item(source, n, kind) for n in range(40)]
@@ -70,10 +112,10 @@ class Refresh(unittest.TestCase):
         self.assertEqual(len(news._state["items"]), 1)
 
     def test_duplicates_across_feeds_shown_once_and_sections_filter(self):
-        with mock.patch.object(news, "fetch", side_effect=lambda s, k, u: [dict(self.item("same", 1, k), source=s)]):
+        with mock.patch.object(news, "fetch", side_effect=lambda s, k, u, lg: [dict(self.item("same", 1, k), source=s)]):
             d = news.latest()
         self.assertEqual(len(d["items"]), 1)
-        with mock.patch.object(news, "fetch", side_effect=lambda s, k, u: [self.item(s.replace(" ", ""), 1, k)]):
+        with mock.patch.object(news, "fetch", side_effect=lambda s, k, u, lg: [self.item(s.replace(" ", ""), 1, k)]):
             news._state.update(items=[], updated=0)
             self.assertTrue(all(i["kind"] == "screen" for i in news.latest("screen")["items"]))
 

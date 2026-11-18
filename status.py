@@ -111,6 +111,7 @@ def _shows(lines=()):
                      "next": air.get("next"), "at": air.get("at"), "total": air.get("total"),
                      "poster": f"{JF}/Items/{sid}/Images/Primary?maxHeight=420" if sid else None,
                      "manual": show.get("policy") == "manual", "banner": air.get("banner", ""),
+                     "local_title": (shows.local_for(folder) or {}).get("title", ""),
                      "cover": show.get("poster", "")})
     return rows
 
@@ -373,7 +374,8 @@ def make_handler(pending=None):
                     kind = params.get("kind", "all")
                     if kind not in ("all", "anime", "screen"):
                         raise stremio.UserError("Unknown news section.")
-                    data = news.latest(kind)
+                    import settings
+                    data = news.latest(kind, settings.get("language"))
                 elif not post and action == "settings":
                     import settings
                     data = settings.page()
@@ -421,6 +423,9 @@ def make_handler(pending=None):
             route = self.path.split("?", 1)[0].rstrip("/") or "/"
             if route in PAGES:
                 page = open(os.path.join(HERE, PAGES[route]), encoding="utf-8").read()
+                import settings
+                if settings.get("language") == "ar":       # right-to-left from the first paint
+                    page = page.replace('<html lang="en">', '<html lang="ar" dir="rtl">', 1)
                 body, ctype = page.replace("__STREMIO_TOKEN__", stremio.TOKEN).encode("utf-8"), "text/html; charset=utf-8"
             elif route in ASSETS:
                 body, ctype = open(os.path.join(HERE, *ASSETS[route][0].split("/")), "rb").read(), ASSETS[route][1]

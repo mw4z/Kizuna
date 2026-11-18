@@ -174,6 +174,7 @@ def poll(folder, ready, initialize_only=False):
                 for k in [k for k in state["done"] if k.split("|")[0] == old]:
                     state["done"][new + "|" + k.split("|", 1)[1]] = state["done"].pop(k)
         save(state)
+        shows.ack_resets("dkb", resets)
     for show in names():
         try:
             releases = listing(show)

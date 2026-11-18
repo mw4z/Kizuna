@@ -71,6 +71,14 @@ class Prefs(Sandbox):
         self.assertTrue(settings.damaged())
         self.assertEqual(cleanup.keep_seconds(), 30 * 86400)                   # never earlier than the user chose
 
+    def test_an_invalid_value_counts_as_damaged_so_cleanup_holds_off(self):
+        settings.FILE.write_text(json.dumps({"keep_hours": "30d"}), encoding="utf-8")
+        settings._cache["stamp"] = "changed"
+        self.assertTrue(settings.damaged())
+        self.assertEqual(cleanup.keep_seconds(), 30 * 86400)
+        settings.FILE.unlink()
+        self.assertFalse(settings.damaged())                                     # file removed: defaults again
+
     def test_hand_edited_nonsense_never_raises(self):
         for raw in ('{"anime_audio": [["ja"]], "keep_hours": {"x": 1}}', '[1, 2]', '"text"', '{"anime_resolutions": [null]}'):
             settings.FILE.write_text(raw, encoding="utf-8")
@@ -186,7 +194,7 @@ class Pages(Sandbox):
         with mock.patch.object(news, "latest", return_value={"items": [], "updated": 0, "failed": [], "sources": []}) as latest:
             self.assertEqual(self.get("/api/stremio/news?kind=anime", token=True)[0], 200)
             self.assertEqual(self.get("/api/stremio/news?kind=../x", token=True)[0], 400)
-        latest.assert_called_once_with("anime")
+        latest.assert_called_once_with("anime", "en")
         self.assertEqual(self.get("/news")[0], 200)
 
     def test_status_separates_real_problems_from_waiting(self):

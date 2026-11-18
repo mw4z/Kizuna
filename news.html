@@ -87,8 +87,11 @@ function render(items){
   $('grid').innerHTML=more.map(n=>`<a class="card" ${link(n)}><div class="thumb">${pic(n)}</div><h3><bdi>${esc(n.title)}</bdi></h3>${n.summary?`<p>${esc(n.summary)}</p>`:''}
     <div class="meta"><b>${esc(n.source)}</b> · ${esc(ago(n.at))}</div></a>`).join('');
 }
+let ticket=0;
 async function load(fresh){
-  let d;try{d=await K.api('news?kind='+kind)}catch(e){$('updated').textContent=e.message;return}
+  const mine=++ticket,want=kind;
+  let d;try{d=await K.api('news?kind='+want)}catch(e){if(mine===ticket)$('updated').textContent=e.message;return}
+  if(mine!==ticket||want!==kind)return;               // a newer request or another tab took over
   $('updated').textContent=`Updated ${K.ago(Date.now()/1000-d.updated)}`+(d.failed.length?` · ${d.failed.join(', ')} not answering`:'');
   $('sources').textContent=d.sources.filter(s=>kind==='all'||s.kind===kind).map(s=>s.name).join(' · ');
   if(!fresh||!shown.length){render(d.items);return}

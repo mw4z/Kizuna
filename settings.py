@@ -32,6 +32,7 @@ DEFAULTS = {
     "keep_hours": 24,                          # watched episodes go to the Recycle Bin this long after finishing
     "notify_ready": True,                      # Windows notification when an episode or movie is ready
     "clock": "auto",                           # air times: "auto" (Windows setting), "12h" or "24h"
+    "language": "en",                          # interface language: "en" or "ar" (right-to-left)
 }
 LEGACY = {"weekly_audio": "anime_audio", "weekly_subtitle": "anime_subtitle", "weekly_resolutions": "anime_resolutions",
           "default_audio_filter": "anime_audio_filter"}   # names used before the anime / movies & series split
@@ -56,10 +57,12 @@ def _clean(raw, strict=False, base=None):
         if old in raw and new not in raw:
             raw[new] = raw[old]
     out = dict(base or DEFAULTS)
+    problems = []
 
     def bad(why):
         if strict:
             raise SettingsError(why)
+        problems.append(why)
 
     for kind, label in (("anime", "anime"), ("screen", "movies & series")):
         langs = [x for x in dict.fromkeys(_list(raw.get(f"{kind}_audio", out[f"{kind}_audio"]))) if x in LANGUAGES]
@@ -91,6 +94,11 @@ def _clean(raw, strict=False, base=None):
         except (TypeError, ValueError):
             bad(f"{label} must be between {low} and {high}.")
     out["notify_ready"] = str(raw.get("notify_ready", out["notify_ready"])).lower() in ("1", "true", "yes", "on")
+    language = str(raw.get("language", out["language"]))
+    if language in ("en", "ar"):
+        out["language"] = language
+    else:
+        bad("Unknown interface language.")
     clock = str(raw.get("clock", out["clock"]))
     if clock in ("auto", "12h", "24h"):
         out["clock"] = clock
@@ -102,6 +110,8 @@ def _clean(raw, strict=False, base=None):
             out[key] = name
         else:
             bad("Choose a library.")
+    if problems and not strict:
+        out["_bad"] = True
     return out
 
 
@@ -111,15 +121,18 @@ def get(key=None):
             stamp = FILE.stat().st_mtime_ns
         except FileNotFoundError:
             stamp = None
+        if stamp is None and _cache.get("damaged"):
+            _cache.update(data=dict(DEFAULTS), damaged=False)   # file removed: back to the defaults
         if stamp != _cache["stamp"]:
             try:
                 raw = json.loads(FILE.read_text(encoding="utf-8")) if stamp else {}
                 if not isinstance(raw, dict):
                     raise ValueError("not an object")
-                data, damaged = _clean(raw, base=_cache["data"] if _cache["stamp"] else None), False
-            except Exception:                      # damaged by hand: keep the last good values, never crash
-                data, damaged = dict(_cache["data"]), True
-            _cache.update(stamp=stamp, data=data, damaged=damaged)
+                data = _clean(raw, base=_cache["data"])        # a bad value keeps the last good one
+                damaged = bool(data.pop("_bad", False))   # an invalid value: keep it from cutting cleanup short
+                _cache.update(stamp=stamp, data=data, damaged=damaged)
+            except Exception:                      # unreadable: keep the last good values, retry on the next call
+                _cache.update(stamp=None, damaged=True)
         data = dict(_cache["data"])
     return data if key is None else data[key]
 

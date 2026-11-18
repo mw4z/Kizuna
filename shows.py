@@ -111,11 +111,14 @@ RESETS = Path(agent.HERE) / "shows-pending.json"   # resets / renames not yet ap
 
 
 def _pending():
+    """Pending requests; a missing file is empty, an unreadable one raises (never treated as empty and rewritten)."""
     try:
         data = json.loads(RESETS.read_text(encoding="utf-8"))
-        return data if isinstance(data, dict) else {}
-    except (OSError, ValueError):
+    except FileNotFoundError:
         return {}
+    if not isinstance(data, dict):
+        raise ValueError("shows-pending.json is damaged")
+    return data
 
 
 def request_reset(release, renamed_to=None):
@@ -125,21 +128,42 @@ def request_reset(release, renamed_to=None):
         _resets["dkb"].add(release)
         _resets["stremio"].add(release)
         data = _pending()
+        target = renamed_to or release
         for source in ("dkb", "stremio"):
-            data.setdefault(source, {})[release] = renamed_to or release
+            pending = data.setdefault(source, {})
+            for old in list(pending):              # A→B then B→C becomes A→C; renaming back collapses to A→A
+                if pending[old] == release:
+                    pending[old] = target
+            pending.pop(release, None)
+            pending[release] = target
         agent.write_atomic(RESETS, json.dumps(data, ensure_ascii=False))
 
 
 def take_resets(source):
-    """{old release name: current name} to reset for this poller (memory + the persisted file), then forget them."""
+    """{old release name: current name} this poller must apply (memory + the persisted file). They stay recorded
+    until the poller confirms with ack_resets() after saving its own state, so a crash in between loses nothing."""
     with _lock:
-        data = _pending()
-        out = dict(data.pop(source, {}) or {})
+        try:
+            out = dict(_pending().get(source, {}) or {})
+        except (OSError, ValueError):
+            out = {}                               # unreadable right now: use memory only, touch nothing
         out.update({r: out.get(r, r) for r in _resets[source]})
-        _resets[source] = set()
+        return out
+
+
+def ack_resets(source, applied):
+    with _lock:
+        _resets[source] -= set(applied)
+        try:
+            data = _pending()
+        except (OSError, ValueError):
+            return
+        pending = data.get(source, {})
+        for old, new in applied.items():
+            if pending.get(old) == new:            # unchanged since it was taken
+                pending.pop(old)
         if RESETS.exists():
             agent.write_atomic(RESETS, json.dumps(data, ensure_ascii=False))
-        return out
 
 
 def release_claim(release, episode_tag):
@@ -186,7 +210,7 @@ def have_episode(show, episode_tag):
 
 # ---------------------------------------------------------------- AniList
 ANILIST_URL = "https://graphql.anilist.co"
-FIELDS = ("id title{romaji english} synonyms format season seasonYear episodes status "
+FIELDS = ("id title{romaji english native} synonyms format season seasonYear episodes status "
           "nextAiringEpisode{episode airingAt} coverImage{large} bannerImage description(asHtml:false) genres "
           "startDate{year}")
 _recommend = {"t": 0, "data": None}
@@ -211,6 +235,38 @@ def current_season(now=None):
             "FALL")[d.month - 1], d.year
 
 
+JELLYFIN = "http://localhost:8096"
+_local = {"t": 0, "data": None}
+
+
+def local_series():
+    """Your Jellyfin library's own series names and posters (in the library's metadata language, e.g. Arabic), by
+    folder name and by original title. Read from a temp copy of the database, cached 10 minutes."""
+    if _local["data"] is not None and time.time() - _local["t"] < 600:
+        return _local["data"]
+    data = {"folder": {}, "original": {}}
+    try:
+        with agent.jellyfin_db() as c:
+            rows = c.execute("select Id, Name, OriginalTitle, Path from BaseItems where Type like '%.Series'").fetchall()
+        for item_id, name, original, path in rows:
+            if not name or not item_id:
+                continue
+            entry = {"title": name, "poster": f"{JELLYFIN}/Items/{str(item_id).replace('-', '').lower()}/Images/Primary?maxHeight=480"}
+            if path:
+                data["folder"][os.path.basename(str(path).rstrip("\\/")).casefold()] = entry
+            if original:
+                data["original"][str(original).casefold()] = entry
+    except Exception:
+        pass
+    _local.update(t=time.time(), data=data)
+    return data
+
+
+def local_for(folder=None, native=None):
+    data = local_series()
+    return data["folder"].get(str(folder or "").casefold()) or data["original"].get(str(native or "").casefold())
+
+
 def card(m, followed, new_season):
     nxt = m.get("nextAiringEpisode") or {}
     poster = (m.get("coverImage") or {}).get("large") or ""
@@ -218,7 +274,9 @@ def card(m, followed, new_season):
     about = re.sub(r"\s+", " ", re.sub(r"<[^>]+>|\(Source:[^)]*\)", " ", __import__("html").unescape(m.get("description") or ""))).strip()
     if len(about) > 320:
         about = about[:320].rsplit(" ", 1)[0].rstrip(".,;: ") + "…"
+    local = local_for(followed.get(m["id"]) if isinstance(followed, dict) else None, m["title"].get("native")) or {}
     return {"anilist": m["id"], "title": m["title"].get("english") or m["title"]["romaji"], "romaji": m["title"]["romaji"],
+            "local_title": local.get("title", ""), "local_poster": local.get("poster", ""),
             "banner": banner if banner.startswith("https://s4.anilist.co/") else "", "about": about,
             "genres": [g for g in (m.get("genres") or []) if isinstance(g, str)][:3],
             "year": (m.get("startDate") or {}).get("year"), "episodes": m.get("episodes"), "next": nxt.get("episode"),
@@ -236,7 +294,7 @@ def recommendations():
              "sort:POPULARITY_DESC){" + FIELDS + "}}}")
         data = anilist(q, {"s": season, "y": year})
         _recommend.update(t=time.time(), data=data, season=f"{season.title()} {year}")
-    data, followed = _recommend["data"], {s.get("anilist") for s in load()}
+    data, followed = _recommend["data"], {s.get("anilist"): s["folder"] for s in load() if s.get("anilist")}
     new = [card(m, followed, True) for m in data["new"]["media"]]
     seen = {c["anilist"] for c in new}
     old = [card(m, followed, False) for m in data["old"]["media"] if m["id"] not in seen]
@@ -248,7 +306,7 @@ def search(query):
     if not 2 <= len(query) <= 100:
         raise ShowError("Type at least two characters.")
     q = "query($q:String){Page(perPage:12){media(search:$q,type:ANIME,isAdult:false,sort:SEARCH_MATCH){" + FIELDS + "}}}"
-    followed = {s.get("anilist") for s in load()}
+    followed = {s.get("anilist"): s["folder"] for s in load() if s.get("anilist")}
     return {"shows": [card(m, followed, False) for m in anilist(q, {"q": query})["Page"]["media"]]}
 
 
@@ -441,19 +499,24 @@ def edit(form):
             raise ShowError("That show isn't followed any more. Reload the page.")
         show = validate(form, current)
         show["added"] = current.get("added", time.time())
-        if show["folder"] != current["folder"] and busy(current):
-            raise ShowError("An episode of this show is still being prepared. Rename it once that has finished.")
-        if any(show.get(k) != current.get(k) for k in ("season", "from", "release")) or \
-                (show.get("stremio") or {}).get("season") != (current.get("stremio") or {}).get("season"):
-            request_reset(current["release"], renamed_to=show["release"])   # restart from the new point, keep history
+        renamed = show["release"] != current["release"]
+        if (show["folder"] != current["folder"] or renamed) and busy(current):
+            raise ShowError("An episode of this show is still being downloaded or prepared. Change its name once that has finished.")
+        restart = renamed or any(show.get(k) != current.get(k) for k in ("season", "from")) or \
+            (show.get("stremio") or {}).get("season") != (current.get("stremio") or {}).get("season")
         if show["folder"] != current["folder"]:
             old, new = Path(agent.LIBRARY) / current["folder"], Path(agent.LIBRARY) / show["folder"]
             if new.exists():
                 raise ShowError("A folder with the new name already exists in Weekly Anime.")
-            if old.is_dir():
-                old.rename(new)
-            else:
-                new.mkdir(parents=True)
+            try:
+                if old.is_dir():
+                    old.rename(new)
+                else:
+                    new.mkdir(parents=True)
+            except OSError:
+                raise ShowError("The show's folder is in use (a player or Jellyfin has a file open). Try again in a moment.") from None
+        if restart:                                # only now: a failed edit above must leave no pending rename behind
+            request_reset(current["release"], renamed_to=show["release"])
         save([show if x is current else x for x in items])
     wake_dkb.set()
     wake_stremio.set()
@@ -626,6 +689,7 @@ def stremio_poll():
                 state["done"][new + "|" + k.split("|", 1)[1]] = state["done"].pop(k)
     if resets:
         write_state(state)
+        ack_resets("stremio", resets)
     for show in load():
         st = show.get("stremio") or {}
         if not st.get("on"):
@@ -724,7 +788,9 @@ def overview():
         eps = sorted({m.group(0).upper() for p in folder.rglob("*") if p.suffix.lower() in (".mkv", ".mp4")
                       for m in [re.search(r"S\d+E\d+", p.name, re.I)] if m}) if folder.is_dir() else []
         mine = lambda bucket: sorted(k.split("|")[1] for k in weekly[bucket] if k.split("|")[0] == show["release"])  # noqa: E731
+        local = local_for(show["folder"]) or {}
         out.append(dict(show, episodes=len(eps), latest=eps[-1] if eps else None,
+                        local_title=local.get("title", ""), local_poster=local.get("poster", ""),
                         dkb_after=(dkb_state.get("baseline") or {}).get(show["release"]),
                         stremio_after=weekly["baseline"].get(_season_key(show)),
                         not_found=[k for k in mine("skipped") if weekly["skipped"][f"{show['release']}|{k}"] == "not found"],

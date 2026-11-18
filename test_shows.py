@@ -124,6 +124,26 @@ class AddEditRemove(ShowsSandbox):
         with self.assertRaises(shows.ShowError):
             shows.edit(self.form(original="Kaiju Squad", folder="Taken (2020)"))
 
+    def test_failed_rename_leaves_nothing_pending(self):
+        shows.add(self.form())
+        Path(self.lib, "Taken (2020)").mkdir()
+        with self.assertRaises(shows.ShowError):
+            shows.edit(self.form(original="Kaiju Squad", release="Kaiju Renamed", folder="Taken (2020)"))
+        self.assertFalse(shows.RESETS.exists() and json.loads(shows.RESETS.read_text()).get("dkb"))
+        self.assertEqual(shows.take_resets("dkb"), {})
+        with mock.patch.object(Path, "rename", side_effect=PermissionError("in use")):
+            with self.assertRaises(shows.ShowError):
+                shows.edit(self.form(original="Kaiju Squad", release="Kaiju Renamed", folder="Other (2020)"))
+        self.assertEqual(shows.take_resets("stremio"), {})
+        self.assertEqual(shows.load()[0]["release"], "Kaiju Squad")
+
+    def test_name_change_refused_while_an_episode_is_in_flight(self):
+        shows.add(self.form())
+        shows.claim("Kaiju Squad", "S02E05", "stremio")
+        with self.assertRaises(shows.ShowError):
+            shows.edit(self.form(original="Kaiju Squad", release="Kaiju Renamed"))
+        shows.edit(self.form(original="Kaiju Squad", policy="manual"))           # other edits still fine
+
     def test_remove_moves_episodes_to_the_anime_library_and_never_deletes(self):
         shows.add(self.form())
         self.episode("Kaiju Squad - S02E01.mkv", folder=os.path.join(self.lib, "Kaiju Squad (2024)", "Season 02"))
@@ -331,6 +351,31 @@ class StremioWeekly(ShowsSandbox):
             state, fetch = self.poll([61, 62, 63, 64])
         self.assertIn("Kaiju Squad TV|S02E04", state["done"])
         self.assertNotIn("S02E04", [c.args[1] for c in fetch.call_args_list])        # not fetched twice
+
+    def test_rename_chains_collapse_and_back_and_forth_is_a_no_op(self):
+        shows.request_reset("A", renamed_to="B")
+        shows.request_reset("B", renamed_to="C")
+        self.assertEqual(shows.take_resets("dkb"), {"A": "C", "B": "C"})
+        shows.request_reset("C", renamed_to="A")
+        self.assertEqual(shows.take_resets("dkb")["A"], "A")
+
+    def test_unreadable_pending_file_is_never_wiped(self):
+        shows.request_reset("A", renamed_to="B")
+        before = shows.RESETS.read_text(encoding="utf-8")
+        with mock.patch.object(shows, "_pending", side_effect=PermissionError("antivirus")):
+            self.assertEqual(shows.take_resets("dkb"), {"A": "A"})                 # memory only
+            shows.ack_resets("dkb", {"A": "A"})
+        self.assertEqual(shows.RESETS.read_text(encoding="utf-8"), before)
+
+    def test_pending_entries_stay_until_applied_and_saved(self):
+        self.poll([61, 62, 63])
+        shows.request_reset("Kaiju Squad")
+        with mock.patch.object(shows, "write_state", side_effect=OSError("disk full")):
+            with self.assertRaises(OSError):
+                self.poll([61, 62, 63, 64])
+        self.assertIn("Kaiju Squad", shows.take_resets("stremio"))                  # still there after the crash
+        self.poll([61, 62, 63, 64])
+        self.assertEqual(shows.take_resets("stremio"), {})
 
     def test_busy_user_is_not_a_failed_attempt(self):
         self.poll([61, 62, 63])
