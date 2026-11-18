@@ -1,0 +1,8 @@
+{"shows": [
+ {"release": "Tokyo Revengers", "folder": "Tokyo Revengers (2021)", "season": 4, "anilist": 178083, "dkb": true},
+ {"release": "Ao no Hako", "folder": "Blue Box (2024)", "season": 2, "anilist": 189123, "dkb": true},
+ {"release": "Ranma", "folder": "Ranma ½ (2024)", "season": 3, "anilist": 209872, "dkb": true},
+ {"release": "Detective Conan", "folder": "Detective Conan (1996)", "season": 1, "anilist": 235, "dkb": false, "policy": "manual"},
+ {"release": "Kusuriya no Hitorigoto", "folder": "The Apothecary Diaries (2023)", "season": 3, "anilist": 195516, "dkb": true},
+ {"release": "Black Clover", "folder": "Black Clover (2017)", "season": 2, "anilist": 195604, "dkb": true}
+]}

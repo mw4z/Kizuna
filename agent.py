@@ -8,6 +8,7 @@ Started by watcher.py when a new file lands in the folder. For each .mkv without
   the embedded track -> Windows notification. Conan is skipped (needs hand typesetting).
 Log: log.txt next to this file. Usage: agent.py [folder] [--now]   (--now: caller already confirmed the files are complete)
 """
+from collections.abc import Mapping
 import contextlib
 import glob
 import hashlib
@@ -56,6 +57,14 @@ ALERTS = {"Anime FYA: ready": "New episode ready", "Anime FYA: movie ready": "Ne
 def notify(title, text):
     if title not in ALERTS:
         log(f"(silent) {title}: {text}")
+        return
+    try:
+        import settings
+        quiet = not settings.get("notify_ready")
+    except Exception:
+        quiet = False
+    if quiet:                                   # turned off on the Settings page
+        log(f"(notifications off) {title}: {text}")
         return
     log(f"NOTIFY {title}: {text}")
     title = ALERTS[title]
@@ -159,14 +168,24 @@ def parse_name(fn):
 
 # Jellyfin "Weekly Anime" library: finished episodes are copied to <show folder>\Season NN (OneDrive copy stays).
 LIBRARY = r"C:\Users\moody\Downloads\Weekly Anime"
-SHOWS = {                      # release name prefix -> Jellyfin folder (English title + year, for TMDB metadata)
-    "Tokyo Revengers": "Tokyo Revengers (2021)",
-    "Ao no Hako": "Blue Box (2024)",
-    "Ranma": "Ranma ½ (2024)",
-    "Detective Conan": "Detective Conan (1996)",
-    "Kusuriya no Hitorigoto": "The Apothecary Diaries (2023)",
-    "Black Clover": "Black Clover (2017)",
-}
+class _Shows(Mapping):
+    """Release name prefix -> Jellyfin folder (English title + year, for TMDB metadata), read live from the private
+    shows.json that the Weekly shows page edits (no restart needed)."""
+    def _data(self):
+        import shows
+        return shows.folders()
+
+    def __getitem__(self, key):
+        return self._data()[key]
+
+    def __iter__(self):
+        return iter(self._data())
+
+    def __len__(self):
+        return len(self._data())
+
+
+SHOWS = _Shows()
 
 
 JELLYFIN_DB = r"C:\ProgramData\Jellyfin\Server\data\jellyfin.db"
@@ -614,6 +633,7 @@ def clean_tmp():
 
 
 def main():
+    import fansub                                # per-show policy (manual shows are typeset by hand)
     os.makedirs(WORK, exist_ok=True)
     lock = os.path.join(HERE, "running.lock")
     if lock_held(lock):
@@ -647,9 +667,9 @@ def main():
                         retry_copy(video, video_tracks, state)
                         save_state(state)
                     continue
-                if not dubbed and "Detective Conan" in fn:
-                    if not state["told"].get(fn + "|conan"):
-                        notify("Anime FYA: Conan", f"{fn[:60]} needs hand typesetting. Ask Claude.")
+                if not dubbed and fansub.mode_for(parse_name(fn)[0] or fn) == "manual":
+                    if not state["told"].get(fn + "|conan"):   # key kept: existing state stays valid
+                        notify("Anime FYA: manual", f"{fn[:60]} needs hand typesetting. Ask Claude.")
                         state["told"][fn + "|conan"] = 1
                     continue
                 log(f"processing {fn}")

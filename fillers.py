@@ -106,6 +106,23 @@ def classify(rows, videos):
     return {key: guides[day][0] for key, day in matches.items() if counts[day] == 1}
 
 
+def schedule_labels(names, schedule):
+    """Weekly episodes: {episode number: "Filler" | "Mixed canon/filler" | "Canon"} for one show, from AniList air
+    times ({episode: unix time}) matched to AnimeFillerList by unique air date (±1 day). Unknown shows -> {}."""
+    wanted = set()
+    for name in names:
+        if name:
+            wanted |= guide_names(name)
+    wanted |= {{"caseclosed": "detectiveconan"}.get(w, w) for w in wanted}
+    matches = {path for title, path in page("/shows").links if guide_names(title) & wanted}
+    if len(matches) != 1:
+        return {}
+    from datetime import datetime, timezone
+    videos = [{"id": str(ep), "season": 1, "released": datetime.fromtimestamp(at, timezone.utc).date().isoformat()}
+              for ep, at in schedule.items()]
+    return {int(ep): label for ep, label in classify(page(matches.pop()).rows, videos).items()}
+
+
 def lookup(key):
     import stremio as s
     selected = s.item(key, "title")

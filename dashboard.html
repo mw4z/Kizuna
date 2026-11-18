@@ -1,0 +1,187 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="k-token" content="__STREMIO_TOKEN__">
+<title>Kizuna</title><link rel="icon" type="image/png" href="/app.png"><link rel="stylesheet" href="/kizuna.css">
+<style>
+.now-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:48px;align-items:start}
+.headline{display:flex;align-items:center;gap:14px}
+.headline .k-state{font-size:0}.headline .k-state::before{width:10px;height:10px}
+#sub{margin-top:6px}
+/* in progress */
+.task{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 18px;padding:16px 0;border-bottom:1px solid var(--k-line)}
+.task:last-child{border-bottom:0}
+.task-name{font:600 15px/1.35 var(--k-font-display);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.task-stage{grid-column:1;color:var(--k-text-2);font-size:13px}
+.task-pct{grid-row:1/3;grid-column:2;align-self:center;font:600 20px/1 var(--k-font-display);color:var(--k-text);font-variant-numeric:tabular-nums}
+.task .k-progress{grid-column:1/-1;margin-top:6px}
+.task-foot{grid-column:1/-1;display:flex;justify-content:space-between;gap:12px;margin-top:2px}
+.task-foot a{color:var(--k-text-2);font-size:12.5px;text-decoration:none}.task-foot a:hover{color:var(--k-text)}
+.idle{display:flex;align-items:center;gap:12px;padding:18px 0;color:var(--k-text-2)}
+/* next up: the soonest-airing followed show, on its banner art */
+.nextup{position:relative;display:flex;align-items:flex-end;min-height:190px;margin-top:26px;border-radius:12px;overflow:hidden;isolation:isolate;
+  background:#141418;text-decoration:none;color:#fff}
+.nextup img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;opacity:0;transition:opacity .8s}
+.nextup img.bg.in{opacity:1}
+.nextup::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(9,9,11,.95) 0%,rgba(9,9,11,.7) 45%,rgba(9,9,11,.2) 100%),
+  linear-gradient(0deg,rgba(9,9,11,.8),rgba(9,9,11,0) 60%)}
+.nextup-body{display:flex;gap:18px;align-items:flex-end;padding:20px 24px}
+.nextup-body .poster{width:64px;aspect-ratio:2/3;border-radius:6px;overflow:hidden;flex:none;box-shadow:0 12px 24px -8px #000;background:#1d1d23}
+.nextup-body .poster img{width:100%;height:100%;object-fit:cover}
+.nextup .label{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.6);font-weight:600}
+.nextup h2{font:650 22px/1.2 var(--k-font-display);margin:6px 0 4px}
+.nextup .when{font-size:13px;color:rgba(255,255,255,.75)}
+.nextup .cd{color:#fff}
+.fill{margin-inline-start:6px;vertical-align:1px}
+[dir=rtl] .nextup::after{background:linear-gradient(270deg,rgba(9,9,11,.95) 0%,rgba(9,9,11,.7) 45%,rgba(9,9,11,.2) 100%),linear-gradient(0deg,rgba(9,9,11,.8),rgba(9,9,11,0) 60%)}
+[dir=rtl] .nextup .label{letter-spacing:0;text-transform:none;font-size:12.5px}
+/* attention + pending rows */
+.k-row .k-state{justify-self:end}
+.why{color:var(--k-text-2);font-size:12.5px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* shows shelf */
+.airing{margin-top:8px;padding-top:8px;border-top:1px solid var(--k-line);font-size:12.5px;line-height:1.45}
+.airing .ep{color:var(--k-text-2)}
+.cd{color:var(--k-text);font-weight:600;font-variant-numeric:tabular-nums}.cd.soon{color:var(--k-accent-hi)}
+.manual{margin-top:3px}
+.shows-shelf{grid-template-columns:repeat(var(--cols,5),minmax(0,1fr));gap:24px 16px}
+.more{color:var(--k-text-3);font-size:12.5px;padding-top:10px}
+.k-section-head .k-h{white-space:nowrap}
+/* rail */
+.rail .k-section:first-child{margin-top:0}
+.rail .k-row{padding:10px 0}
+dl.sys{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:7px 16px;margin:0;font-size:12.5px}
+dl.sys dt{color:var(--k-text-3)}dl.sys dd{margin:0;color:var(--k-text-2);overflow-wrap:break-word}
+details.log{margin-top:16px}details.log summary{cursor:pointer;color:var(--k-text-2);font-size:12.5px}
+pre.log{margin:10px 0 0;background:var(--k-sunken);border:1px solid var(--k-line);border-radius:var(--k-r);padding:12px;max-height:360px;overflow:auto;
+  font:11.5px/1.6 var(--k-mono);color:#a9a9b3;white-space:pre-wrap;word-break:break-word}
+.offline{padding:14px 16px;border:1px solid rgba(236,106,114,.35);border-radius:var(--k-r);color:var(--k-fail);margin-bottom:24px}
+@media (max-width:1100px){.now-grid{grid-template-columns:1fr;gap:0}.rail{margin-top:48px}}
+</style></head><body>
+<header class="k-top"></header>
+<main class="k-page">
+<div id="offline" class="offline" hidden role="alert">Kizuna isn't answering. If this lasts, the agent may have stopped; it restarts by itself within a minute.</div>
+<div class="now-grid">
+<div>
+  <div class="headline"><span id="dot" class="k-state" data-state="idle"></span><h1 class="k-title" id="headline">Loading…</h1></div>
+  <p class="k-lede" id="sub"></p>
+
+  <a class="nextup" id="nextup" href="/weekly" hidden></a>
+  <section class="k-section" aria-labelledby="hProgress" style="margin-top:32px">
+    <div class="k-section-head"><h2 class="k-h" id="hProgress">In progress</h2><span class="k-meta"><a href="/stremio">Discover &amp; download →</a></span></div>
+    <div id="tasks"></div>
+  </section>
+
+  <section class="k-section" id="attention" aria-labelledby="hAttention" hidden>
+    <div class="k-section-head"><h2 class="k-h" id="hAttention">Needs attention<span class="k-count" id="attentionCount"></span></h2>
+      <span class="k-meta">Details in the activity log below</span></div>
+    <ul class="k-rows" id="attentionList"></ul>
+  </section>
+
+  <section class="k-section" id="pending" aria-labelledby="hPending" hidden>
+    <div class="k-section-head"><h2 class="k-h" id="hPending">Waiting for Arabic<span class="k-count" id="pendingCount"></span></h2>
+      <span class="k-meta">Checked again automatically</span></div>
+    <ul class="k-rows" id="pendingList"></ul>
+  </section>
+
+  <section class="k-section" aria-labelledby="hShows">
+    <div class="k-section-head"><h2 class="k-h" id="hShows">Weekly shows<span class="k-count" id="showCount"></span></h2>
+      <span class="k-meta"><a href="/weekly">Add or manage →</a></span></div>
+    <div class="k-shelf shows-shelf" id="shows"></div>
+  </section>
+</div>
+
+<aside class="rail">
+  <section class="k-section" aria-labelledby="hReady">
+    <div class="k-section-head"><h2 class="k-h" id="hReady">Recently ready</h2></div>
+    <ul class="k-rows" id="ready"></ul>
+  </section>
+  <section class="k-section" aria-labelledby="hLeaving">
+    <div class="k-section-head"><h2 class="k-h" id="hLeaving">Leaving after watching</h2><span class="k-meta" id="keepNote"></span></div>
+    <ul class="k-rows" id="leaving"></ul>
+  </section>
+  <section class="k-section" aria-labelledby="hSystem">
+    <div class="k-section-head"><h2 class="k-h" id="hSystem">System</h2><span class="k-meta"><a href="/settings">Settings →</a></span></div>
+    <dl class="sys" id="sys"></dl>
+    <details class="log"><summary>Activity log</summary><pre class="log" id="log"></pre></details>
+  </section>
+</aside>
+</div>
+</main>
+<script src="/kizuna-ar.js"></script><script src="/kizuna.js"></script>
+<script>
+const $=id=>document.getElementById(id),K=Kizuna,esc=K.esc;
+K.shell('now');
+const TONE={ok:'ready',busy:'processing',warn:'waiting',bad:'failed'};
+const KIND={interrupted:['waiting','Interrupted'],failed:['failed','Failed'],retrying:['waiting','Retrying'],stalled:['failed','Stalled'],waiting:['waiting','Waiting']};
+function put(id,html){const el=$(id);if(el.dataset.h!==html){el.dataset.h=html;el.innerHTML=html}}
+function rows(items,fmt,empty){return items.length?items.map(fmt).join(''):`<li class="k-row"><span class="k-row-sub">${empty}</span></li>`}
+function countdown(){for(const el of document.querySelectorAll('.cd')){const s=Math.round(+el.dataset.at-Date.now()/1000);
+  if(s<=0){el.textContent='airing now';el.classList.add('soon');continue}
+  const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);
+  el.textContent='in '+(d?`${d}d ${h}h`:h?`${h}h ${m}m`:`${m}m ${s%60}s`);el.classList.toggle('soon',s<86400)}}
+setInterval(countdown,1000);
+function task(t){return `<div class="task k-in"><div class="task-name"><bdi>${esc(t.name)}</bdi></div>
+  <div class="task-pct">${t.pct==null?'':Math.round(t.pct)+'%'}</div>
+  <div class="task-stage"><span class="k-state${t.live?' live':''}" data-state="${t.state}">${esc(t.label)}</span> · ${esc(t.stage||'')}</div>
+  <div class="k-progress${t.pct==null?' indeterminate':''}" data-state="${t.state}"><i style="width:${t.pct||0}%"></i></div>
+  ${t.foot?`<div class="task-foot"><span class="k-meta">${t.foot}</span>${t.link?`<a href="${t.link}">${t.linkText}</a>`:''}</div>`:''}</div>`}
+async function tick(){
+  let d,jb=null;
+  try{d=await (await fetch('/api/status',{cache:'no-store'})).json();jb=await K.api('job').catch(()=>null);$('offline').hidden=true}
+  catch{$('offline').hidden=false;$('dot').dataset.state='failed';return}
+  $('dot').dataset.state=TONE[d.tone]||'idle';$('dot').classList.toggle('live',d.tone==='busy');
+  if($('headline').dataset.v!==d.headline){$('headline').dataset.v=d.headline;$('headline').textContent=d.headline}
+  const f=d.finished[0],sub=f?`Last ready: ${f.name}, ${K.ago(d.now-f.at)}.`:'Nothing has finished yet.';if($('sub').dataset.v!==sub){$('sub').dataset.v=sub;$('sub').textContent=sub}
+  // in progress: Arabic preparation + Stremio download + season batch, in one place
+  const tasks=[];const job=jb&&jb.job,batch=jb&&jb.batch;
+  if(job&&(job.status==='running'||job.status==='waiting')&&!(job.phase==='processing'&&d.job)){
+    const proc=job.phase==='processing';tasks.push({name:job.name+(job.season!=null?` · S${String(job.season).padStart(2,'0')}E${String(job.episode).padStart(2,'0')}`:''),
+      state:job.paused?'paused':proc?'processing':job.status==='waiting'?'waiting':'downloading',label:job.paused?'Paused':proc?'Preparing Arabic':job.status==='waiting'?'Waiting':'Downloading',
+      stage:job.stage,pct:job.pct,live:!job.paused,foot:job.eta_seconds!=null&&!proc?etaText(job.eta_seconds):'',link:'/stremio',linkText:'Pause or cancel in Discover →'})}
+  if(batch&&['running','stopping'].includes(batch.status)){const c=batch.counts||{},done=(c.done||0)+(c.existing||0)+(c.unavailable||0)+(c.failed||0);
+    tasks.push({name:batch.name,state:'downloading',label:batch.status==='stopping'?'Stopping':'Season download',stage:batch.stage,
+      pct:batch.total?done/batch.total*100:null,live:true,foot:`${c.done||0} ready · ${c.waiting||0} waiting for Arabic · ${(c.failed||0)+(c.unavailable||0)} skipped`,link:'/stremio',linkText:'Open queue →'})}
+  if(d.job)tasks.push({name:d.job.name,state:d.job.stalled?'failed':'processing',label:d.job.stalled?'Stalled':'Preparing Arabic',stage:d.job.stage,pct:d.job.pct,live:!d.job.stalled});
+  put('tasks',tasks.length?tasks.map(task).join(''):`<div class="idle"><span class="k-state" data-state="ready"></span>Nothing running. New episodes are picked up automatically.</div>`);
+  // attention vs waiting
+  const att=[...(d.attention||[])],pend=d.pending||[];
+  if(job&&['interrupted','failed'].includes(job.status)&&!job.dismissed)   // a download that stopped: say so, and where to fix it
+    att.unshift({name:job.name+(job.season!=null?` · S${String(job.season).padStart(2,'0')}E${String(job.episode).padStart(2,'0')}`:''),
+      reason:/source again/i.test(job.stage||'')?job.stage:(job.stage||'Download stopped.')+' Choose a source again in Discover.',kind:job.status});
+  $('attention').hidden=!att.length;$('attentionCount').textContent=att.length||'';
+  put('attentionList',att.map(x=>{const [st,label]=KIND[x.kind]||KIND.failed;return `<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.reason)}</div></div><span class="k-state" data-state="${st}">${label}</span></li>`}).join(''));
+  $('pending').hidden=!pend.length;$('pendingCount').textContent=pend.length||'';
+  put('pendingList',pend.map(x=>`<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.reason)}</div></div><span class="k-row-aside">${x.retry_at?'Next check '+esc(K.time(x.retry_at)):'Checking hourly'}</span></li>`).join(''));
+  // weekly shows
+  $('showCount').textContent=d.shows.length||'';
+  if(K.lang==='ar')d.shows.forEach(s=>{if(s.local_title)s.title=s.local_title});
+  put('shows',d.shows.length?d.shows.map(s=>`<a class="k-card" href="/weekly" data-title="${esc(s.title)}"><div class="k-art">${s.poster?`<img src="${esc(s.poster)}" alt="" loading="lazy">`:`<span class="k-fallback" aria-hidden="true">${esc((s.title||'?')[0])}</span>`}</div>
+    <div class="k-card-title"><bdi>${esc(s.title)}</bdi></div><div class="k-card-meta">${s.latest?`${esc(s.latest)}${s.count?` · ${s.count} in library`:' · all watched'}`:'No episodes yet'}</div>${s.latest&&fill(s,+s.latest.split('E')[1])?`<div class="manual">${fill(s,+s.latest.split('E')[1])}</div>`:''}
+    ${s.manual?'<div class="manual"><span class="k-tag accent">Arabic by hand</span></div>':''}
+    <div class="airing">${s.at?`<div class="ep">Ep ${esc(s.next)}${s.total?` of ${esc(s.total)}`:''} · ${esc(K.day(s.at))}${fill(s,s.next)}</div><span class="cd" data-at="${s.at}"></span>`:'<span class="k-meta">No air date announced</span>'}</div></a>`).join('')
+    :`<div class="k-empty" style="grid-column:1/-1"><strong>No weekly shows yet</strong>Pick something airing this season on the <a href="/weekly">Weekly</a> page.</div>`);
+  countdown();
+  // next up: soonest air time among followed shows (artwork from AniList)
+  const nx=d.shows.filter(s=>s.at&&s.at*1000>Date.now()-3600e3).sort((a,b)=>a.at-b.at)[0],nu=$('nextup');
+  if(nx){const key=nx.title+nx.at;if(nu.dataset.k!==key){nu.dataset.k=key;
+    nu.innerHTML=`${nx.banner?`<img class="bg" src="${esc(nx.banner)}" alt="" referrerpolicy="no-referrer">`:''}<div class="nextup-body">
+    ${nx.cover||nx.poster?`<div class="poster"><img src="${esc(nx.cover||nx.poster)}" alt="" referrerpolicy="no-referrer"></div>`:''}
+    <div><div class="label">Next up</div><h2><bdi>${esc(nx.title)}</bdi></h2>
+    <div class="when">Episode ${esc(nx.next)}${nx.total?` of ${esc(nx.total)}`:''} · ${esc(K.day(nx.at))} · <span class="cd" data-at="${nx.at}"></span>${fill(nx,nx.next)}</div></div></div>`}
+    nu.hidden=false}else nu.hidden=true;
+  // rail
+  put('ready',rows(d.finished.slice(0,6),x=>`<li class="k-row"><span class="k-row-title"><bdi>${esc(x.name)}</bdi>${x.label?`<span class="k-tag ${x.label==='Filler'?'warn':''} fill">${esc(x.label)}</span>`:''}</span><span class="k-row-aside">${K.ago(d.now-x.at)}</span></li>`,'Nothing yet.'));
+  $('keepNote').textContent=d.keep_hours?`${d.keep_hours>=48&&d.keep_hours%24===0?d.keep_hours/24+' days':d.keep_hours+' h'} after`:'';
+  const LEAVE=7,extra=d.deletions.length-LEAVE;
+  put('leaving',rows(d.deletions.slice(0,LEAVE),x=>`<li class="k-row"><span class="k-row-title"><bdi>${esc(x.name)}</bdi></span><span class="k-row-aside">${x.at<=d.now?'within the hour':esc(K.day(x.at))}</span></li>`,'Nothing scheduled.')+(extra>0?`<li class="more">and ${extra} more</li>`:''));
+  const path=v=>String(v).includes('\\')?'<span dir="ltr">'+String(v).split('\\').map(p=>`<bdi>${esc(p)}</bdi>`).join('\\<wbr>')+'</span>':esc(v);
+  put('sys',Object.entries(d.system).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${path(v)}</dd>`).join(''));
+  const lg=$('log'),bottom=lg.scrollTop+lg.clientHeight>=lg.scrollHeight-8,text=d.log.join('\n');if(lg.textContent!==text){lg.textContent=text;if(bottom)lg.scrollTop=lg.scrollHeight}
+}
+// filler / mixed episodes are marked; canon stays unmarked
+function fill(s,ep){const l=(s.fillers||{})[String(ep)];return l?`<span class="k-tag ${l==='Filler'?'warn':''} fill">${esc(l)}</span>`:''}
+function etaText(s){if(!Number.isFinite(s))return'';if(s<60)return'Less than a minute left';const m=Math.ceil(s/60);return`About ${m>=60?Math.floor(m/60)+' h '+(m%60)+' min':m+' min'} left`}
+// even rows on the shelf: as many columns as fit (min 120 px), then spread the shows evenly over the rows needed
+function balance(){const shelf=$('shows'),n=shelf.querySelectorAll('.k-card').length;if(!n)return;
+  const fit=Math.max(2,Math.floor((shelf.clientWidth+16)/(120+16))),rows=Math.ceil(n/fit);shelf.style.setProperty('--cols',Math.min(fit,Math.ceil(n/rows)))}
+new ResizeObserver(balance).observe($('shows'));new MutationObserver(balance).observe($('shows'),{childList:true});
+tick();setInterval(tick,3000);
+</script></body></html>

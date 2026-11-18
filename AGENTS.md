@@ -18,10 +18,11 @@ the user. If you need an isolated environment, create one that reuses its packag
 ## Running the tests (PowerShell, from this folder)
 
     $py = "C:\Users\moody\AppData\Local\Programs\Python\Python313\python.exe"
-    & $py -W ignore::ResourceWarning -m unittest test_agent test_audit test_audit_fixes test_dkb test_fansub test_fillers test_mandatory_processing test_robust test_stremio test_stremio_batch test_reliability
+    & $py -W ignore::ResourceWarning -m unittest test_agent test_audit test_audit_fixes test_dkb test_fansub test_fillers test_mandatory_processing test_robust test_stremio test_stremio_batch test_reliability test_shows test_settings test_news
     node test_picker.cjs
+    node test_i18n.cjs
 
-Expected: 212 tests OK (2026-11-18, about 2 minutes: test_reliability runs real ffmpeg/mkvmerge, Windows
+Expected: 285 tests OK (2026-11-18, about 2 minutes: test_reliability runs real ffmpeg/mkvmerge, Windows
 file locks and a slow proxy stream) and "Picker checks passed".
 
 Rules the 2026-11-18 reliability audit added (keep them):
@@ -29,7 +30,14 @@ Rules the 2026-11-18 reliability audit added (keep them):
   the swap while the status page has the file open, so it retries; readers in the same process take the lock.
 - The mux may only swap in a `.tmp.mkv` this run built and verified (`mux.Locked`); stale ones are deleted.
 - Tests must patch `library_processing.FILE`/`ROOT` (or use `Sandbox`): an unpatched submit writes the queue
-  next to the code.
+  next to the code. Tests that touch shows must patch `shows.FILE`/`shows.STATE` (the existing tests use
+  `fixtures/shows.json`), and settings tests `settings.FILE`; never read the user's shows.json/settings.json.
+- The followed shows live in the private shows.json (Weekly page), not in code. DKB (dkb.py) and the Stremio fetcher
+  (shows.stremio_poll) race for each new episode: claim() + have_episode() keep it to one source. Each poller owns its
+  state file; other threads ask for changes with shows.request_reset().
+- UI: every page links kizuna.css + kizuna-ar.js + kizuna.js and keeps its element ids (test_picker.cjs drives stremio.html's
+  script). New visible English text needs an Arabic entry in kizuna-ar.js (test_i18n.cjs fails otherwise); wrap
+  titles/names in <bdi> so they are never translated.
 
 Sandboxed agents (e.g. Codex): every Python on this PC lives under `C:\Users\moody\AppData\...`, which the
 sandbox cannot see ("CommandNotFoundException"). Do not give up or install anything: request escalated

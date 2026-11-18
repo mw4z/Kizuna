@@ -48,6 +48,10 @@ def policy():
 
 
 def mode_for(name="", imdb=""):
+    import shows
+    chosen = shows.policy_for(name)               # set per show on the Weekly shows page
+    if chosen:
+        return chosen
     p = policy()
     for show in p.get("shows", []):
         if (imdb and imdb == show.get("imdb")) or (name and re.search(show.get("match", "^$"), name, re.I)):

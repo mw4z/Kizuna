@@ -60,7 +60,7 @@ const fire=()=>{assert.equal(timers.size,1);const [id,fn]=[...timers][0];timers.
  vm.runInContext(html.match(/^function etaLabel\(seconds\).*$/m)[0],context);
  assert.equal(context.etaLabel(60),'About 1 min left');assert.equal(context.etaLabel(3660),'About 1h 1m left');
  assert.equal(context.etaLabel(null),'Estimating time left…');
- assert.ok(html.includes('Back to dashboard')&&html.includes('downloadSeason')&&html.includes('downloadShow'));
+ assert.ok(html.includes("Kizuna.shell('discover')")&&html.includes('src="/kizuna.js"')&&html.includes('downloadSeason')&&html.includes('downloadShow'));  // shared navigation replaces the old back link
  assert.ok(html.indexOf('id="bulkControls"')<html.indexOf('id="sourcesSection"'));
  context.selected={key:'selected-source'};context.jobBusy=false;context.batchBusy=false;context.inspectVersion=0;context.currentType='series';context.episodeChoices=new Set();
  get('season').value='2';
@@ -94,9 +94,9 @@ const fire=()=>{assert.equal(timers.size,1);const [id,fn]=[...timers][0];timers.
  context.showJob({name:'Show',status:'running',stage:'Downloading',pct:40,started:Date.now()/1000});assert.equal(get('jobCancel').hidden,false);
  context.showJob({name:'Show',status:'running',phase:'processing',stage:'Preparing Arabic',pct:90,started:Date.now()/1000});assert.equal(get('jobCancel').hidden,true);
  context.showJob({name:'Show',status:'running',stage:'Downloading',pct:40,started:Date.now()/1000});
- assert.equal(get('jobPause').hidden,false);assert.equal(get('jobPause').textContent,'❚❚');
+ assert.equal(get('jobPause').hidden,false);assert.equal(get('jobPause').title,'Pause');assert.match(get('jobPause').innerHTML,/<svg/);
  context.showJob({name:'Show',status:'running',paused:true,stage:'Paused',pct:40,started:Date.now()/1000});
- assert.equal(get('jobPause').textContent,'▶');assert.equal(get('jobEta').textContent,'Paused');assert.equal(get('jobCancel').hidden,false);
+ assert.equal(get('jobPause').title,'Resume');assert.equal(get('jobPause').dataset.paused,'1');assert.equal(get('jobEta').textContent,'Paused');assert.equal(get('jobCancel').hidden,false);
  vm.runInContext(html.match(/\$\('jobPause'\)\.onclick=.*?\};$/m)[0],context);const beforeP=requests.length;get('jobPause').onclick();
  assert.equal(requests[beforeP].path,'download-resume','paused job resumes');
  context.showJob({name:'Show',status:'running',phase:'processing',stage:'Preparing Arabic',pct:90,started:Date.now()/1000});

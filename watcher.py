@@ -23,6 +23,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import agent  # noqa: E402
 import dkb    # noqa: E402
+import shows  # noqa: E402
 
 sys.stderr = sys.stdout = open(agent.LOG, "a", encoding="utf-8", buffering=1)   # pythonw has no console
 threading.excepthook = lambda a: agent.log(f"watcher thread crashed: {a.exc_type.__name__}: {a.exc_value}")
@@ -183,6 +184,7 @@ def main():
     w = threading.Thread(target=worker, daemon=True)
     w.start()
     threading.Thread(target=dkb.run, args=(FOLDER, queue), daemon=True).start()
+    threading.Thread(target=shows.run_stremio, daemon=True).start()   # Stremio: second source for weekly episodes
     import status                         # http://localhost:8097 status page, lives with the watcher
     threading.Thread(target=status.serve, args=(lambda: dict(pending),), daemon=True).start()
     import cleanup                        # recycle weekly episodes 1 day after they were fully watched

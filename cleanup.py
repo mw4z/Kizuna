@@ -18,7 +18,19 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import agent  # noqa: E402
 
-KEEP_SECONDS = 24 * 3600
+KEEP_SECONDS = 24 * 3600          # default; the Settings page can change it
+
+
+def keep_seconds():
+    """How long a watched episode stays. If settings.json can't be read at all, wait the longest allowed time (30 days)
+    instead of guessing a shorter one: recycling too late is harmless, too early is not."""
+    try:
+        import settings
+        if settings.damaged():
+            return 30 * 86400
+        return settings.get("keep_hours") * 3600
+    except Exception:
+        return 30 * 86400
 ANIME = r"C:\Users\moody\Downloads\Anime"          # finished shows (Bleach, البؤساء); Movies is never cleaned
 
 
@@ -53,7 +65,8 @@ def watched():
 def due(now=None):
     """[(path, watched_at, delete_at)] still on disk, soonest first (also used by the status page)."""
     now = now or time.time()
-    return sorted(((p, t, t + KEEP_SECONDS) for p, t in watched() if os.path.exists(p)), key=lambda x: x[2])
+    keep = keep_seconds()
+    return sorted(((p, t, t + keep) for p, t in watched() if os.path.exists(p)), key=lambda x: x[2])
 
 
 class _SHFILEOPSTRUCTW(ctypes.Structure):

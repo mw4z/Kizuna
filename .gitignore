@@ -5,6 +5,10 @@ library-processing.json
 stremio-job.json
 stremio-batch.json
 dkb-state.json
+/shows.json
+/weekly-state.json
+/settings.json
+/shows-pending.json
 running.lock
 log.txt
 *.tmp
