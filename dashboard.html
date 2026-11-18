@@ -30,6 +30,7 @@
 .nextup h2{font:650 22px/1.2 var(--k-font-display);margin:6px 0 4px}
 .nextup .when{font-size:13px;color:rgba(255,255,255,.75)}
 .nextup .cd{color:#fff}
+.fill{margin-inline-start:6px;vertical-align:1px}
 [dir=rtl] .nextup::after{background:linear-gradient(270deg,rgba(9,9,11,.95) 0%,rgba(9,9,11,.7) 45%,rgba(9,9,11,.2) 100%),linear-gradient(0deg,rgba(9,9,11,.8),rgba(9,9,11,0) 60%)}
 [dir=rtl] .nextup .label{letter-spacing:0;text-transform:none;font-size:12.5px}
 /* attention + pending rows */
@@ -153,9 +154,9 @@ async function tick(){
   $('showCount').textContent=d.shows.length||'';
   if(K.lang==='ar')d.shows.forEach(s=>{if(s.local_title)s.title=s.local_title});
   put('shows',d.shows.length?d.shows.map(s=>`<a class="k-card" href="/weekly" data-title="${esc(s.title)}"><div class="k-art">${s.poster?`<img src="${esc(s.poster)}" alt="" loading="lazy">`:`<span class="k-fallback" aria-hidden="true">${esc((s.title||'?')[0])}</span>`}</div>
-    <div class="k-card-title"><bdi>${esc(s.title)}</bdi></div><div class="k-card-meta">${s.latest?`${esc(s.latest)}${s.count?` · ${s.count} in library`:' · all watched'}`:'No episodes yet'}</div>
+    <div class="k-card-title"><bdi>${esc(s.title)}</bdi></div><div class="k-card-meta">${s.latest?`${esc(s.latest)}${s.count?` · ${s.count} in library`:' · all watched'}`:'No episodes yet'}</div>${s.latest&&fill(s,+s.latest.split('E')[1])?`<div class="manual">${fill(s,+s.latest.split('E')[1])}</div>`:''}
     ${s.manual?'<div class="manual"><span class="k-tag accent">Arabic by hand</span></div>':''}
-    <div class="airing">${s.at?`<div class="ep">Ep ${esc(s.next)}${s.total?` of ${esc(s.total)}`:''} · ${esc(K.day(s.at))}</div><span class="cd" data-at="${s.at}"></span>`:'<span class="k-meta">No air date announced</span>'}</div></a>`).join('')
+    <div class="airing">${s.at?`<div class="ep">Ep ${esc(s.next)}${s.total?` of ${esc(s.total)}`:''} · ${esc(K.day(s.at))}${fill(s,s.next)}</div><span class="cd" data-at="${s.at}"></span>`:'<span class="k-meta">No air date announced</span>'}</div></a>`).join('')
     :`<div class="k-empty" style="grid-column:1/-1"><strong>No weekly shows yet</strong>Pick something airing this season on the <a href="/weekly">Weekly</a> page.</div>`);
   countdown();
   // next up: soonest air time among followed shows (artwork from AniList)
@@ -164,10 +165,10 @@ async function tick(){
     nu.innerHTML=`${nx.banner?`<img class="bg" src="${esc(nx.banner)}" alt="" referrerpolicy="no-referrer">`:''}<div class="nextup-body">
     ${nx.cover||nx.poster?`<div class="poster"><img src="${esc(nx.cover||nx.poster)}" alt="" referrerpolicy="no-referrer"></div>`:''}
     <div><div class="label">Next up</div><h2><bdi>${esc(nx.title)}</bdi></h2>
-    <div class="when">Episode ${esc(nx.next)}${nx.total?` of ${esc(nx.total)}`:''} · ${esc(K.day(nx.at))} · <span class="cd" data-at="${nx.at}"></span></div></div></div>`}
+    <div class="when">Episode ${esc(nx.next)}${nx.total?` of ${esc(nx.total)}`:''} · ${esc(K.day(nx.at))} · <span class="cd" data-at="${nx.at}"></span>${fill(nx,nx.next)}</div></div></div>`}
     nu.hidden=false}else nu.hidden=true;
   // rail
-  put('ready',rows(d.finished.slice(0,6),x=>`<li class="k-row"><span class="k-row-title"><bdi>${esc(x.name)}</bdi></span><span class="k-row-aside">${K.ago(d.now-x.at)}</span></li>`,'Nothing yet.'));
+  put('ready',rows(d.finished.slice(0,6),x=>`<li class="k-row"><span class="k-row-title"><bdi>${esc(x.name)}</bdi>${x.label?`<span class="k-tag ${x.label==='Filler'?'warn':''} fill">${esc(x.label)}</span>`:''}</span><span class="k-row-aside">${K.ago(d.now-x.at)}</span></li>`,'Nothing yet.'));
   $('keepNote').textContent=d.keep_hours?`${d.keep_hours>=48&&d.keep_hours%24===0?d.keep_hours/24+' days':d.keep_hours+' h'} after`:'';
   const LEAVE=7,extra=d.deletions.length-LEAVE;
   put('leaving',rows(d.deletions.slice(0,LEAVE),x=>`<li class="k-row"><span class="k-row-title"><bdi>${esc(x.name)}</bdi></span><span class="k-row-aside">${x.at<=d.now?'within the hour':esc(K.day(x.at))}</span></li>`,'Nothing scheduled.')+(extra>0?`<li class="more">and ${extra} more</li>`:''));
@@ -175,6 +176,8 @@ async function tick(){
   put('sys',Object.entries(d.system).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${path(v)}</dd>`).join(''));
   const lg=$('log'),bottom=lg.scrollTop+lg.clientHeight>=lg.scrollHeight-8,text=d.log.join('\n');if(lg.textContent!==text){lg.textContent=text;if(bottom)lg.scrollTop=lg.scrollHeight}
 }
+// filler / mixed episodes are marked; canon stays unmarked
+function fill(s,ep){const l=(s.fillers||{})[String(ep)];return l?`<span class="k-tag ${l==='Filler'?'warn':''} fill">${esc(l)}</span>`:''}
 function etaText(s){if(!Number.isFinite(s))return'';if(s<60)return'Less than a minute left';const m=Math.ceil(s/60);return`About ${m>=60?Math.floor(m/60)+' h '+(m%60)+' min':m+' min'} left`}
 // even rows on the shelf: as many columns as fit (min 120 px), then spread the shows evenly over the rows needed
 function balance(){const shelf=$('shows'),n=shelf.querySelectorAll('.k-card').length;if(!n)return;

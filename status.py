@@ -111,6 +111,7 @@ def _shows(lines=()):
                      "next": air.get("next"), "at": air.get("at"), "total": air.get("total"),
                      "poster": f"{JF}/Items/{sid}/Images/Primary?maxHeight=420" if sid else None,
                      "manual": show.get("policy") == "manual", "banner": air.get("banner", ""),
+                     "fillers": {str(k): v for k, v in _fillers().get(prefix, {}).items() if v != "Canon"},
                      "local_title": (shows.local_for(folder) or {}).get("title", ""),
                      "cover": show.get("poster", "")})
     return rows
@@ -170,6 +171,63 @@ def _airing():
     return _air["data"]
 
 
+_fill = {"t": 0, "data": {}, "busy": False}
+
+
+def _fillers():
+    """{release name: {episode number: label}} for followed weekly shows (AnimeFillerList via air dates). Refreshed in
+    the background every 6 hours, so the page never waits on the guide."""
+    if not _fill["busy"] and time.time() - _fill["t"] > 6 * 3600:
+        _fill["busy"] = True
+        threading.Thread(target=_refresh_fillers, daemon=True).start()
+    return _fill["data"]
+
+
+def _refresh_fillers():
+    import fillers
+    import shows
+    out = {}
+    try:
+        follow = [s for s in shows.load() if s.get("anilist")]
+        if follow:
+            q = ("query($ids:[Int],$from:Int){Page(perPage:300){airingSchedules(mediaId_in:$ids,airingAt_greater:$from,"
+                 "sort:TIME){mediaId episode airingAt media{title{romaji english}}}}}")
+            req = urllib.request.Request("https://graphql.anilist.co", data=json.dumps(
+                {"query": q, "variables": {"ids": [s["anilist"] for s in follow], "from": int(time.time()) - 45 * 86400}}).encode(),
+                headers={"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "Kizuna"})
+            nodes = json.load(urllib.request.urlopen(req, timeout=20))["data"]["Page"]["airingSchedules"]
+            per = {}
+            for n in nodes:
+                entry = per.setdefault(n["mediaId"], {"schedule": {}, "names": set()})
+                entry["schedule"][int(n["episode"])] = int(n["airingAt"])
+                entry["names"].update(v for v in (n.get("media") or {}).get("title", {}).values() if v)
+            for show in follow:
+                entry = per.get(show["anilist"])
+                if entry:
+                    names = [re.sub(r"\s*\(\d{4}\)$", "", show["folder"]), show["release"], *entry["names"]]
+                    labels = fillers.schedule_labels(names, entry["schedule"])
+                    if labels:
+                        out[show["release"]] = labels
+        _fill.update(t=time.time(), data=out or _fill["data"])
+    except Exception as e:
+        agent.log(f"status: filler guide unavailable ({type(e).__name__}); trying again in 30 min")
+        _fill["t"] = time.time() - 6 * 3600 + 1800
+    finally:
+        _fill["busy"] = False
+
+
+def _filler_for(fn):
+    """Label of a weekly episode file (e.g. 'Filler'), or '' when canon/unknown."""
+    import shows
+    name, ep = agent.parse_name(os.path.basename(fn or ""))
+    show = shows.match(name) if name else None
+    if not show or not ep:
+        return ""
+    season, number = map(int, re.findall(r"\d+", ep))
+    label = _fillers().get(show["release"], {}).get(number, "") if season == int(show.get("season", season)) else ""
+    return "" if label == "Canon" else label
+
+
 def _jellyfin_up():
     try:
         urllib.request.urlopen("http://127.0.0.1:8096/System/Info/Public", timeout=2).close()
@@ -189,7 +247,8 @@ def collect(pending=None, light=False):
     for l in reversed(lines):
         m = re.match(r"^(\S+ \S+) DONE (.*?):\s*ok", l)
         if m:
-            finished.append({"name": nice(m.group(2)), "at": time.mktime(time.strptime(m.group(1), "%Y-%m-%d %H:%M:%S"))})
+            finished.append({"name": nice(m.group(2)), "at": time.mktime(time.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")),
+                             "label": _filler_for(m.group(2))})
         if len(finished) == 5:
             break
 

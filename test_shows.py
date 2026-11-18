@@ -435,6 +435,24 @@ class Linking(ShowsSandbox):
             self.assertIsNone(shows.local_for(folder="Other"))
         shows._local.update(t=0, data=None)
 
+    def test_weekly_episodes_get_filler_labels_by_air_date(self):
+        import fillers
+        guide_list = mock.Mock(links=[("Kaiju Squad", "/shows/kaiju-squad"), ("Other Show", "/shows/other")])
+        guide = mock.Mock(rows=[["101", "Ep", "Canon", "2026-11-01"], ["102", "Ep", "Filler", "2026-11-08"],
+                                ["103", "Ep", "Mixed Canon/Filler", "2026-11-15"]])
+        day = lambda d: int(datetime(2026, 11, d, 15, tzinfo=timezone.utc).timestamp())      # noqa: E731
+        with mock.patch.object(fillers, "page", side_effect=lambda p: guide_list if p == "/shows" else guide):
+            labels = fillers.schedule_labels(["Kaiju Squad (2024)", "Kaiju Squad"], {5: day(1), 6: day(8), 7: day(15), 8: day(22)})
+            self.assertEqual(labels, {5: "Canon", 6: "Filler", 7: "Mixed canon/filler"})
+            self.assertEqual(fillers.schedule_labels(["Unknown"], {1: day(1)}), {})
+        import status
+        self.follow(show())
+        with mock.patch.dict(status._fill, {"t": time.time(), "data": {"Kaiju Squad": labels}, "busy": False}):
+            self.assertEqual(status._filler_for("[DKB] Kaiju Squad - S02E06 [1080p].mkv"), "Filler")
+            self.assertEqual(status._filler_for("[DKB] Kaiju Squad - S02E05 [1080p].mkv"), "")      # canon: unmarked
+            self.assertEqual(status._filler_for("[DKB] Kaiju Squad - S01E06 [1080p].mkv"), "")      # other season
+            self.assertEqual(status._filler_for("Something else.mkv"), "")
+
     def test_season_boundaries(self):
         at = lambda y, m: datetime(y, m, 15, tzinfo=timezone.utc).timestamp()      # noqa: E731
         self.assertEqual(shows.current_season(at(2026, 11)), ("FALL", 2026))
