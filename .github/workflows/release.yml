@@ -1,12 +1,15 @@
-# Builds Kizuna-Setup.exe (PyInstaller app + Inno Setup installer) on GitHub's Windows machines.
-# Run it from the Actions tab ("Run workflow"), or push a version tag (git tag v1.0.0; git push origin v1.0.0):
-# a tag also publishes a GitHub Release with the installer attached.
+# Builds Kizuna for Windows on GitHub's machines and attaches it to a release:
+#   Kizuna-Setup.exe      the installer (recommended)
+#   Kizuna-win-x64.zip    the same app without installing: unzip anywhere, run Kizuna.exe
+# Publish a release on GitHub (Releases -> Draft a new release -> new tag like v1.0.0 -> Generate release notes ->
+# Publish) and this attaches both files a few minutes later. "Run workflow" on the Actions tab builds a test copy
+# (downloadable under the run's Artifacts) without publishing anything.
 name: Build installer
 
 on:
   workflow_dispatch:
-  push:
-    tags: ["v*"]
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -29,22 +32,27 @@ jobs:
       - name: Build Kizuna.exe
         run: python -m PyInstaller installer/kizuna.spec --noconfirm --distpath dist --workpath build
 
-      - name: Build Kizuna-Setup.exe
+      - name: Build Kizuna-Setup.exe and the portable zip
         shell: pwsh
         run: |
           $iscc = Get-Command iscc -ErrorAction SilentlyContinue
           if (-not $iscc) { choco install innosetup -y --no-progress; $env:Path += ";C:\Program Files (x86)\Inno Setup 6" }
-          $version = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "0.0.${{ github.run_number }}" }
+          $version = if ("${{ github.event_name }}" -eq "release") { "${{ github.event.release.tag_name }}".TrimStart("v") } else { "0.0.${{ github.run_number }}" }
           iscc installer\kizuna.iss "/DMyAppVersion=$version"
+          Compress-Archive -Path dist\Kizuna -DestinationPath dist\Kizuna-win-x64.zip -CompressionLevel Optimal
 
       - uses: actions/upload-artifact@v4
         with:
           name: Kizuna-Setup
-          path: dist/Kizuna-Setup.exe
+          path: |
+            dist/Kizuna-Setup.exe
+            dist/Kizuna-win-x64.zip
 
-      - name: Publish the release
-        if: github.ref_type == 'tag'
+      - name: Attach to the release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Kizuna-Setup.exe
-          generate_release_notes: true
+          tag_name: ${{ github.event.release.tag_name }}
+          files: |
+            dist/Kizuna-Setup.exe
+            dist/Kizuna-win-x64.zip

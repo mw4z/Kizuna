@@ -67,7 +67,7 @@ powershell -File make_shortcuts.ps1                     # optional: Start menu a
 ```
 
 To build the installer yourself: `python -m PyInstaller installer/kizuna.spec`, then `iscc installer\kizuna.iss`
-(Inno Setup). The [release workflow](.github/workflows/release.yml) does both on GitHub for every version tag.
+(Inno Setup). The [release workflow](.github/workflows/release.yml) does both on GitHub and attaches the installer and a portable zip to every published release.
 
 ## First-run setup
 
