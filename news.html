@@ -79,6 +79,8 @@ const ago=at=>at?K.ago(Date.now()/1000-at):'';
 const pic=(n,cls)=>n.image?`<img src="${esc(n.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
   :`<div class="tile ${n.kind}"><span class="src">${esc(n.source)}</span><span class="seal" aria-hidden="true">絆</span></div>`;
 const link=n=>`href="${esc(n.link)}" target="_blank" rel="noopener noreferrer"`;
+// a story's own direction: Arabic and translated ones read right-to-left even when they start with an English name
+const dir=n=>`dir="${n.lang==='ar'||n.translated?'rtl':'ltr'}"`;
 const other=n=>K.lang==='ar'&&n.lang!=='ar'?` · <span class="k-tag lang">${K.t(n.translated?'Machine-translated':'English')}</span>`:'';
 function render(items){
   shown=items;const lead=items.find(n=>n.image)||items[0];
@@ -86,9 +88,9 @@ function render(items){
   const rest=items.filter(n=>n!==lead),mix=kind==='all'?[0,1].flatMap(i=>[rest.filter(n=>n.kind==='anime')[i],rest.filter(n=>n.kind==='screen')[i]]).filter(Boolean):[],side=(mix.length===4?mix:rest.slice(0,4)),more=rest.filter(n=>!side.includes(n));
   $('top').innerHTML=`<a class="lead" ${link(lead)}>${lead.image?`<img src="${esc(lead.image)}" alt="" referrerpolicy="no-referrer">`:''}
     <div class="lead-body"><div class="kicker"><span class="k-tag ${lead.kind}">${KIND[lead.kind]}</span><span>${esc(lead.source)} · ${esc(ago(lead.at))}</span></div>
-    <h2><bdi>${esc(lead.title)}</bdi></h2>${lead.summary?`<p>${esc(lead.summary)}</p>`:''}</div></a>
-    <div class="side">${side.map(n=>`<a ${link(n)}><div class="thumb">${pic(n)}</div><div><h3><bdi>${esc(n.title)}</bdi></h3><div class="meta"><b>${esc(n.source)}</b> · ${esc(ago(n.at))}${other(n)}</div></div></a>`).join('')}</div>`;
-  $('grid').innerHTML=more.map(n=>`<a class="card" ${link(n)}><div class="thumb">${pic(n)}</div><h3><bdi>${esc(n.title)}</bdi></h3>${n.summary?`<p>${esc(n.summary)}</p>`:''}
+    <h2><bdi ${dir(lead)}>${esc(lead.title)}</bdi></h2>${lead.summary?`<p ${dir(lead)}>${esc(lead.summary)}</p>`:''}</div></a>
+    <div class="side">${side.map(n=>`<a ${link(n)}><div class="thumb">${pic(n)}</div><div><h3><bdi ${dir(n)}>${esc(n.title)}</bdi></h3><div class="meta"><b>${esc(n.source)}</b> · ${esc(ago(n.at))}${other(n)}</div></div></a>`).join('')}</div>`;
+  $('grid').innerHTML=more.map(n=>`<a class="card" ${link(n)}><div class="thumb">${pic(n)}</div><h3><bdi ${dir(n)}>${esc(n.title)}</bdi></h3>${n.summary?`<p ${dir(n)}>${esc(n.summary)}</p>`:''}
     <div class="meta"><b>${esc(n.source)}</b> · ${esc(ago(n.at))}${other(n)}</div></a>`).join('');
 }
 let ticket=0;
