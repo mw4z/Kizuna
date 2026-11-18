@@ -6,7 +6,20 @@
 .d-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap}
 .d-head>.k-btn{margin-top:2px}
 #landing .k-shelf{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
-/* cinematic hero: the most popular show airing now */
+/* cinematic hero: the most popular shows airing now, one every 7 seconds */
+.hero .slide{position:absolute;inset:0;display:flex;align-items:flex-end;opacity:0;visibility:hidden;transition:opacity .8s var(--k-ease),visibility .8s}
+.hero .slide.on{opacity:1;visibility:visible}
+.hero .hero-body{padding-bottom:46px}
+.hero .dots{position:absolute;bottom:18px;inset-inline-start:34px;display:flex;gap:6px;z-index:2}
+#hero .dots button{all:unset;cursor:pointer;width:8px;height:8px;border-radius:999px;background:rgba(255,255,255,.35);transition:width .3s var(--k-ease),background .3s}
+#hero .dots button[aria-current=true]{width:24px;background:#fff}
+#hero .nav{all:unset;position:absolute;bottom:10px;z-index:2;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;cursor:pointer;
+  background:rgba(8,8,10,.55);color:#fff;opacity:0;transition:opacity .2s}
+#hero:hover .nav,#hero .nav:focus-visible{opacity:1}
+@media (hover:none){#hero .nav{opacity:1}}
+#hero .nav.prev{inset-inline-end:58px}#hero .nav.next{inset-inline-end:20px}
+#hero .nav svg{width:18px;height:18px}[dir=rtl] #hero .nav svg{transform:scaleX(-1)}
+#hero .dots button:focus-visible,.hero .nav:focus-visible{outline:2px solid var(--k-accent);outline-offset:3px}
 .hero{position:relative;margin-top:30px;border-radius:14px;overflow:hidden;min-height:340px;display:flex;align-items:flex-end;isolation:isolate;background:#141418}
 .hero img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;opacity:0;transition:opacity .8s,transform 8s linear}
 .hero img.bg.in{opacity:1}.hero:hover img.bg{transform:scale(1.04)}
@@ -21,7 +34,7 @@
 .hero-actions{display:flex;gap:10px;flex-wrap:wrap}
 [dir=rtl] .hero::after{background:linear-gradient(270deg,rgba(9,9,11,.97) 0%,rgba(9,9,11,.82) 34%,rgba(9,9,11,.15) 72%),linear-gradient(0deg,rgba(9,9,11,.9),rgba(9,9,11,0) 55%)}
 [dir=rtl] .batch-problems{padding-left:0;padding-right:18px}
-@media (max-width:700px){.hero-body{grid-template-columns:1fr;padding:22px}.hero-poster{display:none}.hero h2{font-size:24px}}
+@media (max-width:700px){.hero-body{grid-template-columns:1fr;padding:22px}.hero-poster{display:none}.hero h2{font-size:24px}.hero{min-height:380px}}
 #connection{margin-top:8px;color:var(--k-text-3);font-size:12.5px;max-width:80ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* active download / season queue */
 .job{display:grid;gap:6px;margin-top:24px;padding:16px 18px;background:var(--k-surface);border:1px solid var(--k-line);border-radius:var(--k-r-art)}
@@ -137,7 +150,7 @@ section,#results,#message,#subtitle{scroll-margin-top:76px}
 <section id="batch" class="job" hidden aria-live="polite"><strong id="batchName" dir="auto"></strong><p id="batchStage"></p><p id="batchCounts" class="subtle"></p><progress id="batchProgress" max="100" value="0"></progress><div class="toolbar"><button id="batchStop">Stop after current episode</button><button id="batchResume">Resume / retry remaining</button><button id="batchDismiss" type="button">Dismiss</button></div><ul id="batchProblems" class="batch-problems"></ul></section>
 <form class="search" id="searchForm" role="search"><div class="title-search"><label for="query">Title</label><input id="query" type="search" required minlength="2" maxlength="150" placeholder="Search movies, shows and anime" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="suggestions" aria-expanded="false" dir="auto"><div id="suggestions" class="suggestions" role="listbox" aria-label="Suggested titles" hidden></div></div><button class="primary" id="searchButton">Search</button></form>
 <div id="message" role="status" aria-live="polite"></div><div id="results"></div>
-<section id="hero" class="hero" hidden aria-labelledby="heroTitle"></section>
+<section id="hero" class="hero" hidden role="region" aria-roledescription="carousel" aria-label="Airing now"></section>
 <section id="landing" class="k-section" style="margin-top:36px" aria-labelledby="hLanding" hidden><div class="k-section-head"><h2 class="k-h" id="hLanding">Airing this season</h2><span class="k-meta">Pick one to find its releases · <a href="/weekly">follow weekly →</a></span></div><div class="k-shelf" id="landingShelf"></div></section>
 <section id="detail" class="section" hidden><button id="back" class="back">← Back to results</button><h2 id="title" dir="auto"></h2><p id="description" class="muted" dir="auto"></p>
 <div id="detailLoading" class="loading-detail" hidden aria-label="Loading title" aria-busy="true"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div></div>
@@ -244,15 +257,28 @@ Kizuna.shell('discover');
   shelf.innerHTML=list.map((c,i)=>(c.title=c.title||c.romaji||'Untitled',0)||`<button type="button" class="k-card" data-i="${i}" data-title="${K.esc(c.title)}"><div class="k-art">${c.poster?`<img src="${K.esc(c.poster)}" alt="" loading="lazy">`:`<span class="k-fallback" aria-hidden="true">${K.esc(c.title[0]||'?')}</span>`}${c.followed?`<span class="k-badge"><span class="k-tag on">${K.lang==='ar'?'Followed':'Following'}</span></span>`:''}</div><div class="k-card-title"><bdi>${K.esc(c.title)}</bdi></div><div class="k-card-meta">${c.next?`Episode ${K.esc(c.next-1>0?c.next-1:c.next)} out`:K.esc(c.year||'')}</div></button>`).join('');
   shelf.onclick=e=>{const b=e.target.closest('[data-i]');if(!b)return;$('query').value=list[+b.dataset.i].romaji||list[+b.dataset.i].title;hideSuggestions();$('searchForm').requestSubmit()};
   land.hidden=false;
-  // hero: the most popular airing show that has wide artwork
-  const h=list.find(c=>c.banner),hero=$('hero');
-  if(h){hero.innerHTML=`<img class="bg" src="${K.esc(h.banner)}" alt="" referrerpolicy="no-referrer"><div class="hero-body">
-    <div class="hero-poster">${h.poster?`<img src="${K.esc(h.poster)}" alt="" referrerpolicy="no-referrer">`:''}</div><div>
+  // hero: the most popular airing shows that have wide artwork, rotating every 7 seconds
+  const picks=list.filter(c=>c.banner).slice(0,6),hero=$('hero');
+  if(picks.length){
+   const ARROW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
+   hero.innerHTML=picks.map((h,j)=>`<div class="slide"><img class="bg" src="${K.esc(h.banner)}" alt="" ${j?'loading="lazy" ':''}referrerpolicy="no-referrer"><div class="hero-body">
+    <div class="hero-poster">${h.poster?`<img src="${K.esc(h.poster)}" alt="" ${j?'loading="lazy" ':''}referrerpolicy="no-referrer">`:''}</div><div>
     <div class="eyebrow"><span class="k-tag accent">${h.new?'New this season':'Airing now'}</span>${h.genres.map(g=>`<span>${K.esc(g)}</span>`).join('<span aria-hidden="true">·</span>')}${h.next?`<span aria-hidden="true">·</span><span>Episode ${K.esc(h.next)} ${K.esc(h.at?'airs '+K.day(h.at):'')}</span>`:''}</div>
-    <h2 id="heroTitle"><bdi>${K.esc(h.title)}</bdi></h2>${h.about?`<p>${K.esc(h.about)}</p>`:''}
-    <div class="hero-actions"><button type="button" class="k-btn k-btn-primary" id="heroFind">Find releases</button>${h.followed?'<span class="k-tag on" style="height:34px;padding:0 14px">Following weekly</span>':'<a class="k-btn" href="/weekly">Follow weekly</a>'}</div></div></div>`;
-   $('heroFind').onclick=()=>{$('query').value=h.romaji||h.title;hideSuggestions();$('searchForm').requestSubmit()};
-   hero.hidden=false;$('searchForm').addEventListener('submit',()=>{hero.hidden=true})}
+    <h2><bdi>${K.esc(h.title)}</bdi></h2>${h.about?`<p>${K.esc(h.about)}</p>`:''}
+    <div class="hero-actions"><button type="button" class="k-btn k-btn-primary" data-find="${j}">Find releases</button>${h.followed?'<span class="k-tag on" style="height:34px;padding:0 14px">Following weekly</span>':'<a class="k-btn" href="/weekly">Follow weekly</a>'}</div></div></div></div>`).join('')
+    +(picks.length>1?`<button type="button" class="nav prev" aria-label="Previous show">${ARROW}</button><button type="button" class="nav next" aria-label="Next show">${ARROW.replace('M15 6l-6 6 6 6','M9 6l6 6-6 6')}</button>
+    <div class="dots">${picks.map((h,j)=>`<button type="button" aria-label="Show ${j+1}"></button>`).join('')}</div>`:'');
+   let at=0,timer=null;
+   const go=i=>{const all=[...hero.querySelectorAll('.slide')];at=(i+all.length)%all.length;
+     all.forEach((x,j)=>{const on=j===at;x.classList.toggle('on',on);x.setAttribute('aria-hidden',String(!on));x.querySelectorAll('a,button').forEach(b=>b.tabIndex=on?0:-1)});
+     hero.querySelectorAll('.dots button').forEach((b,j)=>b.setAttribute('aria-current',String(j===at)))};
+   const play=()=>{clearInterval(timer);if(picks.length>1)timer=setInterval(()=>{if(!document.hidden&&!hero.hidden&&!hero.matches(':hover,:focus-within'))go(at+1)},7000)};
+   hero.onclick=e=>{const f=e.target.closest('[data-find]');
+     if(f){const h=picks[+f.dataset.find];$('query').value=h.romaji||h.title;hideSuggestions();$('searchForm').requestSubmit();return}
+     if(e.target.closest('.prev')){go(at-1);play()}else if(e.target.closest('.next')){go(at+1);play()}
+     else{const d=e.target.closest('.dots button');if(d){go([...hero.querySelectorAll('.dots button')].indexOf(d));play()}}};
+   go(0);play();
+   hero.hidden=false;$('searchForm').addEventListener('submit',()=>{hero.hidden=true;clearInterval(timer)})}
   }catch{}})();
 {const q=new URLSearchParams(location.search).get('q');if(q&&q.trim().length>=2){$('query').value=q.trim().slice(0,150);$('searchForm').requestSubmit()}}   // /stremio?q=title (after the shelf's listener)
 </script></body></html>
