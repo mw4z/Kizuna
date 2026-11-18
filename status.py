@@ -335,8 +335,8 @@ PAGES = {"/": "dashboard.html", "/index.html": "dashboard.html", "/stremio": "st
          "/settings": "settings.html", "/news": "news.html"}
 ASSETS = {"/kizuna.css": ("kizuna.css", "text/css; charset=utf-8"), "/kizuna.js": ("kizuna.js", "text/javascript; charset=utf-8"),
           "/kizuna-ar.js": ("kizuna-ar.js", "text/javascript; charset=utf-8"),
-          "/fonts/Cairo-SemiBold.ttf": ("fonts/Cairo-SemiBold.ttf", "font/ttf"),
-          "/fonts/Cairo-Bold.ttf": ("fonts/Cairo-Bold.ttf", "font/ttf")}
+          **{f"/fonts/{f}": (f"fonts/{f}", "font/ttf")                       # the subtitle fonts (Settings previews)
+             for files in __import__("subtitle_style").FONTS.values() for f in files}}
 
 
 def make_handler(pending=None):
