@@ -174,13 +174,19 @@ class Pages(Sandbox):
 
     def test_arabic_interface_is_served_right_to_left_from_the_first_paint(self):
         for path in ("/", "/stremio", "/weekly", "/settings", "/news"):
-            self.assertIn('<html lang="en">', self.get(path)[2].decode("utf-8"))
+            self.assertIn('<html lang="en" data-theme="dark">', self.get(path)[2].decode("utf-8"))
         settings.update({"language": "ar"})
         for path in ("/", "/stremio", "/weekly", "/settings", "/news"):
             page = self.get(path)[2].decode("utf-8")
-            self.assertIn('<html lang="ar" dir="rtl">', page, path)
+            self.assertIn('<html lang="ar" dir="rtl" data-theme="dark">', page, path)
             self.assertIn('src="/kizuna-ar.js"', page, path)
         self.assertEqual(self.get("/kizuna-ar.js")[0], 200)
+        for theme in ("light", "system"):                      # appearance reaches every page from the first paint
+            settings.update({"theme": theme})
+            for path in ("/", "/stremio", "/weekly", "/settings", "/news", "/setup"):
+                self.assertIn(f'data-theme="{theme}">', self.get(path)[2].decode("utf-8"), path)
+        with self.assertRaises(settings.SettingsError):
+            settings.update({"theme": "neon"})
         with self.assertRaises(settings.SettingsError):
             settings.update({"language": "xx"})
 

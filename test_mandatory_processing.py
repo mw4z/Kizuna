@@ -249,5 +249,60 @@ class Tests(Sandbox):
         self.assertEqual(agent.dialogue_hash(folder / "ar.ass"), agent.dialogue_hash(folder / "emb.ass"))
 
 
+class Cancel(Sandbox):
+    """The Now page's Cancel button on a waiting episode (2026-11-18)."""
+    def setUp(self):
+        super().setUp()
+        self.root_patch = patch.object(lp, "ROOT", Path(self.tmp, "processing"))
+        self.root_patch.start()
+
+    def tearDown(self):
+        self.root_patch.stop()
+        super().tearDown()
+
+    def waiting(self, manual):
+        source = Path(self.episode("Show - S01E01.mkv", data=b"original bytes", folder=self.lib))
+        destination = source if manual else Path(self.lib, "ready.mkv")
+        key = lp.key_for(destination)
+        (lp.ROOT / key).mkdir(parents=True)
+        (lp.ROOT / key / "raw.media").write_bytes(b"downloaded")
+        lp.save_record(key, {"source": str(source), "destination": str(destination), "manual": manual, "status": "waiting",
+                             "stage": "No acceptable fan translation yet; checking again hourly", "retry_at": 0,
+                             "input_signature": lp.signature(source)})
+        return key, source
+
+    def test_cancel_removes_the_download_and_is_never_processed_or_revived(self):
+        key, source = self.waiting(manual=False)
+        with patch.object(lp.agent, "log"):
+            lp.cancel(key)
+        self.assertEqual(lp.read()[key]["status"], "cancelled")
+        self.assertFalse((lp.ROOT / key).exists())                       # the downloaded copy is gone
+        self.assertTrue(source.exists())                                  # nothing else touched
+        with patch.object(lp, "process_record") as proc, patch.object(s, "libraries", return_value=[]):
+            lp.poll({})
+        proc.assert_not_called()
+        lp.save_record(key, dict(lp.read()[key], status="done"))         # a worker finishing late
+        self.assertEqual(lp.read()[key]["status"], "cancelled")
+
+    def test_own_library_file_is_untouched_and_not_queued_again(self):
+        key, source = self.waiting(manual=True)
+        with patch.object(lp.agent, "log"):
+            lp.cancel(key)
+        self.assertEqual(source.read_bytes(), b"original bytes")
+        with patch.object(lp, "submit") as submit, patch.object(lp, "process_record"), \
+                patch.object(s, "libraries", return_value=[{"name": "Anime", "path": str(self.lib)}]):
+            observed = lp.poll({})
+            lp.poll({k: (v[0], 0) for k, v in observed.items()})       # seen long enough to be queued
+        submit.assert_not_called()
+
+    def test_running_or_unknown_entries_cannot_be_cancelled(self):
+        key, _ = self.waiting(manual=False)
+        lp.save_record(key, dict(lp.read()[key], status="running"))
+        with self.assertRaisesRegex(s.UserError, "prepared right now"):
+            lp.cancel(key)
+        with self.assertRaisesRegex(s.UserError, "no longer waiting"):
+            lp.cancel("nope")
+
+
 if __name__ == "__main__":
     unittest.main()

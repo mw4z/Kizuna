@@ -34,6 +34,9 @@
 [dir=rtl] .nextup::after{background:linear-gradient(270deg,rgba(9,9,11,.95) 0%,rgba(9,9,11,.7) 45%,rgba(9,9,11,.2) 100%),linear-gradient(0deg,rgba(9,9,11,.8),rgba(9,9,11,0) 60%)}
 [dir=rtl] .nextup .label{letter-spacing:0;text-transform:none;font-size:12.5px}
 /* attention + pending rows */
+.pend-side{display:flex;align-items:center;gap:12px;flex:none}
+.k-row .cancel{height:28px;padding:0 12px;font-size:12px;flex:none}
+.k-row .cancel.armed{border-color:var(--k-accent);color:var(--k-accent-ink);background:var(--k-accent)}
 .k-row .k-state{justify-self:end}
 .why{color:var(--k-text-2);font-size:12.5px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* shows shelf */
@@ -51,8 +54,8 @@ dl.sys{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:7px 16px
 dl.sys dt{color:var(--k-text-3)}dl.sys dd{margin:0;color:var(--k-text-2);overflow-wrap:break-word}
 details.log{margin-top:16px}details.log summary{cursor:pointer;color:var(--k-text-2);font-size:12.5px}
 pre.log{margin:10px 0 0;background:var(--k-sunken);border:1px solid var(--k-line);border-radius:var(--k-r);padding:12px;max-height:360px;overflow:auto;
-  font:11.5px/1.6 var(--k-mono);color:#a9a9b3;white-space:pre-wrap;word-break:break-word}
-.offline{padding:14px 16px;border:1px solid rgba(236,106,114,.35);border-radius:var(--k-r);color:var(--k-fail);margin-bottom:24px}
+  font:11.5px/1.6 var(--k-mono);color:var(--k-log-text);white-space:pre-wrap;word-break:break-word}
+.offline{padding:14px 16px;border:1px solid color-mix(in srgb,var(--k-fail) 35%,transparent);border-radius:var(--k-r);color:var(--k-fail);margin-bottom:24px}
 @media (max-width:1100px){.now-grid{grid-template-columns:1fr;gap:0}.rail{margin-top:48px}}
 </style></head><body>
 <header class="k-top"></header>
@@ -120,7 +123,7 @@ function countdown(){for(const el of document.querySelectorAll('.cd')){const s=M
 setInterval(countdown,1000);
 function task(t){return `<div class="task k-in"><div class="task-name"><bdi>${esc(t.name)}</bdi></div>
   <div class="task-pct">${t.pct==null?'':Math.round(t.pct)+'%'}</div>
-  <div class="task-stage"><span class="k-state${t.live?' live':''}" data-state="${t.state}">${esc(t.label)}</span> · ${esc(t.stage||'')}</div>
+  <div class="task-stage"><span class="k-state${t.live?' live':''}" data-state="${t.state}">${esc(t.label)}</span> · <span>${esc(t.stage||'')}</span></div>
   <div class="k-progress${t.pct==null?' indeterminate':''}" data-state="${t.state}"><i style="width:${t.pct||0}%"></i></div>
   ${t.foot?`<div class="task-foot"><span class="k-meta">${t.foot}</span>${t.link?`<a href="${t.link}">${t.linkText}</a>`:''}</div>`:''}</div>`}
 async function tick(){
@@ -149,10 +152,10 @@ async function tick(){
   $('attention').hidden=!att.length;$('attentionCount').textContent=att.length||'';
   put('attentionList',att.map(x=>{const [st,label]=KIND[x.kind]||KIND.failed;return `<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.reason)}</div></div><span class="k-state" data-state="${st}">${label}</span></li>`}).join(''));
   $('pending').hidden=!pend.length;$('pendingCount').textContent=pend.length||'';
-  put('pendingList',pend.map(x=>`<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.reason)}</div></div><span class="k-row-aside">${x.retry_at?'Next check '+esc(K.time(x.retry_at)):'Checking hourly'}</span></li>`).join(''));
+  put('pendingList',pend.map(x=>`<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.reason)}</div></div><div class="pend-side"><span class="k-row-aside">${x.retry_at?'Next check '+esc(K.time(x.retry_at)):'Checking hourly'}</span>${x.key?`<button type="button" class="k-btn k-btn-ghost cancel" data-key="${esc(x.key)}">Cancel</button>`:''}</div></li>`).join(''));
   // weekly shows
   $('showCount').textContent=d.shows.length||'';
-  if(K.lang==='ar')d.shows.forEach(s=>{if(s.local_title)s.title=s.local_title});
+  // titles stay original in every language (no translated names); posters come from the library
   put('shows',d.shows.length?d.shows.map(s=>`<a class="k-card" href="/weekly" data-title="${esc(s.title)}"><div class="k-art">${s.poster?`<img src="${esc(s.poster)}" alt="" loading="lazy">`:`<span class="k-fallback" aria-hidden="true">${esc((s.title||'?')[0])}</span>`}</div>
     <div class="k-card-title"><bdi>${esc(s.title)}</bdi></div><div class="k-card-meta">${s.latest?`${esc(s.latest)}${s.count?` · ${s.count} in library`:' · all watched'}`:'No episodes yet'}</div>${s.latest&&fill(s,+s.latest.split('E')[1])?`<div class="manual">${fill(s,+s.latest.split('E')[1])}</div>`:''}
     ${s.manual?'<div class="manual"><span class="k-tag accent">Typeset by hand</span></div>':''}
@@ -184,4 +187,8 @@ function balance(){const shelf=$('shows'),n=shelf.querySelectorAll('.k-card').le
   const fit=Math.max(2,Math.floor((shelf.clientWidth+16)/(120+16))),rows=Math.ceil(n/fit);shelf.style.setProperty('--cols',Math.min(fit,Math.ceil(n/rows)))}
 new ResizeObserver(balance).observe($('shows'));new MutationObserver(balance).observe($('shows'),{childList:true});
 tick();setInterval(tick,3000);
+// cancel a waiting episode: first click asks "Remove?", a second click within 4 s confirms
+document.addEventListener('click',async e=>{const b=e.target.closest('button.cancel[data-key]');if(!b)return;
+  if(!b.dataset.armed){b.dataset.armed='1';b.textContent=K.t('Remove?');b.classList.add('armed');setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent=K.t('Cancel');b.classList.remove('armed')}},4000);return}
+  b.disabled=true;try{await K.api('queue-cancel',{key:b.dataset.key});b.closest('li').remove();delete $('pendingList').dataset.h;tick()}catch(err){b.disabled=false;b.textContent=err.message}});
 </script></body></html>

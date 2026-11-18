@@ -29,6 +29,8 @@ def read():
 def save_record(key, record):
     with _guard:
         data = read()
+        if data.get(key, {}).get("status") == "cancelled" and record.get("status") != "cancelled":
+            return                                   # cancelled by the user: a worker finishing late can't revive it
         record["updated"] = time.time()
         data[key] = record
         agent.write_atomic(FILE, json.dumps(data, ensure_ascii=False))
@@ -334,7 +336,25 @@ def publish(key, record, folder):
 
 def status():
     with _guard:
-        return list(read().values())
+        return [dict(record, key=key) for key, record in read().items()]
+
+
+def cancel(key):
+    """The user cancels a waiting entry: it's marked cancelled (so the library scan never queues that file again),
+    and the copy in Kizuna's work folder is deleted. A file the user placed in a library is never touched; a Stremio
+    download that was waiting is removed with the work folder. An entry being prepared right now can't be cancelled."""
+    import stremio
+    with _guard:
+        record = read().get(key)
+        if not record or record["status"] in ("done", "cancelled"):
+            raise stremio.UserError("That episode is no longer waiting.")
+        if record["status"] == "running":
+            raise stremio.UserError("It is being prepared right now. Try again when it finishes.")
+        record.update(status="cancelled", stage="Cancelled", retry_at=None)
+        save_record(key, record)
+    shutil.rmtree(ROOT / key, ignore_errors=True)
+    agent.log(f"library: cancelled {Path(record['destination']).name}")
+    return {"cancelled": key}
 
 
 def poll(observed):
@@ -350,13 +370,13 @@ def poll(observed):
                     original.unlink()
                 except PermissionError:
                     pass
-        if record["status"] != "done" and record.get("retry_at", 0) <= time.time():
+        if record["status"] not in ("done", "cancelled") and (record.get("retry_at") or 0) <= time.time():
             if not _processor.acquire(blocking=False):
                 continue
             try:
                 with _guard:
                     record = read().get(key, record)
-                if record["status"] != "done":
+                if record["status"] not in ("done", "cancelled"):
                     process_record(key, record)
             except (OSError, ValueError, KeyError):
                 record.update(status="waiting", stage="Processing queue entry needs attention; original retained", retry_at=backoff(record, 1200))

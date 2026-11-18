@@ -6,7 +6,20 @@
 .d-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap}
 .d-head>.k-btn{margin-top:2px}
 #landing .k-shelf{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
-/* cinematic hero: the most popular show airing now */
+/* cinematic hero: the most popular shows airing now, one every 7 seconds */
+.hero .slide{position:absolute;inset:0;display:flex;align-items:flex-end;opacity:0;visibility:hidden;transition:opacity .8s var(--k-ease),visibility .8s}
+.hero .slide.on{opacity:1;visibility:visible}
+.hero .hero-body{padding-bottom:46px}
+.hero .dots{position:absolute;bottom:18px;inset-inline-start:34px;display:flex;gap:6px;z-index:2}
+#hero .dots button{all:unset;cursor:pointer;width:8px;height:8px;border-radius:999px;background:rgba(255,255,255,.35);transition:width .3s var(--k-ease),background .3s}
+#hero .dots button[aria-current=true]{width:24px;background:#fff}
+#hero .nav{all:unset;position:absolute;bottom:10px;z-index:2;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;cursor:pointer;
+  background:rgba(8,8,10,.55);color:#fff;opacity:0;transition:opacity .2s}
+#hero:hover .nav,#hero .nav:focus-visible{opacity:1}
+@media (hover:none){#hero .nav{opacity:1}}
+#hero .nav.prev{inset-inline-end:58px}#hero .nav.next{inset-inline-end:20px}
+#hero .nav svg{width:18px;height:18px}[dir=rtl] #hero .nav svg{transform:scaleX(-1)}
+#hero .dots button:focus-visible,.hero .nav:focus-visible{outline:2px solid var(--k-accent);outline-offset:3px}
 .hero{position:relative;margin-top:30px;border-radius:14px;overflow:hidden;min-height:340px;display:flex;align-items:flex-end;isolation:isolate;background:#141418}
 .hero img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;opacity:0;transition:opacity .8s,transform 8s linear}
 .hero img.bg.in{opacity:1}.hero:hover img.bg{transform:scale(1.04)}
@@ -21,14 +34,14 @@
 .hero-actions{display:flex;gap:10px;flex-wrap:wrap}
 [dir=rtl] .hero::after{background:linear-gradient(270deg,rgba(9,9,11,.97) 0%,rgba(9,9,11,.82) 34%,rgba(9,9,11,.15) 72%),linear-gradient(0deg,rgba(9,9,11,.9),rgba(9,9,11,0) 55%)}
 [dir=rtl] .batch-problems{padding-left:0;padding-right:18px}
-@media (max-width:700px){.hero-body{grid-template-columns:1fr;padding:22px}.hero-poster{display:none}.hero h2{font-size:24px}}
+@media (max-width:700px){.hero-body{grid-template-columns:1fr;padding:22px}.hero-poster{display:none}.hero h2{font-size:24px}.hero{min-height:380px}}
 #connection{margin-top:8px;color:var(--k-text-3);font-size:12.5px;max-width:80ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* active download / season queue */
 .job{display:grid;gap:6px;margin-top:24px;padding:16px 18px;background:var(--k-surface);border:1px solid var(--k-line);border-radius:var(--k-r-art)}
 .job strong{font:600 15px/1.35 var(--k-font-display)}
 .job p{margin:0;color:var(--k-text-2);font-size:13px}
-progress{appearance:none;width:100%;height:4px;border:0;border-radius:2px;background:rgba(255,255,255,.08);margin:6px 0 2px;overflow:hidden}
-progress::-webkit-progress-bar{background:rgba(255,255,255,.08);border-radius:2px}
+progress{appearance:none;width:100%;height:4px;border:0;border-radius:2px;background:var(--k-fill-2);margin:6px 0 2px;overflow:hidden}
+progress::-webkit-progress-bar{background:var(--k-fill-2);border-radius:2px}
 progress::-webkit-progress-value{background:var(--k-download);border-radius:2px;transition:width .8s var(--k-ease)}
 progress::-moz-progress-bar{background:var(--k-download)}
 .job-numbers{display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:12.5px;color:var(--k-text-2)}
@@ -43,16 +56,24 @@ progress::-moz-progress-bar{background:var(--k-download)}
 .title-search{position:relative;min-width:0}
 .title-search label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 #query{height:44px;font-size:15px;padding:0 16px}
+#recent{display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:760px;margin:4px 0 10px}
+#recent .lbl{font-size:12px;color:var(--k-text-3);margin-inline-end:2px}
+#recent .chip{display:inline-flex;align-items:center;border:1px solid var(--k-line-strong);border-radius:999px;background:var(--k-raised);overflow:hidden}
+#recent .chip button{all:unset;cursor:pointer;font:500 12.5px/1 var(--k-font);color:var(--k-text-2);padding:7px 10px 7px 12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#recent .chip button.x{padding:7px 10px 7px 4px;color:var(--k-text-3)}
+#recent .chip:hover{border-color:var(--k-line-hover)}#recent .chip button:hover{color:var(--k-text)}
+#recent button.clear{all:unset;cursor:pointer;font-size:12px;color:var(--k-text-3);text-decoration:underline;text-underline-offset:3px;margin-inline-start:4px}
+#recent button:focus-visible{outline:2px solid var(--k-accent);outline-offset:2px}
 .search .primary{height:44px;padding:0 22px}
 .suggestions{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:20;background:var(--k-raised);border:1px solid var(--k-line-strong);
-  border-radius:var(--k-r-art);box-shadow:0 24px 48px -12px rgba(0,0,0,.85);max-height:440px;overflow:auto;padding:4px}
+  border-radius:var(--k-r-art);box-shadow:0 24px 48px -12px var(--k-shadow,rgba(0,0,0,.85));max-height:440px;overflow:auto;padding:4px}
 .suggestion{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:var(--k-r);cursor:pointer}
 .suggestion:hover,.suggestion[aria-selected="true"]{background:var(--k-hover)}
 .suggestion img,.suggestion .placeholder{width:34px;height:51px;object-fit:cover;border-radius:4px;flex:none;background:var(--k-surface);display:grid;place-items:center;color:var(--k-text-3);font-size:13px}
 .suggestion strong{display:block;font-size:13.5px;font-weight:600}
 .suggestion small{display:block;color:var(--k-text-3);font-size:12px}
 .suggestion-note{padding:12px;color:var(--k-text-3);font-size:13px}
-.skeleton{display:block;background:linear-gradient(100deg,#17171b 30%,#222228 50%,#17171b 70%);background-size:250% 100%;animation:k-sh 1.5s ease-in-out infinite;border-radius:var(--k-r-sm)}
+.skeleton{display:block;background:linear-gradient(100deg,var(--k-sk-1) 30%,var(--k-sk-2) 50%,var(--k-sk-1) 70%);background-size:250% 100%;animation:k-sh 1.5s ease-in-out infinite;border-radius:var(--k-r-sm)}
 .skeleton-line{height:12px;margin:10px 0;width:75%}.skeleton-line.short{width:45%}.skeleton-poster{width:100%;aspect-ratio:2/3;border-radius:var(--k-r-art)}
 .skeleton-row{display:grid;grid-template-columns:70px 1fr 110px;gap:24px;padding:20px 0;border-top:1px solid var(--k-line)}
 .skeleton-badge{height:36px}.skeleton-note{height:12px;width:65%;margin:8px 0}.loading-detail{margin:20px 0;max-width:620px}
@@ -64,8 +85,8 @@ progress::-moz-progress-bar{background:var(--k-download)}
 #results[aria-busy="true"]{margin-top:28px}
 .poster{display:flex;flex-direction:column;gap:3px;padding:0;border:0;background:none;color:inherit;text-align:start;cursor:pointer;font:inherit;min-width:0}
 .poster img,.poster .placeholder{display:grid;place-items:center;width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:var(--k-r-art);background:var(--k-raised);
-  color:rgba(255,255,255,.18);font:600 34px/1 var(--k-font-display);margin-bottom:7px;transition:transform .35s var(--k-ease),box-shadow .35s var(--k-ease)}
-.poster:hover img,.poster:hover .placeholder,.poster:focus-visible img{transform:translateY(-4px);box-shadow:0 18px 34px -12px rgba(0,0,0,.8)}
+  color:var(--k-ghost);font:600 34px/1 var(--k-font-display);margin-bottom:7px;transition:transform .35s var(--k-ease),box-shadow .35s var(--k-ease)}
+.poster:hover img,.poster:hover .placeholder,.poster:focus-visible img{transform:translateY(-4px);box-shadow:0 18px 34px -12px var(--k-shadow,rgba(0,0,0,.8))}
 .poster:focus-visible{outline:none}.poster:focus-visible img,.poster:focus-visible .placeholder{outline:2px solid var(--k-accent);outline-offset:3px}
 .poster strong{font-size:13.5px;line-height:1.3;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .poster small{color:var(--k-text-3);font-size:12.5px}
@@ -108,14 +129,15 @@ p{max-width:75ch}
 .episode-check{display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid var(--k-line);font-size:13px;cursor:pointer}
 .episode-check span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
 .episode-check input{accent-color:var(--k-accent);width:15px;height:15px;flex:none}
-.filler-badge{color:var(--k-wait);background:rgba(216,166,74,.12);border-radius:999px;padding:1px 8px;font-size:11.5px;white-space:nowrap}
+.filler-badge{color:var(--k-wait);background:color-mix(in srgb,var(--k-wait) 12%,transparent);border-radius:999px;padding:1px 8px;font-size:11.5px;white-space:nowrap}
 .episode-type{font-size:11.5px;color:var(--k-text-3);white-space:nowrap}
 /* generic controls used by the script: plain button/input/select get the system look */
 main button:not(.poster):not(.k-btn):not(.k-card){display:inline-flex;align-items:center;justify-content:center;gap:8px;height:34px;padding:0 14px;border-radius:var(--k-r);
   border:1px solid var(--k-line-strong);background:var(--k-raised);color:var(--k-text);font:500 13.5px/1 var(--k-font);cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s}
-main button:not(.poster):not(.k-btn):not(.k-card):hover{background:var(--k-hover);border-color:rgba(255,255,255,.2)}
+main button:not(.poster):not(.k-btn):not(.k-card):hover{background:var(--k-hover);border-color:var(--k-line-hover)}
+main button.icon:not(.poster):not(.k-btn):not(.k-card){width:30px;height:30px;padding:0;border-radius:50%}   /* round icon buttons (pause, cancel): the generic padding squeezed their icons to nothing */
 main button:disabled{opacity:.42;cursor:default}
-main button.primary:not(.poster):not(.k-btn):not(.k-card){background:var(--k-accent);border-color:var(--k-accent);color:#fff;font-weight:600}
+main button.primary:not(.poster):not(.k-btn):not(.k-card){background:var(--k-accent);border-color:var(--k-accent);color:var(--k-accent-ink);font-weight:600}
 main button.primary:not(.poster):not(.k-btn):not(.k-card):hover{background:var(--k-accent-hi);border-color:var(--k-accent-hi)}
 main .search button.primary:not(.poster):not(.k-btn):not(.k-card){height:44px;padding:0 24px;font-size:14px}
 main select,main input:not([type=checkbox]){width:100%;height:36px;padding:0 12px;border-radius:var(--k-r);border:1px solid var(--k-line-strong);background:var(--k-sunken);color:var(--k-text);font:14px var(--k-font)}
@@ -136,17 +158,18 @@ section,#results,#message,#subtitle{scroll-margin-top:76px}
 <section id="job" class="job" hidden aria-live="polite"><strong id="jobName" dir="auto"></strong><p id="jobStage"></p><progress id="jobProgress" max="100" value="0" aria-describedby="jobPercent jobEta"></progress><div class="job-numbers"><strong id="jobPercent"></strong><span class="job-tail"><span id="jobEta"></span><button id="jobPause" class="icon" type="button" title="Pause" aria-label="Pause download"></button><button id="jobCancel" class="icon" type="button" title="Cancel" aria-label="Cancel download"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></span></div><button id="jobDismiss" type="button" hidden>Dismiss</button></section>
 <section id="batch" class="job" hidden aria-live="polite"><strong id="batchName" dir="auto"></strong><p id="batchStage"></p><p id="batchCounts" class="subtle"></p><progress id="batchProgress" max="100" value="0"></progress><div class="toolbar"><button id="batchStop">Stop after current episode</button><button id="batchResume">Resume / retry remaining</button><button id="batchDismiss" type="button">Dismiss</button></div><ul id="batchProblems" class="batch-problems"></ul></section>
 <form class="search" id="searchForm" role="search"><div class="title-search"><label for="query">Title</label><input id="query" type="search" required minlength="2" maxlength="150" placeholder="Search movies, shows and anime" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="suggestions" aria-expanded="false" dir="auto"><div id="suggestions" class="suggestions" role="listbox" aria-label="Suggested titles" hidden></div></div><button class="primary" id="searchButton">Search</button></form>
+<div id="recent" class="recent" role="group" aria-label="Recent searches" hidden></div>
 <div id="message" role="status" aria-live="polite"></div><div id="results"></div>
-<section id="hero" class="hero" hidden aria-labelledby="heroTitle"></section>
+<section id="hero" class="hero" hidden role="region" aria-roledescription="carousel" aria-label="Airing now"></section>
 <section id="landing" class="k-section" style="margin-top:36px" aria-labelledby="hLanding" hidden><div class="k-section-head"><h2 class="k-h" id="hLanding">Airing this season</h2><span class="k-meta">Pick one to find its releases · <a href="/weekly">follow weekly →</a></span></div><div class="k-shelf" id="landingShelf"></div></section>
 <section id="detail" class="section" hidden><button id="back" class="back">← Back to results</button><h2 id="title" dir="auto"></h2><p id="description" class="muted" dir="auto"></p>
 <div id="detailLoading" class="loading-detail" hidden aria-label="Loading title" aria-busy="true"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div></div>
 <div id="episodes" class="toolbar" hidden><label>Season<select id="season"></select></label><label>Episode<select id="episode"></select></label><button id="findSources" class="primary">Find releases</button></div>
-<section id="bulkControls" class="selection" hidden><h2>Download a season or the whole show</h2><p id="bulkHelp" class="subtle">Pick an episode, find a release and check its tracks. The audio and subtitles you choose then apply to every episode.</p><div class="toolbar"><button id="downloadSeason" aria-describedby="bulkHelp" disabled>Download selected season</button><button id="downloadShow" aria-describedby="bulkHelp" disabled>Download whole show</button></div></section>
+<section id="bulkControls" class="selection" hidden><h2>Download the whole show</h2><p id="bulkHelp" class="subtle">Pick an episode, find a release and check its tracks. The audio and subtitles you choose then apply to every episode.</p><div class="toolbar"><button id="downloadShow" aria-describedby="bulkHelp" disabled>Download whole show</button></div></section>
 <section id="sourcesSection" class="section" hidden><div class="toolbar"><h2 style="margin:0;flex:1;min-width:180px">Available releases</h2><button id="refreshSources">Refresh releases</button><label>Audio<select id="audioFilter"><option value="">All available</option></select></label><label>Resolution<select id="resolution"><option value="">All available</option></select></label><label>HDR<select id="hdr"><option value="">All available</option></select></label></div>
 <p class="subtle">Audio, resolution and HDR come from the add-on until you check a release; checking reads the real tracks. Unknown audio is listed as Unspecified.</p><div id="releases" class="releases"></div></section>
 <section id="selectionLoading" class="selection" hidden aria-label="Checking available tracks" aria-busy="true"><div class="skeleton skeleton-line short"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-badge"></div></section>
-<section id="selection" class="selection" hidden><h2>Choose your tracks</h2><p class="subtle">Before it reaches Jellyfin, every download gets subtitles in your language: found, styled your way, timed and verified. Dubs in that language skip this. If none exist yet, it waits and retries.</p><p id="dimensions" class="subtle"></p><div class="toolbar"><label>Audio<select id="audio"></select></label><label>Extra subtitles<select id="subtitle"></select></label><label>Jellyfin library<select id="library"></select></label></div><button id="subtitleMore">Find add-on subtitles</button><p id="destinationNote" class="subtle"></p><div class="toolbar"><button id="download" class="primary">Download this episode only</button><button id="downloadSeasonHere" hidden disabled>Download selected season</button><button id="downloadShowHere" hidden disabled>Download whole show</button></div></section>
+<section id="selection" class="selection" hidden><h2>Choose your tracks</h2><p class="subtle">Before it reaches Jellyfin, every download gets subtitles in your language: found, styled your way, timed and verified. Dubs in that language skip this. If none exist yet, it waits and retries.</p><p id="dimensions" class="subtle"></p><div class="toolbar"><label>Audio<select id="audio"></select></label><label>Extra subtitles<select id="subtitle"></select></label><label>Jellyfin library<select id="library"></select></label></div><button id="subtitleMore">Find add-on subtitles</button><p id="destinationNote" class="subtle"></p><div class="toolbar"><button id="download" class="primary">Download this episode only</button><button id="downloadShowHere" hidden disabled>Download whole show</button></div></section>
 </section>
 <section id="episodePicker" class="episode-picker" hidden><h3>Choose episodes from this season</h3><p id="fillerNote" class="subtle">Filler status unavailable.</p><a id="fillerSource" target="_blank" rel="noopener noreferrer" hidden>View filler guide</a><div class="toolbar"><button id="episodesAll" type="button">Select all</button><button id="episodesClear" type="button">Clear</button><button id="episodesSkip" type="button">Uncheck fillers</button></div><div id="episodeChecks" class="episode-checks"></div><button id="downloadSelected" disabled>Download selected episodes (0)</button></section></main><script src="/kizuna-ar.js"></script><script src="/kizuna.js"></script><script>
 const $=id=>document.getElementById(id),token='__STREMIO_TOKEN__';
@@ -185,15 +208,26 @@ $('query').addEventListener('keydown',event=>{if(event.key==='Escape'){hideSugge
 document.addEventListener('pointerdown',event=>{if(!event.target.closest('.title-search'))hideSuggestions()});$('searchForm').addEventListener('submit',hideSuggestions);
 // End title suggestions
 function etaLabel(seconds){if(seconds===null||seconds===undefined||!Number.isFinite(seconds))return 'Estimating time left…';if(seconds<1)return 'Finishing…';const mins=Math.ceil(seconds/60),hours=Math.floor(mins/60);return 'About '+(hours?`${hours}h ${mins%60}m`:`${mins} min`)+' left'}
-function updateDownloadButtons(){$('episodePicker').hidden=currentType==='movie';$('download').textContent=currentType==='movie'?'Download this movie':'Download this episode only';$('downloadSelected').disabled=jobBusy||batchBusy||!selected||!episodeChoices.size;$('downloadSelected').textContent='Download selected episodes ('+episodeChoices.size+')';for(const id of ['downloadSeasonHere','downloadShowHere'])$(id).hidden=currentType==='movie';for(const id of ['download','downloadSeason','downloadShow','downloadSeasonHere','downloadShowHere'])$(id).disabled=jobBusy||batchBusy||!selected;$('downloadSeason').textContent=$('season').value==='0'?'Download specials':$('season').value?'Download Season '+$('season').value:'Download selected season';$('downloadSeasonHere').textContent=$('downloadSeason').textContent;$('bulkHelp').textContent=selected?'Ready. Uses the audio, subtitles, library, and verified video quality chosen below. Existing files are skipped; unavailable matches are reported.':'Choose an episode, find a release, then use Check tracks to select your audio and subtitles. These settings will apply to the whole batch.'}
+function updateDownloadButtons(){$('episodePicker').hidden=currentType==='movie';$('download').textContent=currentType==='movie'?'Download this movie':'Download this episode only';$('downloadSelected').disabled=jobBusy||batchBusy||!selected||!episodeChoices.size;$('downloadSelected').textContent='Download selected episodes ('+episodeChoices.size+')';$('downloadShowHere').hidden=currentType==='movie';for(const id of ['download','downloadShow','downloadShowHere'])$(id).disabled=jobBusy||batchBusy||!selected;$('bulkHelp').textContent=selected?'Ready. Uses the audio, subtitles, library, and verified video quality chosen below. Existing files are skipped; unavailable matches are reported.':'Choose an episode, find a release, then use Check tracks to select your audio and subtitles. These settings will apply to the whole batch.'}
 function showJob(j){$('job').hidden=!j;jobBusy=j?.status==='running';$('jobCancel').hidden=!jobBusy||j.phase==='processing';$('jobPause').hidden=!jobBusy||j.phase==='processing';$('jobDismiss').hidden=!j||j.status==='running';updateDownloadButtons();if(!j)return;$('jobPause').innerHTML=j.paused?'<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.8v8.4L10 6z" fill="currentColor"/></svg>':'<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2v8M8.5 2v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';$('jobPause').title=j.paused?'Resume':'Pause';$('jobPause').setAttribute('aria-label',j.paused?'Resume download':'Pause download');$('jobPause').dataset.paused=j.paused?'1':'';const legacy=j.path?.match(/S(\d+)E(\d+)\.mkv$/i),season=j.season??(legacy?+legacy[1]:null),episode=j.episode??(legacy?+legacy[2]:null);$('jobName').textContent=j.name+(Number.isInteger(season)&&Number.isInteger(episode)?` · S${String(season).padStart(2,'0')}E${String(episode).padStart(2,'0')}`:'');$('jobStage').textContent=j.stage+(j.library?' · '+j.library:'');$('jobProgress').value=j.pct||0;$('jobProgress').hidden=!jobBusy;$('jobPercent').textContent=j.status==='done'?'100%':Number.isFinite(j.pct)?`${j.pct.toFixed(1)}%`:'';const elapsed=Date.now()/1000-j.started,estimate=j.eta_seconds??(j.pct>0&&elapsed>0?elapsed*(100-j.pct)/j.pct:null);$('jobEta').textContent=!jobBusy?'':j.paused?'Paused':j.phase==='processing'?'Subtitle preparation · time varies':j.stage==='Verifying download'?'Verifying file…':etaLabel(estimate)}
 function showBatch(b){batchBusy=!!b&&['running','stopping'].includes(b.status);$('batch').hidden=!b||(!batchBusy&&String(b.created)===dismissedBatch);$('batch').dataset.created=b?String(b.created):'';updateDownloadButtons();if(!b)return;const c=b.counts,finished=c.done+c.existing+c.unavailable+c.failed;$('batchName').textContent=b.name+' · '+(b.scope==='show'?'Whole show':b.scope==='selected'?'Selected episodes':'Selected season');$('batchStage').textContent=b.stage;$('batchCounts').textContent=`${c.done} ready · ${c.waiting||0} waiting for subtitles · ${c.existing} already present · ${c.unavailable} unavailable · ${c.failed} failed · ${b.total-finished} remaining`;$('batchProgress').value=b.total?finished/b.total*100:0;$('batchStop').hidden=!batchBusy;$('batchStop').disabled=b.status==='stopping';$('batchResume').hidden=batchBusy||!(c.pending+c.running+c.unavailable+c.failed);$('batchDismiss').hidden=batchBusy;$('batchProblems').replaceChildren(...(b.problems||[]).map(p=>el('li',p.episode+': '+p.reason)))}
 function connected(d){libraries=d.libraries;$('connection').textContent='Connected: '+d.addons.join(', ');$('library').replaceChildren();libraries.forEach(l=>option($('library'),l.id,l.name));showJob(d.job);showBatch(d.batch)}
 function setLibraries(list){if(JSON.stringify(list)===JSON.stringify(libraries))return;const cur=$('library').selectedOptions[0]?.textContent;libraries=list;$('library').replaceChildren();libraries.forEach(l=>option($('library'),l.id,l.name));const keep=libraries.find(l=>l.name===cur);if(keep)$('library').value=keep.id;destinationNote()}
 async function refreshLibraries(){try{setLibraries((await api('connection')).libraries)}catch(e){}}
 $('sync').onclick=async()=>{const b=$('sync');b.disabled=true;try{const d=await api('sync',{});connected(d);message('Stremio add-ons synced; live catalogs refreshed and cached results cleared.'+(d.manifest_refresh_failures?' Some manifests were unavailable; their previous settings were kept.':''))}catch(e){message(e.message,true)}finally{b.disabled=false}};
+// recent searches: the last 8, kept in this browser only (a convenience; nothing breaks without storage)
+const RECENT='kizuna-recent-searches';
+function recentGet(){try{const a=JSON.parse(localStorage.getItem(RECENT)||'[]');return Array.isArray(a)?a.filter(x=>typeof x==='string'):[]}catch{return[]}}
+function recentSet(a){try{localStorage.setItem(RECENT,JSON.stringify(a.slice(0,8)))}catch{}renderRecent()}
+function rememberSearch(q){q=q.trim();if(q.length>=2)recentSet([q,...recentGet().filter(x=>x.toLowerCase()!==q.toLowerCase())])}
+function renderRecent(){const a=recentGet(),box=$('recent'),E=Kizuna.esc;box.hidden=!a.length;
+ box.innerHTML=a.length?`<span class="lbl">Recent</span>${a.map((q,i)=>`<span class="chip"><button type="button" class="go" data-i="${i}" title="${E(q)}"><bdi>${E(q)}</bdi></button><button type="button" class="x" data-x="${i}" aria-label="Remove from recent">×</button></span>`).join('')}<button type="button" class="clear">Clear</button>`:''}
+$('recent').addEventListener('click',e=>{const a=recentGet(),go=e.target.closest('[data-i]'),x=e.target.closest('[data-x]');
+ if(go){$('query').value=a[+go.dataset.i];hideSuggestions();$('searchForm').requestSubmit()}
+ else if(x)recentSet(a.filter((_,i)=>i!==+x.dataset.x));else if(e.target.closest('.clear'))recentSet([])});
+renderRecent();
 $('searchForm').onsubmit=async e=>{
- e.preventDefault();messageHost=$('results');const version=++searchVersion;++inspectVersion;$('searchButton').disabled=true;$('detail').hidden=true;$('results').hidden=false;showSkeletons($('results'),true);message('Searching your Stremio catalogs…');
+ e.preventDefault();rememberSearch($('query').value);messageHost=$('results');const version=++searchVersion;++inspectVersion;$('searchButton').disabled=true;$('detail').hidden=true;$('results').hidden=false;showSkeletons($('results'),true);message('Searching your Stremio catalogs…');
  try{const d=await api('search?'+new URLSearchParams({q:$('query').value,type:'all'}));if(version!==searchVersion)return;titles=d.results;renderTitles();message(titles.length?`${titles.length} titles found${d.failed_addons?' · Some catalogs are still loading or unavailable; search again for late results.':''}`:(d.failed_addons?'Catalogs are still loading or unavailable. Search again to include late results.':'No matching titles returned. Try another title.'));moveTo(titles.length?'results':'message')}
  catch(e){if(version===searchVersion){$('results').replaceChildren();message(e.message,true)}}finally{if(version===searchVersion)$('results').setAttribute('aria-busy','false');$('searchButton').disabled=false}
 };
@@ -226,8 +260,8 @@ function destinationNote(){$('destinationNote').textContent=['Weekly Anime','Ani
 $('library').onchange=destinationNote;$('library').onfocus=refreshLibraries;$('library').onpointerdown=refreshLibraries;document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLibraries()});
 $('subtitleMore').onclick=async()=>{if(!selected)return;messageHost=$('selection');const key=selected.key,b=$('subtitleMore');b.disabled=true;message('Checking subtitle add-ons…');try{const d=await api('subtitles',{key});if(selected?.key!==key)return;for(const t of d.subtitles){if(![...$('subtitle').options].some(o=>o.value===t.id))option($('subtitle'),t.id,labelTrack(t))}message(`${d.subtitles.length} add-on subtitles returned.`+(d.failed_addons?' Some add-ons are still loading or unavailable; try this button again.':''));moveTo('subtitle')}catch(e){message(e.message,true)}finally{b.disabled=false}};
 $('download').onclick=async()=>{if(!selected)return;messageHost=$('selection');$('download').disabled=true;try{showJob(await api('download',{key:selected.key,audio:$('audio').value,subtitle:$('subtitle').value,library:$('library').value}));messageHost=$('job');message('Download started. You can leave this page open to follow its progress.');moveTo('job')}catch(e){message(e.message,true);$('download').disabled=jobBusy}};
-async function startBatch(scope){if(!selected)return;messageHost=$('selection');if(scope==='selected'&&!episodeChoices.size)return;$('downloadSelected').disabled=true;for(const id of ['downloadSeason','downloadShow','downloadSeasonHere','downloadShowHere'])$(id).disabled=true;try{const d=await api('batch',{key:selected.key,audio:$('audio').value,subtitle:$('subtitle').value,library:$('library').value,scope,episodes:JSON.stringify([...episodeChoices])});showBatch(d.batch);messageHost=$('batch');message('Batch started. Episodes will download one at a time using your selected settings.');moveTo('batch')}catch(e){message(e.message,true);updateDownloadButtons()}}
-$('downloadSeason').onclick=$('downloadSeasonHere').onclick=()=>startBatch('season');$('downloadShow').onclick=$('downloadShowHere').onclick=()=>startBatch('show');
+async function startBatch(scope){if(!selected)return;messageHost=$('selection');if(scope==='selected'&&!episodeChoices.size)return;$('downloadSelected').disabled=true;for(const id of ['downloadShow','downloadShowHere'])$(id).disabled=true;try{const d=await api('batch',{key:selected.key,audio:$('audio').value,subtitle:$('subtitle').value,library:$('library').value,scope,episodes:JSON.stringify([...episodeChoices])});showBatch(d.batch);messageHost=$('batch');message('Batch started. Episodes will download one at a time using your selected settings.');moveTo('batch')}catch(e){message(e.message,true);updateDownloadButtons()}}
+$('downloadShow').onclick=$('downloadShowHere').onclick=()=>startBatch('show');
 $('batchStop').onclick=async()=>{try{showBatch((await api('batch-stop',{})).batch);moveTo('batch')}catch(e){message(e.message,true)}};
 $('batchResume').onclick=async()=>{try{showBatch((await api('batch-resume',{})).batch);moveTo('batch')}catch(e){message(e.message,true)}};
 $('jobCancel').onclick=async()=>{const b=$('jobCancel');b.disabled=true;try{const j=await api('download-cancel',{});$('jobStage').textContent=j.stage;moveTo('job')}catch(e){message(e.message,true)}finally{b.disabled=false}};
@@ -239,20 +273,33 @@ Kizuna.shell('discover');
 // Landing shelf: what's airing now; choosing one searches the Stremio catalogs for it
 (async()=>{const shelf=$('landingShelf'),land=$('landing'),K=Kizuna;
  let searched=false;const hide=()=>{searched=true;land.hidden=true;$('hero').hidden=true};$('searchForm').addEventListener('submit',hide);
- try{const d=await K.api('shows-recommend');if(K.lang==='ar')d.shows.forEach(c=>{if(c.local_title){c.title=c.local_title;c.poster=c.local_poster||c.poster;if(c.local_about)c.about=c.local_about}});if(searched||$('results').children.length||!$('detail').hidden)return;
+ try{const d=await K.api('shows-recommend');if(K.lang==='ar')d.shows.forEach(c=>{if(c.local_poster)c.poster=c.local_poster;if(c.local_about)c.about=c.local_about});if(searched||$('results').children.length||!$('detail').hidden)return;
   const list=d.shows.slice(0,18);
   shelf.innerHTML=list.map((c,i)=>(c.title=c.title||c.romaji||'Untitled',0)||`<button type="button" class="k-card" data-i="${i}" data-title="${K.esc(c.title)}"><div class="k-art">${c.poster?`<img src="${K.esc(c.poster)}" alt="" loading="lazy">`:`<span class="k-fallback" aria-hidden="true">${K.esc(c.title[0]||'?')}</span>`}${c.followed?`<span class="k-badge"><span class="k-tag on">${K.lang==='ar'?'Followed':'Following'}</span></span>`:''}</div><div class="k-card-title"><bdi>${K.esc(c.title)}</bdi></div><div class="k-card-meta">${c.next?`Episode ${K.esc(c.next-1>0?c.next-1:c.next)} out`:K.esc(c.year||'')}</div></button>`).join('');
   shelf.onclick=e=>{const b=e.target.closest('[data-i]');if(!b)return;$('query').value=list[+b.dataset.i].romaji||list[+b.dataset.i].title;hideSuggestions();$('searchForm').requestSubmit()};
   land.hidden=false;
-  // hero: the most popular airing show that has wide artwork
-  const h=list.find(c=>c.banner),hero=$('hero');
-  if(h){hero.innerHTML=`<img class="bg" src="${K.esc(h.banner)}" alt="" referrerpolicy="no-referrer"><div class="hero-body">
-    <div class="hero-poster">${h.poster?`<img src="${K.esc(h.poster)}" alt="" referrerpolicy="no-referrer">`:''}</div><div>
+  // hero: the most popular airing shows that have wide artwork, rotating every 7 seconds
+  const picks=list.filter(c=>c.banner).slice(0,6),hero=$('hero');
+  if(picks.length){
+   const ARROW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
+   hero.innerHTML=picks.map((h,j)=>`<div class="slide"><img class="bg" src="${K.esc(h.banner)}" alt="" ${j?'loading="lazy" ':''}referrerpolicy="no-referrer"><div class="hero-body">
+    <div class="hero-poster">${h.poster?`<img src="${K.esc(h.poster)}" alt="" ${j?'loading="lazy" ':''}referrerpolicy="no-referrer">`:''}</div><div>
     <div class="eyebrow"><span class="k-tag accent">${h.new?'New this season':'Airing now'}</span>${h.genres.map(g=>`<span>${K.esc(g)}</span>`).join('<span aria-hidden="true">·</span>')}${h.next?`<span aria-hidden="true">·</span><span>Episode ${K.esc(h.next)} ${K.esc(h.at?'airs '+K.day(h.at):'')}</span>`:''}</div>
-    <h2 id="heroTitle"><bdi>${K.esc(h.title)}</bdi></h2>${h.about?`<p>${K.esc(h.about)}</p>`:''}
-    <div class="hero-actions"><button type="button" class="k-btn k-btn-primary" id="heroFind">Find releases</button>${h.followed?'<span class="k-tag on" style="height:34px;padding:0 14px">Following weekly</span>':'<a class="k-btn" href="/weekly">Follow weekly</a>'}</div></div></div>`;
-   $('heroFind').onclick=()=>{$('query').value=h.romaji||h.title;hideSuggestions();$('searchForm').requestSubmit()};
-   hero.hidden=false;$('searchForm').addEventListener('submit',()=>{hero.hidden=true})}
+    <h2><bdi>${K.esc(h.title)}</bdi></h2>${h.about?`<p>${K.esc(h.about)}</p>`:''}
+    <div class="hero-actions"><button type="button" class="k-btn k-btn-primary" data-find="${j}">Find releases</button>${h.followed?'<span class="k-tag on" style="height:34px;padding:0 14px">Following weekly</span>':'<a class="k-btn" href="/weekly">Follow weekly</a>'}</div></div></div></div>`).join('')
+    +(picks.length>1?`<button type="button" class="nav prev" aria-label="Previous show">${ARROW}</button><button type="button" class="nav next" aria-label="Next show">${ARROW.replace('M15 6l-6 6 6 6','M9 6l6 6-6 6')}</button>
+    <div class="dots">${picks.map((h,j)=>`<button type="button" aria-label="Show ${j+1}"></button>`).join('')}</div>`:'');
+   let at=0,timer=null;
+   const go=i=>{const all=[...hero.querySelectorAll('.slide')];at=(i+all.length)%all.length;
+     all.forEach((x,j)=>{const on=j===at;x.classList.toggle('on',on);x.setAttribute('aria-hidden',String(!on));x.querySelectorAll('a,button').forEach(b=>b.tabIndex=on?0:-1)});
+     hero.querySelectorAll('.dots button').forEach((b,j)=>b.setAttribute('aria-current',String(j===at)))};
+   const play=()=>{clearInterval(timer);if(picks.length>1)timer=setInterval(()=>{if(!document.hidden&&!hero.hidden&&!hero.matches(':hover,:focus-within'))go(at+1)},7000)};
+   hero.onclick=e=>{const f=e.target.closest('[data-find]');
+     if(f){const h=picks[+f.dataset.find];$('query').value=h.romaji||h.title;hideSuggestions();$('searchForm').requestSubmit();return}
+     if(e.target.closest('.prev')){go(at-1);play()}else if(e.target.closest('.next')){go(at+1);play()}
+     else{const d=e.target.closest('.dots button');if(d){go([...hero.querySelectorAll('.dots button')].indexOf(d));play()}}};
+   go(0);play();
+   hero.hidden=false;$('searchForm').addEventListener('submit',()=>{hero.hidden=true;clearInterval(timer)})}
   }catch{}})();
 {const q=new URLSearchParams(location.search).get('q');if(q&&q.trim().length>=2){$('query').value=q.trim().slice(0,150);$('searchForm').requestSubmit()}}   // /stremio?q=title (after the shelf's listener)
 </script></body></html>
