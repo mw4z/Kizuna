@@ -21,5 +21,6 @@ __pycache__/
 .venv*/
 .claude/
 /subtitle_policy.json
+/fansubs/
 /dist/
 /build/
