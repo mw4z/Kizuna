@@ -18,11 +18,11 @@ the user. If you need an isolated environment, create one that reuses its packag
 ## Running the tests (PowerShell, from this folder)
 
     $py = "C:\Users\moody\AppData\Local\Programs\Python\Python313\python.exe"
-    & $py -W ignore::ResourceWarning -m unittest test_agent test_audit test_audit_fixes test_dkb test_fansub test_fillers test_mandatory_processing test_robust test_stremio test_stremio_batch test_reliability test_shows test_settings test_news
+    & $py -W ignore::ResourceWarning -m unittest test_agent test_audit test_audit_fixes test_dkb test_fansub test_fillers test_mandatory_processing test_robust test_stremio test_stremio_batch test_reliability test_shows test_settings test_news test_subtitle_style
     node test_picker.cjs
     node test_i18n.cjs
 
-Expected: 285 tests OK (2026-11-18, about 2 minutes: test_reliability runs real ffmpeg/mkvmerge, Windows
+Expected: 295 tests OK (2026-11-18, about 2 minutes: test_reliability runs real ffmpeg/mkvmerge, Windows
 file locks and a slow proxy stream) and "Picker checks passed".
 
 Rules the 2026-11-18 reliability audit added (keep them):

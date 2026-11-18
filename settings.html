@@ -30,18 +30,64 @@
 .switch input:checked+i{background:var(--k-accent)}.switch input:checked+i::after{transform:translateX(18px)}
 .switch input:focus-visible+i{outline:2px solid var(--k-accent);outline-offset:2px}
 [dir=rtl] .switch i::after{left:auto;right:3px}[dir=rtl] .switch input:checked+i::after{transform:translateX(-18px)}
+#subErr:empty{display:none}
+.subview{position:relative;border-radius:12px;overflow:hidden;background:#0b0d12;aspect-ratio:16/9;border:1px solid var(--k-line)}
+.subview img{display:block;width:100%;height:100%;object-fit:cover;transition:opacity .15s}
+.subview.busy img{opacity:.85}
+.subview .scene{position:absolute;top:10px;inset-inline-end:10px;display:flex;gap:4px;background:rgba(0,0,0,.55);border-radius:999px;padding:3px}
+.subview .scene button{all:unset;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:999px;color:#d9d9de}
+.subview .scene button[aria-pressed=true]{background:rgba(255,255,255,.18);color:#fff}
+.subview .scene button:focus-visible{outline:2px solid var(--k-accent)}
+.range{display:grid;gap:8px}.range>span{display:flex;justify-content:space-between;font-size:12.5px;color:var(--k-text-2)}
+.range output{color:var(--k-text);font-variant-numeric:tabular-nums}
+.range input{width:100%;accent-color:var(--k-accent)}
+.colour{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--k-text-2)}
+.colour input{width:38px;height:30px;padding:0;border:1px solid var(--k-line-strong);border-radius:8px;background:none;cursor:pointer}
+.sub-part{display:grid;gap:14px;padding:16px;border:1px solid var(--k-line);border-radius:12px}
+.sub-part h3{margin:0;font:600 13px/1.3 var(--k-font-display);display:flex;align-items:center;justify-content:space-between;gap:12px}
 @media (max-width:760px){.group{grid-template-columns:1fr;gap:14px}.row3,.row2{grid-template-columns:1fr}}
 </style></head><body>
 <header class="k-top"></header>
 <main class="k-page">
 <h1 class="k-title">Settings</h1>
 <p class="k-lede">Anime and movies &amp; series keep their own languages and quality, so anime can stay Japanese-first while
-everything else is English-first. Saved on this PC only; changes apply right away.</p>
+everything else is English-first. The Arabic subtitles' look is yours to set. Saved on this PC only; changes apply right away.</p>
 <form id="form" novalidate>
 <div id="loading" class="k-note" style="margin-top:24px">Loading your settings…</div>
 <div id="body" hidden>
  <section class="group" aria-labelledby="gLang"><div><h2 id="gLang">Interface language</h2><p>The whole app, including news sources and the agent's messages.</p></div>
   <div class="fields"><label class="k-field">Language<select id="language"><option value="en">English</option><option value="ar">العربية</option></select></label></div></section>
+
+ <section class="group" aria-labelledby="gSubs"><div><h2 id="gSubs">Arabic subtitles</h2>
+  <p>How the Arabic subtitles Kizuna adds look in every player. The preview is drawn by the same subtitle renderer as the episodes. Applies to subtitles added after you save; episodes already done keep their look.</p>
+  <p>Other languages are the release's own subtitle tracks; your player decides how they look.</p></div>
+  <div class="fields">
+   <div class="subview" id="subview"><img id="subImg" alt="Subtitle preview">
+    <div class="scene" role="group" aria-label="Preview scene"><button type="button" data-scene="dark" aria-pressed="true">Dark scene</button><button type="button" data-scene="bright" aria-pressed="false">Bright scene</button></div></div>
+   <div class="k-note" id="subErr" role="status"></div>
+   <div class="row3">
+    <label class="k-field">Font<select id="ss_font"></select></label>
+    <label class="k-field">Position<select id="ss_position"><option value="bottom">Bottom</option><option value="top">Top</option></select></label>
+    <label class="toggle" style="align-self:end;height:40px"><span>Bold</span><span class="switch"><input type="checkbox" id="ss_bold"><i></i></span></label>
+   </div>
+   <div class="row2">
+    <label class="range"><span>Size<output id="ss_size_v"></output></span><input type="range" id="ss_size" min="40" max="140" step="2"></label>
+    <label class="range"><span>Distance from the edge<output id="ss_margin_v"></output></span><input type="range" id="ss_margin" min="10" max="300" step="2"></label>
+   </div>
+   <label class="colour"><input type="color" id="ss_color">Text colour</label>
+   <div class="sub-part"><h3>Background box<span class="switch"><input type="checkbox" id="ss_box" aria-label="Background box"><i></i></span></h3>
+    <div class="row3" id="boxRow">
+     <label class="colour"><input type="color" id="ss_box_color">Box colour</label>
+     <label class="range"><span>Opacity<output id="ss_box_opacity_v"></output></span><input type="range" id="ss_box_opacity" min="0" max="100"></label>
+     <label class="range"><span>Padding<output id="ss_box_padding_v"></output></span><input type="range" id="ss_box_padding" min="2" max="30"></label></div></div>
+   <div class="sub-part" id="outlineRow"><h3>Outline</h3><div class="row2">
+     <label class="colour"><input type="color" id="ss_outline_color">Outline colour</label>
+     <label class="range"><span>Thickness<output id="ss_outline_v"></output></span><input type="range" id="ss_outline" min="0" max="8" step="0.2"></label></div></div>
+   <div class="sub-part"><h3>Shadow</h3><div class="row3">
+     <label class="colour"><input type="color" id="ss_shadow_color">Shadow colour</label>
+     <label class="range"><span>Opacity<output id="ss_shadow_opacity_v"></output></span><input type="range" id="ss_shadow_opacity" min="0" max="100"></label>
+     <label class="range"><span>Distance<output id="ss_shadow_v"></output></span><input type="range" id="ss_shadow" min="0" max="8" step="0.2"></label></div></div>
+  </div></section>
 
  <section class="group" aria-labelledby="gAnime" data-kind="anime"><div><h2 id="gAnime"><span class="mark" aria-hidden="true"></span>Anime</h2>
   <p>Weekly episodes fetched from your Stremio add-ons, and Discover when you open an anime. Arabic subtitles are always added.</p></div>
@@ -102,13 +148,31 @@ function fill(s){
  $('clock').value=s.clock;preview();
  for(const id of ['library_movie','library_series','library_anime']){const sel=$(id);sel.replaceChildren();[...new Set([...meta.libraries,s[id]])].forEach(n=>opt(sel,n,n));sel.value=s[id]}
  $('notify_ready').checked=s.notify_ready;$('language').value=s.language;
+ const fsel=$('ss_font');fsel.replaceChildren();meta.fonts.forEach(f=>opt(fsel,f,f));
+ for(const k of SS){const el=$('ss_'+k);if(el.type==='checkbox')el.checked=s.sub_style_ar[k];else el.value=String(s.sub_style_ar[k])}
+ syncStyle();
 }
+// ---- subtitle style: every change redraws the preview with libass (latest request wins)
+const SS=['font','size','bold','color','outline','outline_color','shadow','shadow_color','shadow_opacity','box','box_color','box_opacity','box_padding','position','margin'];
+let scene='dark',pv=0,pvTimer=null;
+function subStyle(){const o={};for(const k of SS){const el=$('ss_'+k);o[k]=el.type==='checkbox'?el.checked:el.type==='range'?+el.value:el.value}return o}
+function syncStyle(){
+ for(const k of ['size','margin','box_opacity','box_padding','outline','shadow_opacity','shadow']){const v=$('ss_'+k).value;$('ss_'+k+'_v').textContent=k.endsWith('opacity')?v+'%':v}
+ $('boxRow').hidden=!$('ss_box').checked;$('outlineRow').hidden=$('ss_box').checked;
+ clearTimeout(pvTimer);pvTimer=setTimeout(drawPreview,120)}
+async function drawPreview(){const n=++pv;$('subview').classList.add('busy');
+ try{const d=await K.api('subtitle-preview',{style:JSON.stringify(subStyle()),scene});if(n===pv){$('subImg').src=d.image;$('subErr').textContent=''}}
+ catch(e){if(n===pv){$('subErr').textContent=e.message;$('subErr').className='k-note bad'}}
+ finally{if(n===pv)$('subview').classList.remove('busy')}}
+SS.forEach(k=>$('ss_'+k).addEventListener('input',syncStyle));
+document.querySelectorAll('.scene button').forEach(b=>b.onclick=()=>{scene=b.dataset.scene;
+ document.querySelectorAll('.scene button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));drawPreview()});
 function preview(){const c=$('clock').value,t=new Date();t.setHours(18,30,0,0);
  $('clockPreview').textContent='Example: '+t.toLocaleTimeString(K.lang==='ar'?'ar-u-nu-latn':[],{hour:'2-digit',minute:'2-digit',hour12:c==='12h'?true:c==='24h'?false:undefined})}
 $('clock').onchange=preview;
 function collect(){const out={check_minutes:$('check_minutes').value,clock:$('clock').value,keep_hours:$('keep_hours').value,
   library_movie:$('library_movie').value,library_series:$('library_series').value,library_anime:$('library_anime').value,notify_ready:String($('notify_ready').checked),
-  language:$('language').value};
+  language:$('language').value,sub_style_ar:JSON.stringify(subStyle())};
  for(const kind of ['anime','screen']){out[kind+'_audio']=[1,2,3].map(i=>$(`${kind}_a${i}`).value).filter(Boolean).join(',');
   out[kind+'_resolutions']=[...document.querySelectorAll(`#${kind}_resolutions input:checked`)].map(i=>i.value).join(',');
   out[kind+'_subtitle']=$(kind+'_subtitle').value;out[kind+'_audio_filter']=$(kind+'_audio_filter').value}

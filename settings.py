@@ -6,6 +6,7 @@ from pathlib import Path
 import threading
 
 import agent
+import subtitle_style
 
 FILE = Path(agent.HERE) / "settings.json"
 LANGUAGES = {"ja": "Japanese", "en": "English", "ar": "Arabic", "ko": "Korean", "zh": "Chinese", "es": "Spanish",
@@ -33,6 +34,7 @@ DEFAULTS = {
     "notify_ready": True,                      # Windows notification when an episode or movie is ready
     "clock": "auto",                           # air times: "auto" (Windows setting), "12h" or "24h"
     "language": "en",                          # interface language: "en" or "ar" (right-to-left)
+    "sub_style_ar": dict(subtitle_style.DEFAULT),   # look of the Arabic subtitles Kizuna builds
 }
 LEGACY = {"weekly_audio": "anime_audio", "weekly_subtitle": "anime_subtitle", "weekly_resolutions": "anime_resolutions",
           "default_audio_filter": "anime_audio_filter"}   # names used before the anime / movies & series split
@@ -110,6 +112,13 @@ def _clean(raw, strict=False, base=None):
             out[key] = name
         else:
             bad("Choose a library.")
+    for lang in subtitle_style.LANGUAGES:
+        key = f"sub_style_{lang}"
+        try:
+            value = raw.get(key, out[key])
+            out[key] = subtitle_style.clean(json.loads(value) if isinstance(value, str) else value)
+        except (ValueError, TypeError) as e:
+            bad(str(e) if str(e).startswith("Subtitle") else "Subtitle style is not valid.")
     if problems and not strict:
         out["_bad"] = True
     return out
@@ -170,4 +179,13 @@ def page():
     except Exception:
         libraries = []
     return {"settings": get(), "languages": LANGUAGES, "resolutions": RESOLUTIONS, "libraries": libraries,
-            "defaults": DEFAULTS}
+            "defaults": DEFAULTS, "fonts": list(subtitle_style.FONTS)}
+
+
+def preview(params):
+    """Settings page preview: the style exactly as the subtitles will look (drawn by libass)."""
+    try:
+        style = subtitle_style.clean(json.loads(params.get("style", "{}")))
+    except (ValueError, TypeError) as e:
+        raise SettingsError(str(e) if str(e).startswith("Subtitle") else "Subtitle style is not valid.") from None
+    return {"image": subtitle_style.preview(style, params.get("scene") == "bright")}

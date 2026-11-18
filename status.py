@@ -442,6 +442,9 @@ def make_handler(pending=None):
                 elif post and action == "settings":
                     import settings
                     data = settings.update(params)
+                elif post and action == "subtitle-preview":
+                    import settings
+                    data = settings.preview(params)
                 else:
                     self.send_error(404)
                     return

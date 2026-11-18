@@ -41,6 +41,15 @@ Weekly Anime/Anime episodes stay before the Recycle Bin (1 h – 30 days; a chan
 from the next hourly cleanup) and Windows "ready" notifications. A damaged settings.json keeps the last good values,
 and cleanup then waits the longest allowed time rather than guess.
 
+## Arabic subtitle style
+
+Settings → Arabic subtitles sets the look of the Arabic track Kizuna builds (`sub_style_ar`, validated in
+`subtitle_style.py`): font (bundled OFL fonts in `fonts/`: Cairo, Tajawal, Almarai, IBM Plex Sans Arabic, Amiri,
+Lalezar), size, bold, colour, position and edge distance, outline, shadow, and an optional background box. The
+preview is rendered by ffmpeg/libass, the same renderer players use. `srt2ass` writes the saved style; `mux` embeds
+the chosen font's files so every player draws it. The default is the original house style, byte for byte. New
+subtitles only; episodes already done keep their look. Other languages are the release's own tracks.
+
 ## Interface language
 
 Settings → Interface language switches the whole app between English and Arabic. In Arabic the server serves every
