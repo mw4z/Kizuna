@@ -10,12 +10,20 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FONT_DIR = os.path.join(HERE, "fonts")
-FONTS = {  # family name inside the font -> files embedded with it (all OFL, from Google Fonts)
+FONTS = {  # family name inside the font -> files embedded with it (all OFL, from Google Fonts; variable fonts were
+    # cut into static Regular/Bold with fontTools, only for families without a Reserved Font Name)
     "Cairo": ("Cairo-Bold.ttf", "Cairo-SemiBold.ttf"),
     "Tajawal": ("Tajawal-Regular.ttf", "Tajawal-Bold.ttf"),
     "Almarai": ("Almarai-Regular.ttf", "Almarai-Bold.ttf"),
     "IBM Plex Sans Arabic": ("IBMPlexSansArabic-Regular.ttf", "IBMPlexSansArabic-Bold.ttf"),
+    "Noto Kufi Arabic": ("NotoKufiArabic-Regular.ttf", "NotoKufiArabic-Bold.ttf"),
+    "Vazirmatn": ("Vazirmatn-Regular.ttf", "Vazirmatn-Bold.ttf"),
+    "Rubik": ("Rubik-Regular.ttf", "Rubik-Bold.ttf"),
+    "Changa": ("Changa-Regular.ttf", "Changa-Bold.ttf"),
+    "El Messiri": ("ElMessiri-Regular.ttf", "ElMessiri-Bold.ttf"),
     "Amiri": ("Amiri-Regular.ttf", "Amiri-Bold.ttf"),
+    "Scheherazade New": ("ScheherazadeNew-Regular.ttf", "ScheherazadeNew-Bold.ttf"),
+    "Markazi Text": ("MarkaziText-Regular.ttf", "MarkaziText-Bold.ttf"),
     "Lalezar": ("Lalezar-Regular.ttf",),
 }
 LANGUAGES = ("ar",)            # languages Kizuna builds a subtitle track for

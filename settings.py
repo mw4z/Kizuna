@@ -179,7 +179,7 @@ def page():
     except Exception:
         libraries = []
     return {"settings": get(), "languages": LANGUAGES, "resolutions": RESOLUTIONS, "libraries": libraries,
-            "defaults": DEFAULTS, "fonts": list(subtitle_style.FONTS)}
+            "defaults": DEFAULTS, "fonts": {f: list(files) for f, files in subtitle_style.FONTS.items()}}
 
 
 def preview(params):
