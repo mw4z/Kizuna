@@ -278,6 +278,15 @@ def search(query, media_type):
     return {"results": values[:60], "failed_addons": failures}
 
 
+def open_id(media_type, meta_id, name, poster=""):
+    """Reopen a title the user opened before (the page's "recently opened" cards keep its catalog id)."""
+    if media_type not in ("movie", "series") or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", str(meta_id or "")):
+        raise UserError("That show could not be opened.")
+    name = str(name or "").strip()[:150] or "Untitled"
+    title = {"kind": "title", "type": media_type, "meta": {"id": meta_id, "name": name, "poster": safe_poster(poster)}}
+    return {"key": remember(title), "type": media_type, "name": name, "poster": safe_poster(poster)}
+
+
 def open_anilist(anilist_id):
     """A season card (AniList id) opens that exact show: the Anime Kitsu catalog maps it to the IMDb show and
     season the library already uses, so it lands on the same page and folders a search would."""
@@ -334,7 +343,7 @@ def details(key):
         videos = [{"key": remember({"kind": "video", "type": "movie", "id": meta["id"], "meta": meta}),
                    "name": meta["name"]}]
     genres = meta.get("genres") or meta.get("genre") or []
-    return {"name": meta["name"], "description": meta.get("description", ""), "videos": videos,
+    return {"name": meta["name"], "description": meta.get("description", ""), "videos": videos, "id": selected["meta"].get("id", ""),
             "poster": safe_poster(meta.get("poster", "")), "background": safe_poster(meta.get("background", "")),
             "genres": [str(g) for g in genres if isinstance(g, str)][:3], "year": str(meta.get("releaseInfo") or meta.get("year") or "")[:9],
             "rating": str(meta.get("imdbRating") or ""), "runtime": str(meta.get("runtime") or "")[:12]}

@@ -426,6 +426,13 @@ class KitsuEpisodes(unittest.TestCase):
         with patch.object(s, "addons", return_value=[]), patch.object(s, "get_json", side_effect=OSError("offline")):
             self.assertEqual(s.details(fresh)["videos"], [])                  # offline: same empty list as before
 
+    def test_recent_cards_reopen_by_catalog_id(self):
+        t = s.open_id("series", "kitsu:48239", "Ao no Hako", "https://media.kitsu.app/p.jpg")
+        self.assertEqual(s.item(t["key"], "title")["meta"]["id"], "kitsu:48239")
+        for bad in (("series", "../x"), ("series", "a b"), ("music", "tt1"), ("movie", "")):
+            with self.assertRaises(s.UserError):
+                s.open_id(*bad, "x")                                          # only plain ids and known types
+
     def test_season_cards_open_the_imdb_show_at_their_season(self):
         meta = {"meta": {"id": "kitsu:48939", "type": "series", "name": "SPY x FAMILY Season 3", "imdb_id": "tt13706018",
                          "videos": [{"id": "kitsu:48939:1", "season": 1, "episode": 1, "imdbSeason": 3, "imdbEpisode": 1}]}}
