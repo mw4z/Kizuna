@@ -247,11 +247,15 @@ def local_series():
     data = {"folder": {}, "original": {}}
     try:
         with agent.jellyfin_db() as c:
-            rows = c.execute("select Id, Name, OriginalTitle, Path from BaseItems where Type like '%.Series'").fetchall()
-        for item_id, name, original, path in rows:
+            rows = c.execute("select Id, Name, OriginalTitle, Path, Overview from BaseItems where Type like '%.Series'").fetchall()
+        for item_id, name, original, path, overview in rows:
             if not name or not item_id:
                 continue
-            entry = {"title": name, "poster": f"{JELLYFIN}/Items/{str(item_id).replace('-', '').lower()}/Images/Primary?maxHeight=480"}
+            about = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", str(overview or ""))).strip()
+            if len(about) > 320:
+                about = about[:320].rsplit(" ", 1)[0].rstrip(".,;:، ") + "…"
+            entry = {"title": name, "about": about,
+                     "poster": f"{JELLYFIN}/Items/{str(item_id).replace('-', '').lower()}/Images/Primary?maxHeight=480"}
             if path:
                 data["folder"][os.path.basename(str(path).rstrip("\\/")).casefold()] = entry
             if original:
@@ -276,7 +280,7 @@ def card(m, followed, new_season):
         about = about[:320].rsplit(" ", 1)[0].rstrip(".,;: ") + "…"
     local = local_for(followed.get(m["id"]) if isinstance(followed, dict) else None, m["title"].get("native")) or {}
     return {"anilist": m["id"], "title": m["title"].get("english") or m["title"]["romaji"], "romaji": m["title"]["romaji"],
-            "local_title": local.get("title", ""), "local_poster": local.get("poster", ""),
+            "local_title": local.get("title", ""), "local_poster": local.get("poster", ""), "local_about": local.get("about", ""),
             "banner": banner if banner.startswith("https://s4.anilist.co/") else "", "about": about,
             "genres": [g for g in (m.get("genres") or []) if isinstance(g, str)][:3],
             "year": (m.get("startDate") or {}).get("year"), "episodes": m.get("episodes"), "next": nxt.get("episode"),

@@ -29,6 +29,7 @@
 .switch i::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#d9d9de;transition:transform .2s var(--k-ease)}
 .switch input:checked+i{background:var(--k-accent)}.switch input:checked+i::after{transform:translateX(18px)}
 .switch input:focus-visible+i{outline:2px solid var(--k-accent);outline-offset:2px}
+[dir=rtl] .switch i::after{left:auto;right:3px}[dir=rtl] .switch input:checked+i::after{transform:translateX(-18px)}
 @media (max-width:760px){.group{grid-template-columns:1fr;gap:14px}.row3,.row2{grid-template-columns:1fr}}
 </style></head><body>
 <header class="k-top"></header>
@@ -39,6 +40,9 @@ everything else is English-first. Saved on this PC only; changes apply right awa
 <form id="form" novalidate>
 <div id="loading" class="k-note" style="margin-top:24px">Loading your settings…</div>
 <div id="body" hidden>
+ <section class="group" aria-labelledby="gLang"><div><h2 id="gLang">Interface language</h2><p>The whole app, including news sources and the agent's messages.</p></div>
+  <div class="fields"><label class="k-field">Language<select id="language"><option value="en">English</option><option value="ar">العربية</option></select></label></div></section>
+
  <section class="group" aria-labelledby="gAnime" data-kind="anime"><div><h2 id="gAnime"><span class="mark" aria-hidden="true"></span>Anime</h2>
   <p>Weekly episodes fetched from your Stremio add-ons, and Discover when you open an anime. Arabic subtitles are always added.</p></div>
   <div class="fields"></div></section>
@@ -69,7 +73,7 @@ everything else is English-first. Saved on this PC only; changes apply right awa
 <div class="bar"><span class="k-note" id="note" role="status"></span><button type="button" class="k-btn k-btn-ghost" id="reset">Restore defaults</button><button class="k-btn k-btn-primary" id="save">Save changes</button></div>
 </form>
 </main>
-<script src="/kizuna.js"></script>
+<script src="/kizuna-ar.js"></script><script src="/kizuna.js"></script>
 <script>
 const $=id=>document.getElementById(id),K=Kizuna;
 K.shell('settings');
@@ -97,13 +101,14 @@ function fill(s){
  for(const id of ['check_minutes','keep_hours']){const sel=$(id);if(![...sel.options].some(o=>o.value===String(s[id])))opt(sel,s[id],id==='keep_hours'?`${s[id]} hours after watching`:`Every ${s[id]} minutes`);sel.value=String(s[id])}
  $('clock').value=s.clock;preview();
  for(const id of ['library_movie','library_series','library_anime']){const sel=$(id);sel.replaceChildren();[...new Set([...meta.libraries,s[id]])].forEach(n=>opt(sel,n,n));sel.value=s[id]}
- $('notify_ready').checked=s.notify_ready;
+ $('notify_ready').checked=s.notify_ready;$('language').value=s.language;
 }
 function preview(){const c=$('clock').value,t=new Date();t.setHours(18,30,0,0);
- $('clockPreview').textContent='Example: '+t.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:c==='12h'?true:c==='24h'?false:undefined})}
+ $('clockPreview').textContent='Example: '+t.toLocaleTimeString(K.lang==='ar'?'ar-u-nu-latn':[],{hour:'2-digit',minute:'2-digit',hour12:c==='12h'?true:c==='24h'?false:undefined})}
 $('clock').onchange=preview;
 function collect(){const out={check_minutes:$('check_minutes').value,clock:$('clock').value,keep_hours:$('keep_hours').value,
-  library_movie:$('library_movie').value,library_series:$('library_series').value,library_anime:$('library_anime').value,notify_ready:String($('notify_ready').checked)};
+  library_movie:$('library_movie').value,library_series:$('library_series').value,library_anime:$('library_anime').value,notify_ready:String($('notify_ready').checked),
+  language:$('language').value};
  for(const kind of ['anime','screen']){out[kind+'_audio']=[1,2,3].map(i=>$(`${kind}_a${i}`).value).filter(Boolean).join(',');
   out[kind+'_resolutions']=[...document.querySelectorAll(`#${kind}_resolutions input:checked`)].map(i=>i.value).join(',');
   out[kind+'_subtitle']=$(kind+'_subtitle').value;out[kind+'_audio_filter']=$(kind+'_audio_filter').value}
@@ -111,7 +116,9 @@ function collect(){const out={check_minutes:$('check_minutes').value,clock:$('cl
 function say(t,tone){$('note').textContent=t;$('note').className='k-note'+(tone?' '+tone:'')}
 $('form').addEventListener('input',()=>say('Unsaved changes'));
 $('form').addEventListener('submit',async e=>{e.preventDefault();$('save').disabled=true;say('Saving…');
- try{meta=await K.api('settings',collect());fill(meta.settings);say('Saved. Changes apply right away.','ok')}catch(err){say(err.message,'bad')}finally{$('save').disabled=false}});
+ const before=meta&&meta.settings.language;
+ try{meta=await K.api('settings',collect());fill(meta.settings);say('Saved. Changes apply right away.','ok');
+  if(meta.settings.language!==before)location.reload()}catch(err){say(err.message,'bad')}finally{$('save').disabled=false}});   // new language: redraw everything
 $('reset').onclick=()=>{if(!meta)return;fill(meta.defaults);say('Defaults restored here. Save to keep them.')};
 K.api('settings').then(d=>{meta=d;fill(d.settings);$('loading').hidden=true;$('body').hidden=false}).catch(e=>{$('loading').textContent=e.message;$('loading').className='k-note bad'});
 </script></body></html>

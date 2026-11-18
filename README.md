@@ -13,7 +13,7 @@ against the episode's own audio, and delivers a ready-to-watch file to Jellyfin,
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?logo=windows&logoColor=white)](#requirements)
 [![Jellyfin](https://img.shields.io/badge/Jellyfin-library-AA5CC3?logo=jellyfin&logoColor=white)](https://jellyfin.org/)
 [![Stremio](https://img.shields.io/badge/Stremio-add--ons-8A5AAB)](https://www.stremio.com/)
-[![Tests](https://img.shields.io/badge/tests-273%20passing-2EA44F)](#tests)
+[![Tests](https://img.shields.io/badge/tests-285%20passing-2EA44F)](#tests)
 
 [Highlights](#highlights) · [How it works](#how-it-works) · [Getting started](#getting-started) ·
 [Reliability](#reliability--safety) · [Tests](#tests) · [Operations guide](docs/OPERATIONS.md)
@@ -33,7 +33,8 @@ against the episode's own audio, and delivers a ready-to-watch file to Jellyfin,
 | 🔍 **Find & download** | Search movies, series and anime across your Stremio add-ons, check the real tracks, then download one episode, a season or a whole show. |
 | 🗣️ **Dub aware** | Arabic-dubbed files skip subtitle work; Arabic burned into the picture is detected with Windows OCR and left alone. |
 | 📺 **Live dashboard** | A local app window with progress, queue, air-time schedule (AniList), "needs a look" items and the log. |
-| 📰 **News** | Anime, film and TV headlines from public feeds, refreshed every few minutes while the page is open. |
+| 📰 **News** | Anime, film and TV headlines from public feeds, refreshed every few minutes while the page is open; Arabic sources first in Arabic. |
+| 🌐 **Arabic or English** | The whole interface in Arabic (right-to-left) or English; library shows use your Jellyfin's own titles, posters and synopses. |
 | 🧹 **Tidy library** | Watched episodes go to the Recycle Bin 24 h after Jellyfin marks them played. Movies are never touched. |
 
 ## How it works
@@ -140,9 +141,10 @@ Kizuna runs unattended on a home PC, so it's built to fail safe:
 python -m unittest test_agent test_audit test_audit_fixes test_dkb test_fansub test_fillers `
     test_mandatory_processing test_robust test_stremio test_stremio_batch test_reliability test_shows test_settings test_news
 node test_picker.cjs
+node test_i18n.cjs        # every page string and agent message has Arabic
 ```
 
-**273 tests**, all in temporary folders: real ffmpeg, ffprobe and MKVToolNix runs on tiny generated videos, Windows
+**285 tests**, all in temporary folders: real ffmpeg, ffprobe and MKVToolNix runs on tiny generated videos, Windows
 file locks under concurrent polling, simulated crashes and restarts, a slow server through the proxy, and the proxy's
 SSRF rules. They never touch real media. [`AGENTS.md`](AGENTS.md) has the rules for developing safely on a live system.
 
@@ -160,7 +162,7 @@ SSRF rules. They never touch real media. [`AGENTS.md`](AGENTS.md) has the rules 
 | [`egress.py`](egress.py) | Filtering proxy for every outgoing media connection |
 | [`status.py`](status.py) | Local app server at `http://localhost:8097` (pages, API, live status) |
 | [`dashboard.html`](dashboard.html) · [`weekly.html`](weekly.html) · [`settings.html`](settings.html) | The Now, Weekly and Settings pages |
-| [`kizuna.css`](kizuna.css) · [`kizuna.js`](kizuna.js) | Shared design system and app shell (navigation, live activity, artwork fallbacks) |
+| [`kizuna.css`](kizuna.css) · [`kizuna.js`](kizuna.js) · [`kizuna-ar.js`](kizuna-ar.js) | Shared design system and app shell (navigation, live activity, artwork fallbacks, Arabic interface) |
 | [`shows.py`](shows.py) | Followed weekly shows: AniList recommendations, DKB/Stremio linking, the Stremio source for new episodes |
 | [`settings.py`](settings.py) | Validated personal preferences (anime and movies & series separately) |
 | [`news.py`](news.py) · [`news.html`](news.html) | News page: public RSS feeds, sanitised and cached |

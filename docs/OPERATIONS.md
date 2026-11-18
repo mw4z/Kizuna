@@ -41,13 +41,23 @@ Weekly Anime/Anime episodes stay before the Recycle Bin (1 h – 30 days; a chan
 from the next hourly cleanup) and Windows "ready" notifications. A damaged settings.json keeps the last good values,
 and cleanup then waits the longest allowed time rather than guess.
 
+## Interface language
+
+Settings → Interface language switches the whole app between English and Arabic. In Arabic the server serves every
+page right-to-left from the first paint, and `kizuna.js` translates the interface and the agent's messages with
+`kizuna-ar.js` (exact strings, then patterns for messages with numbers, dates or names; titles, release names, file
+names and the log are never translated). Dates use Arabic with Western digits. Library shows use Jellyfin's own
+names, posters and overviews (your Jellyfin metadata language); titles that aren't in the library keep the source's
+artwork and names, because AniList and the Stremio catalogs have no Arabic.
+
 ## News
 
 The **News** page shows anime (Crunchyroll News, Anime News Network, Anime Corner, MyAnimeList) and movies & TV
 (Deadline, Variety, Collider) headlines from their public RSS feeds. Feeds are re-read in the background every 3
 minutes and the open page checks every minute ("N new stories"). Feed content is untrusted: text is stripped of
 HTML, links must be http(s), images https, each feed is size-limited and at most 25 stories per source are kept.
-Articles open on the publisher's site.
+Articles open on the publisher's site. Arabic sources: IGN Arabia (its film, TV and anime stories only) and
+Youm7's art section; with the Arabic interface they come first and English stories carry an "English" label.
 
 ## What happens when an episode lands
 

@@ -67,7 +67,7 @@ img{max-width:100%}
 .k-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--k-4);padding-bottom:var(--k-3);
   margin-bottom:var(--k-4);border-bottom:1px solid var(--k-line)}
 .k-section-head .k-meta a{color:var(--k-text-2);text-decoration:none}.k-section-head .k-meta a:hover{color:var(--k-text)}
-.k-count{color:var(--k-text-3);font-weight:500;margin-left:8px;font-size:13px}
+.k-count{color:var(--k-text-3);font-weight:500;margin-inline-start:8px;font-size:13px}
 
 /* ---------------------------------------------------------------- controls */
 .k-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:34px;padding:0 14px;border-radius:var(--k-r);
@@ -159,6 +159,16 @@ img{max-width:100%}
 .k-dialog::backdrop{background:rgba(5,5,7,.72)}
 .k-dialog[open]{animation:k-rise .25s var(--k-ease)}
 @keyframes k-rise{from{opacity:0;transform:translateY(8px) scale(.99)}to{opacity:1;transform:none}}
+
+/* ---------------------------------------------------------------- right-to-left (Arabic interface) */
+[dir=rtl] body{font-family:"Kizuna Arabic","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}
+[dir=rtl] .k-activity{margin-left:0;margin-right:auto}
+[dir=rtl] .k-art .k-badge{left:auto;right:8px}
+[dir=rtl] .k-field select,[dir=rtl] select.k-input{padding-right:12px;padding-left:30px;background-position:10px 15px,15px 15px}
+[dir=rtl] .k-row-aside{text-align:left}
+[dir=rtl] .k-lede,[dir=rtl] .k-meta,[dir=rtl] .k-note{line-height:1.7}
+/* Arabic letters must join: no tracking or capitals on text that can be Arabic */
+[dir=rtl] .k-section-head .k-h,[dir=rtl] .k-title{letter-spacing:0}
 
 /* ---------------------------------------------------------------- motion & responsive */
 @keyframes k-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}

@@ -31,6 +31,7 @@ details.adv summary{cursor:pointer;color:var(--k-text-2);font-size:12.5px;margin
 .foot{display:flex;justify-content:space-between;gap:10px;align-items:center;padding-top:6px}
 .sk-card .k-sk{aspect-ratio:2/3;border-radius:var(--k-r-art)}
 .sk-card .k-sk+.k-sk{aspect-ratio:auto;height:12px;margin-top:10px;width:80%}
+[dir=rtl] .src-line .k-meta{direction:rtl}
 @media (max-width:600px){.follow{grid-template-columns:40px minmax(0,1fr)}.acts{grid-column:1/-1}.two{grid-template-columns:1fr}}
 </style></head><body>
 <header class="k-top"></header>
@@ -77,7 +78,7 @@ details.adv summary{cursor:pointer;color:var(--k-text-2);font-size:12.5px;margin
   <span class="acts"><button type="button" class="k-btn" id="cancel">Cancel</button><button type="submit" class="k-btn k-btn-primary" id="save">Follow show</button></span></div>
 </form></dialog>
 
-<script src="/kizuna.js"></script>
+<script src="/kizuna-ar.js"></script><script src="/kizuna.js"></script>
 <script>
 const $=id=>document.getElementById(id),K=Kizuna,esc=K.esc,api=K.api;
 K.shell('weekly');
@@ -89,9 +90,10 @@ let following=[],editing=null,linked=null;const poster={};
 
 async function loadList(){
  try{const d=await api('shows');following=d.shows;$('count').textContent=following.length||'';
+  if(K.lang==='ar')following.forEach(s=>{if(s.local_title)s.shown=s.local_title;if(s.local_poster)s.poster=s.local_poster});
   $('list').innerHTML=following.length?following.map((s,i)=>{const st=s.stremio;
    return `<div class="follow" data-title="${esc(s.folder)}"><div class="k-art">${art(s.poster,s.folder)}</div><div style="min-width:0">
-   <div class="follow-title" dir="auto">${esc(s.folder)}</div>
+   <div class="follow-title"><bdi>${esc(s.shown||s.folder)}</bdi></div>
    <div class="follow-meta">Season ${esc(s.season)} · ${s.episodes?`${s.episodes} in library`:'nothing in library'}${s.latest?` · latest ${esc(s.latest)}`:s.dkb_after?` · following after ${esc(s.dkb_after)}`:''}${s.from?` · from episode ${esc(s.from)}`:''}</div>
    <div class="tags"><span class="k-tag ${s.dkb?'on':''}">DKB ${s.dkb?'on':'off'}</span>
    ${st?`<span class="k-tag ${st.on?'on':''}">Stremio ${st.on?'on':'off'}</span>`:''}
@@ -102,9 +104,9 @@ async function loadList(){
   markFollowed()}catch(e){say($('topMsg'),e.message,'bad')}}
 
 let cards=[];
-function drawCards(list){cards=list;$('grid').innerHTML=list.map((c,i)=>`<button type="button" class="k-card" data-pick="${i}" data-title="${esc(c.title)}" ${c.followed?'aria-disabled="true"':''}>
- <div class="k-art">${art(c.poster,c.title)}${c.followed?'<span class="k-badge"><span class="k-tag on">Following</span></span>':c.new?'<span class="k-badge"><span class="k-tag accent">New this season</span></span>':''}</div>
- <div class="k-card-title" dir="auto">${esc(c.title)}</div>
+function drawCards(list){if(K.lang==='ar')list.forEach(c=>{if(c.local_title){c.title=c.local_title;c.poster=c.local_poster||c.poster}});cards=list;$('grid').innerHTML=list.map((c,i)=>`<button type="button" class="k-card" data-pick="${i}" data-title="${esc(c.title)}" ${c.followed?'aria-disabled="true"':''}>
+ <div class="k-art">${art(c.poster,c.title)}${c.followed?'<span class="k-badge"><span class="k-tag on">Followed</span></span>':c.new?'<span class="k-badge"><span class="k-tag accent">New this season</span></span>':''}</div>
+ <div class="k-card-title"><bdi>${esc(c.title)}</bdi></div>
  <div class="k-card-meta">${c.next?`Ep ${esc(c.next)}${c.episodes?` of ${esc(c.episodes)}`:''} · <span class="when">${esc(soon(c.at))}</span>`:c.year?esc(c.year):''}</div></button>`).join('');
  say($('gridMsg'),list.length?'':'Nothing found. Try another name.')}
 function markFollowed(){const ids=new Set(following.map(s=>s.anilist));if(cards.length)drawCards(cards.map(c=>({...c,followed:ids.has(c.anilist)})))}

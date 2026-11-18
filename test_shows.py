@@ -421,6 +421,20 @@ class Linking(ShowsSandbox):
                 "coverImage": {"large": "https://s4.anilist.co/c.jpg"}, "startDate": {"year": year},
                 "relations": {"edges": [{"relationType": "PREQUEL", "node": {"id": prequel, "format": "TV", "title": {"romaji": romaji}}}] if prequel else []}}
 
+    def test_library_shows_get_their_jellyfin_titles_and_posters(self):
+        import contextlib
+        rows = [("AB-12", "بلو بوكس", "アオのハコ", r"C:\lib\Blue Box (2024)", "نبذة")]
+        @contextlib.contextmanager
+        def db():
+            yield mock.Mock(execute=lambda *a: mock.Mock(fetchall=lambda: rows))
+        shows._local.update(t=0, data=None)
+        with mock.patch.object(agent, "jellyfin_db", db):
+            self.assertEqual(shows.local_for(folder="Blue Box (2024)")["title"], "بلو بوكس")
+            self.assertEqual(shows.local_for(native="アオのハコ")["about"], "نبذة")
+            self.assertIn("/Items/ab12/Images/Primary", shows.local_for(folder="blue box (2024)")["poster"])
+            self.assertIsNone(shows.local_for(folder="Other"))
+        shows._local.update(t=0, data=None)
+
     def test_season_boundaries(self):
         at = lambda y, m: datetime(y, m, 15, tzinfo=timezone.utc).timestamp()      # noqa: E731
         self.assertEqual(shows.current_season(at(2026, 11)), ("FALL", 2026))

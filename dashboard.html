@@ -30,6 +30,8 @@
 .nextup h2{font:650 22px/1.2 var(--k-font-display);margin:6px 0 4px}
 .nextup .when{font-size:13px;color:rgba(255,255,255,.75)}
 .nextup .cd{color:#fff}
+[dir=rtl] .nextup::after{background:linear-gradient(270deg,rgba(9,9,11,.95) 0%,rgba(9,9,11,.7) 45%,rgba(9,9,11,.2) 100%),linear-gradient(0deg,rgba(9,9,11,.8),rgba(9,9,11,0) 60%)}
+[dir=rtl] .nextup .label{letter-spacing:0;text-transform:none;font-size:12.5px}
 /* attention + pending rows */
 .k-row .k-state{justify-self:end}
 .why{color:var(--k-text-2);font-size:12.5px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -102,7 +104,7 @@ pre.log{margin:10px 0 0;background:var(--k-sunken);border:1px solid var(--k-line
 </aside>
 </div>
 </main>
-<script src="/kizuna.js"></script>
+<script src="/kizuna-ar.js"></script><script src="/kizuna.js"></script>
 <script>
 const $=id=>document.getElementById(id),K=Kizuna,esc=K.esc;
 K.shell('now');
@@ -149,6 +151,7 @@ async function tick(){
   put('pendingList',pend.map(x=>`<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.reason)}</div></div><span class="k-row-aside">${x.retry_at?'Next check '+esc(K.time(x.retry_at)):'Checking hourly'}</span></li>`).join(''));
   // weekly shows
   $('showCount').textContent=d.shows.length||'';
+  if(K.lang==='ar')d.shows.forEach(s=>{if(s.local_title)s.title=s.local_title});
   put('shows',d.shows.length?d.shows.map(s=>`<a class="k-card" href="/weekly" data-title="${esc(s.title)}"><div class="k-art">${s.poster?`<img src="${esc(s.poster)}" alt="" loading="lazy">`:`<span class="k-fallback" aria-hidden="true">${esc((s.title||'?')[0])}</span>`}</div>
     <div class="k-card-title"><bdi>${esc(s.title)}</bdi></div><div class="k-card-meta">${s.latest?`${esc(s.latest)}${s.count?` · ${s.count} in library`:' · all watched'}`:'No episodes yet'}</div>
     ${s.manual?'<div class="manual"><span class="k-tag accent">Arabic by hand</span></div>':''}

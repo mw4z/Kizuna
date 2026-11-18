@@ -127,6 +127,8 @@ class Pages(Sandbox):
                       mock.patch.object(shows, "FILE", Path(self.tmp, "shows.json"))]
         for p in self.extra:
             p.start()
+        settings._cache.update(stamp="reset", data=dict(settings.DEFAULTS), damaged=False)
+        self.addCleanup(lambda: settings._cache.update(stamp="reset", data=dict(settings.DEFAULTS), damaged=False))
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), status.make_handler())
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
@@ -167,6 +169,18 @@ class Pages(Sandbox):
         for path in ("/fonts/../agent.py", "/fonts/Cairo-SemiBold.ttf/../../state.json", "/agent.py", "/settings.json",
                      "/stremio-account.bin", "/%2e%2e/agent.py"):
             self.assertEqual(self.get(path)[0], 404, path)
+
+    def test_arabic_interface_is_served_right_to_left_from_the_first_paint(self):
+        for path in ("/", "/stremio", "/weekly", "/settings", "/news"):
+            self.assertIn('<html lang="en">', self.get(path)[2].decode("utf-8"))
+        settings.update({"language": "ar"})
+        for path in ("/", "/stremio", "/weekly", "/settings", "/news"):
+            page = self.get(path)[2].decode("utf-8")
+            self.assertIn('<html lang="ar" dir="rtl">', page, path)
+            self.assertIn('src="/kizuna-ar.js"', page, path)
+        self.assertEqual(self.get("/kizuna-ar.js")[0], 200)
+        with self.assertRaises(settings.SettingsError):
+            settings.update({"language": "xx"})
 
     def test_settings_api_needs_the_token(self):
         self.assertEqual(self.get("/api/stremio/settings")[0], 403)
