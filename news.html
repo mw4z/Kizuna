@@ -17,9 +17,9 @@
 .lead img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;transition:transform 1.2s var(--k-ease),opacity .6s;opacity:0}
 .lead img.in{opacity:1}
 .lead:hover img{transform:scale(1.03)}
-.lead .slide{position:absolute;inset:0;display:block;color:#fff;text-decoration:none;isolation:isolate;opacity:0;visibility:hidden;
-  transition:opacity .8s var(--k-ease),visibility .8s}
-.lead .slide.on{opacity:1;visibility:visible}
+.lead .slide{position:absolute;inset:0;display:block;color:#fff;text-decoration:none;isolation:isolate;transform:translateX(100%);visibility:hidden;will-change:transform}
+.lead .slide.on{transform:none;visibility:visible}
+.lead .slide.anim{transition:transform .75s cubic-bezier(.65,0,.35,1);visibility:visible}
 .lead .dots{position:absolute;bottom:16px;inset-inline-start:30px;display:flex;gap:6px;z-index:2}
 .lead .dots button{all:unset;cursor:pointer;width:8px;height:8px;border-radius:999px;background:rgba(255,255,255,.35);transition:width .3s var(--k-ease),background .3s}
 .lead .dots button[aria-current=true]{width:24px;background:#fff}
@@ -103,11 +103,23 @@ function pickSlides(items){const pics=items.filter(n=>n.image);
   const a=pics.filter(n=>n.kind==='anime'),s=pics.filter(n=>n.kind==='screen'),out=[];
   for(let i=0;out.length<5&&(i<a.length||i<s.length);i++){if(a[i])out.push(a[i]);if(s[i]&&out.length<5)out.push(s[i])}
   return out}
-function slide(i){const all=[...document.querySelectorAll('.lead .slide')];if(!all.length)return;slideAt=(i+all.length)%all.length;
+// slide (not fade): the outgoing story moves out while the next moves in, in reading direction
+function slide(i,dir){const lead=document.querySelector('.lead'),all=[...document.querySelectorAll('.lead .slide')];if(!all.length)return;
+  const n=all.length,next=(i+n)%n,cur=all[slideAt]||all[0],nxt=all[next];
+  if(lead.dataset.ready&&next!==slideAt&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+    const s=(dir||(next>slideAt?1:-1))*(document.documentElement.dir==='rtl'?-1:1);
+    all.forEach(x=>{if(x!==cur&&x!==nxt){x.classList.remove('anim');x.style.transform='';x.style.visibility=''}});
+    nxt.classList.remove('anim');nxt.style.transform=`translateX(${s*100}%)`;nxt.style.visibility='visible';void nxt.offsetWidth;
+    nxt.classList.add('anim');cur.classList.add('anim');nxt.style.transform='translateX(0)';cur.style.transform=`translateX(${-s*100}%)`;
+    const settle=e=>{if(e.target!==cur)return;cur.removeEventListener('transitionend',settle);
+      if(!cur.classList.contains('on')){cur.classList.remove('anim');cur.style.transform='';cur.style.visibility=''}nxt.classList.remove('anim')};
+    cur.addEventListener('transitionend',settle)}
+  else all.forEach(x=>{x.classList.remove('anim');x.style.transform='';x.style.visibility=''});
+  lead.dataset.ready='1';slideAt=next;
   all.forEach((x,j)=>{const on=j===slideAt;x.classList.toggle('on',on);x.tabIndex=on?0:-1;x.setAttribute('aria-hidden',String(!on))});
   document.querySelectorAll('.lead .dots button').forEach((b,j)=>b.setAttribute('aria-current',String(j===slideAt)))}
 function play(){clearInterval(slideTimer);
-  slideTimer=setInterval(()=>{const l=document.querySelector('.lead');if(!document.hidden&&l&&!l.matches(':hover,:focus-within'))slide(slideAt+1)},7000)}
+  slideTimer=setInterval(()=>{const l=document.querySelector('.lead');if(!document.hidden&&l&&!l.matches(':hover,:focus-within'))slide(slideAt+1,1)},7000)}
 const ARROW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
 const ARROW_NEXT=ARROW.replace('M15 6l-6 6 6 6','M9 6l6 6-6 6');
 function render(items){
@@ -120,11 +132,11 @@ function render(items){
     ${slides.length>1?`<button type="button" class="nav prev" aria-label="Previous story">${ARROW}</button><button type="button" class="nav next" aria-label="Next story">${ARROW_NEXT}</button>
     <div class="dots">${slides.map((n,j)=>`<button type="button" aria-label="Story ${j+1}"></button>`).join('')}</div>`:''}</div>
     <div class="side">${side.map(n=>`<a ${link(n)}><div class="thumb">${pic(n)}</div><div><h3><bdi ${dir(n)}>${esc(n.title)}</bdi></h3><div class="meta"><b>${esc(n.source)}</b> · ${esc(ago(n.at))}${other(n)}</div></div></a>`).join('')}</div>`;
-  slide(0);play();
+  slideAt=0;slide(0);play();
   const top=$('top').querySelector('.lead');
   top.querySelectorAll('.dots button').forEach((b,j)=>b.onclick=()=>{slide(j);play()});
-  top.querySelector('.prev')?.addEventListener('click',()=>{slide(slideAt-1);play()});
-  top.querySelector('.next')?.addEventListener('click',()=>{slide(slideAt+1);play()});
+  top.querySelector('.prev')?.addEventListener('click',()=>{slide(slideAt-1,-1);play()});
+  top.querySelector('.next')?.addEventListener('click',()=>{slide(slideAt+1,1);play()});
   $('grid').innerHTML=more.map(n=>`<a class="card" ${link(n)}><div class="thumb">${pic(n)}</div><h3><bdi ${dir(n)}>${esc(n.title)}</bdi></h3>${n.summary?`<p ${dir(n)}>${esc(n.summary)}</p>`:''}
     <div class="meta"><b>${esc(n.source)}</b> · ${esc(ago(n.at))}${other(n)}</div></a>`).join('');
 }
