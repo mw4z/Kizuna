@@ -202,7 +202,7 @@ do not block the whole page; **Refresh releases** includes late responses withou
 repeating requests that are still running.
 
 Choose the audio track, subtitles (or none), and an existing Jellyfin library, then
-**Download to Jellyfin**. One manual download runs at a time, with progress on this page.
+**Download this episode only** (**Download this movie** for films). One manual download runs at a time, with progress on this page.
 Progress includes a numeric percentage and an estimated time remaining, calculated
 from elapsed time and processed media duration; slow/variable sources can change the
 estimate. Final file verification is shown separately.
