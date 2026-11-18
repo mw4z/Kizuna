@@ -17,14 +17,28 @@
 .lead img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;transition:transform 1.2s var(--k-ease),opacity .6s;opacity:0}
 .lead img.in{opacity:1}
 .lead:hover img{transform:scale(1.03)}
-.lead::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(8,8,10,0) 30%,rgba(8,8,10,.55) 58%,rgba(8,8,10,.96) 100%),
+.lead .slide{position:absolute;inset:0;display:block;color:#fff;text-decoration:none;isolation:isolate;opacity:0;visibility:hidden;
+  transition:opacity .8s var(--k-ease),visibility .8s}
+.lead .slide.on{opacity:1;visibility:visible}
+.lead .dots{position:absolute;bottom:16px;inset-inline-start:30px;display:flex;gap:6px;z-index:2}
+.lead .dots button{all:unset;cursor:pointer;width:8px;height:8px;border-radius:999px;background:rgba(255,255,255,.35);transition:width .3s var(--k-ease),background .3s}
+.lead .dots button[aria-current=true]{width:24px;background:#fff}
+.lead .dots button:focus-visible,.lead .nav:focus-visible{outline:2px solid var(--k-accent);outline-offset:3px}
+.lead .nav{all:unset;position:absolute;bottom:8px;z-index:2;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;cursor:pointer;
+  background:rgba(8,8,10,.55);color:#fff;opacity:0;transition:opacity .2s}
+.lead:hover .nav,.lead .nav:focus-visible{opacity:1}
+@media (hover:none){.lead .nav{opacity:1}}
+.lead .nav.prev{inset-inline-end:58px}.lead .nav.next{inset-inline-end:20px}
+.lead .nav svg{width:18px;height:18px}[dir=rtl] .lead .nav svg{transform:scaleX(-1)}
+.lead .slide::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(8,8,10,0) 30%,rgba(8,8,10,.55) 58%,rgba(8,8,10,.96) 100%),
   linear-gradient(90deg,rgba(8,8,10,.55),rgba(8,8,10,0) 60%)}
-.lead-body{position:absolute;left:0;right:0;bottom:0;padding:28px 30px}
+.lead-body{position:absolute;left:0;right:0;bottom:0;padding:28px 30px 44px}
 .lead h2{font:650 30px/1.15 var(--k-font-display);letter-spacing:-.015em;margin:10px 0 10px;max-width:30ch;text-wrap:balance}
 .lead p{margin:0;color:rgba(255,255,255,.78);max-width:60ch;font-size:14px;line-height:1.55}
 .kicker{display:flex;align-items:center;gap:10px;font-size:12px;color:rgba(255,255,255,.72)}
 .kicker .k-tag{background:var(--k-accent);color:#fff}
 .kicker .k-tag.screen{background:#2b4c8f}
+.kicker .k-tag.lang{background:rgba(255,255,255,.16);color:rgba(255,255,255,.85)}
 .side{display:grid;gap:0;align-content:start}
 .side a{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px;padding:14px 0;border-bottom:1px solid var(--k-line);text-decoration:none;color:inherit}
 .side a:first-child{padding-top:0}.side a:last-child{border-bottom:0}
@@ -50,7 +64,7 @@
 .tile .seal{align-self:flex-end;font:600 40px/1 "Yu Gothic UI","Meiryo UI",sans-serif;color:rgba(255,255,255,.07)}
 .side .tile{padding:8px}.side .tile .src{font-size:9px;letter-spacing:.1em}.side .tile .seal{font-size:22px}
 .sk{border-radius:var(--k-r-art)}
-[dir=rtl] .lead::after{background:linear-gradient(180deg,rgba(8,8,10,0) 30%,rgba(8,8,10,.55) 58%,rgba(8,8,10,.96) 100%),linear-gradient(270deg,rgba(8,8,10,.55),rgba(8,8,10,0) 60%)}
+[dir=rtl] .lead .slide::after{background:linear-gradient(180deg,rgba(8,8,10,0) 30%,rgba(8,8,10,.55) 58%,rgba(8,8,10,.96) 100%),linear-gradient(270deg,rgba(8,8,10,.55),rgba(8,8,10,0) 60%)}
 [dir=rtl] .tile .src{letter-spacing:0;text-transform:none;font-size:12px}
 .lang{background:rgba(255,255,255,.08);color:var(--k-text-2)}
 @media (max-width:980px){.lead-wrap{grid-template-columns:1fr}.lead{min-height:340px}.lead h2{font-size:25px}}
@@ -82,14 +96,35 @@ const link=n=>`href="${esc(n.link)}" target="_blank" rel="noopener noreferrer"`;
 // a story's own direction: Arabic and translated ones read right-to-left even when they start with an English name
 const dir=n=>`dir="${n.lang==='ar'||n.translated?'rtl':'ltr'}"`;
 const other=n=>K.lang==='ar'&&n.lang!=='ar'?` · <span class="k-tag lang">${K.t(n.translated?'Machine-translated':'English')}</span>`:'';
+// the banner: up to 5 top stories with pictures (anime and film mixed in "Everything"), one every 7 seconds
+let slideAt=0,slideTimer=null;
+function pickSlides(items){const pics=items.filter(n=>n.image);
+  if(kind!=='all')return pics.slice(0,5);
+  const a=pics.filter(n=>n.kind==='anime'),s=pics.filter(n=>n.kind==='screen'),out=[];
+  for(let i=0;out.length<5&&(i<a.length||i<s.length);i++){if(a[i])out.push(a[i]);if(s[i]&&out.length<5)out.push(s[i])}
+  return out}
+function slide(i){const all=[...document.querySelectorAll('.lead .slide')];if(!all.length)return;slideAt=(i+all.length)%all.length;
+  all.forEach((x,j)=>{const on=j===slideAt;x.classList.toggle('on',on);x.tabIndex=on?0:-1;x.setAttribute('aria-hidden',String(!on))});
+  document.querySelectorAll('.lead .dots button').forEach((b,j)=>b.setAttribute('aria-current',String(j===slideAt)))}
+function play(){clearInterval(slideTimer);
+  slideTimer=setInterval(()=>{const l=document.querySelector('.lead');if(!document.hidden&&l&&!l.matches(':hover,:focus-within'))slide(slideAt+1)},7000)}
+const ARROW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
+const ARROW_NEXT=ARROW.replace('M15 6l-6 6 6 6','M9 6l6 6-6 6');
 function render(items){
-  shown=items;const lead=items.find(n=>n.image)||items[0];
+  shown=items;const slides=pickSlides(items);if(!slides.length&&items[0])slides.push(items[0]);const lead=slides[0];
   if(!lead){$('top').innerHTML='<div class="k-empty" style="grid-column:1/-1"><strong>No stories right now</strong>The news sites did not answer. Kizuna keeps trying.</div>';$('grid').innerHTML='';return}
-  const rest=items.filter(n=>n!==lead),mix=kind==='all'?[0,1].flatMap(i=>[rest.filter(n=>n.kind==='anime')[i],rest.filter(n=>n.kind==='screen')[i]]).filter(Boolean):[],side=(mix.length===4?mix:rest.slice(0,4)),more=rest.filter(n=>!side.includes(n));
-  $('top').innerHTML=`<a class="lead" ${link(lead)}>${lead.image?`<img src="${esc(lead.image)}" alt="" referrerpolicy="no-referrer">`:''}
-    <div class="lead-body"><div class="kicker"><span class="k-tag ${lead.kind}">${KIND[lead.kind]}</span><span>${esc(lead.source)} · ${esc(ago(lead.at))}</span></div>
-    <h2><bdi ${dir(lead)}>${esc(lead.title)}</bdi></h2>${lead.summary?`<p ${dir(lead)}>${esc(lead.summary)}</p>`:''}</div></a>
+  const rest=items.filter(n=>!slides.includes(n)),mix=kind==='all'?[0,1].flatMap(i=>[rest.filter(n=>n.kind==='anime')[i],rest.filter(n=>n.kind==='screen')[i]]).filter(Boolean):[],side=(mix.length===4?mix:rest.slice(0,4)),more=rest.filter(n=>!side.includes(n));
+  $('top').innerHTML=`<div class="lead" role="region" aria-roledescription="carousel" aria-label="Top stories">${slides.map((n,j)=>`<a class="slide" ${link(n)}>${n.image?`<img src="${esc(n.image)}" alt="" ${j?'loading="lazy" ':''}referrerpolicy="no-referrer">`:''}
+    <div class="lead-body"><div class="kicker"><span class="k-tag ${n.kind}">${KIND[n.kind]}</span><span>${esc(n.source)} · ${esc(ago(n.at))}</span>${other(n)}</div>
+    <h2><bdi ${dir(n)}>${esc(n.title)}</bdi></h2>${n.summary?`<p ${dir(n)}>${esc(n.summary)}</p>`:''}</div></a>`).join('')}
+    ${slides.length>1?`<button type="button" class="nav prev" aria-label="Previous story">${ARROW}</button><button type="button" class="nav next" aria-label="Next story">${ARROW_NEXT}</button>
+    <div class="dots">${slides.map((n,j)=>`<button type="button" aria-label="Story ${j+1}"></button>`).join('')}</div>`:''}</div>
     <div class="side">${side.map(n=>`<a ${link(n)}><div class="thumb">${pic(n)}</div><div><h3><bdi ${dir(n)}>${esc(n.title)}</bdi></h3><div class="meta"><b>${esc(n.source)}</b> · ${esc(ago(n.at))}${other(n)}</div></div></a>`).join('')}</div>`;
+  slide(0);play();
+  const top=$('top').querySelector('.lead');
+  top.querySelectorAll('.dots button').forEach((b,j)=>b.onclick=()=>{slide(j);play()});
+  top.querySelector('.prev')?.addEventListener('click',()=>{slide(slideAt-1);play()});
+  top.querySelector('.next')?.addEventListener('click',()=>{slide(slideAt+1);play()});
   $('grid').innerHTML=more.map(n=>`<a class="card" ${link(n)}><div class="thumb">${pic(n)}</div><h3><bdi ${dir(n)}>${esc(n.title)}</bdi></h3>${n.summary?`<p ${dir(n)}>${esc(n.summary)}</p>`:''}
     <div class="meta"><b>${esc(n.source)}</b> · ${esc(ago(n.at))}${other(n)}</div></a>`).join('');
 }
