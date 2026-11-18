@@ -6,7 +6,6 @@ import sys
 
 MKV = r"C:\Program Files\MKVToolNix"
 HERE = os.path.dirname(os.path.abspath(__file__))
-FONTS = [os.path.join(HERE, "fonts", f) for f in ("Cairo-Bold.ttf", "Cairo-SemiBold.ttf")]
 
 
 def info(p):
@@ -42,7 +41,8 @@ def mux(video, ass, progress=None, check=None):
         cmd += ["--subtitle-tracks", ",".join(str(t["id"]) for t in subs)] if subs else ["--no-subtitles"]
     cmd += [video, "--language", "0:ara", "--track-name", "0:العربية",
             "--default-track-flag", "0:yes", "--sub-charset", "0:UTF-8", ass]
-    for f in FONTS:
+    import subtitle_style
+    for f in subtitle_style.font_files(ass):              # the font the style uses, so every player draws it
         if os.path.basename(f) not in have:
             cmd += ["--attachment-mime-type", "application/x-truetype-font", "--attach-file", f]
     first_sub = min((t["id"] for t in subs), default=10**9)   # no subtitles at all: Arabic goes last (audit #7)

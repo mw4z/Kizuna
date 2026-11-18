@@ -13,7 +13,7 @@ against the episode's own audio, and delivers a ready-to-watch file to Jellyfin,
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?logo=windows&logoColor=white)](#requirements)
 [![Jellyfin](https://img.shields.io/badge/Jellyfin-library-AA5CC3?logo=jellyfin&logoColor=white)](https://jellyfin.org/)
 [![Stremio](https://img.shields.io/badge/Stremio-add--ons-8A5AAB)](https://www.stremio.com/)
-[![Tests](https://img.shields.io/badge/tests-285%20passing-2EA44F)](#tests)
+[![Tests](https://img.shields.io/badge/tests-295%20passing-2EA44F)](#tests)
 
 [Highlights](#highlights) · [How it works](#how-it-works) · [Getting started](#getting-started) ·
 [Reliability](#reliability--safety) · [Tests](#tests) · [Operations guide](docs/OPERATIONS.md)
@@ -139,12 +139,12 @@ Kizuna runs unattended on a home PC, so it's built to fail safe:
 
 ```powershell
 python -m unittest test_agent test_audit test_audit_fixes test_dkb test_fansub test_fillers `
-    test_mandatory_processing test_robust test_stremio test_stremio_batch test_reliability test_shows test_settings test_news
+    test_mandatory_processing test_robust test_stremio test_stremio_batch test_reliability test_shows test_settings test_news test_subtitle_style
 node test_picker.cjs
 node test_i18n.cjs        # every page string and agent message has Arabic
 ```
 
-**285 tests**, all in temporary folders: real ffmpeg, ffprobe and MKVToolNix runs on tiny generated videos, Windows
+**295 tests**, all in temporary folders: real ffmpeg, ffprobe and MKVToolNix runs on tiny generated videos, Windows
 file locks under concurrent polling, simulated crashes and restarts, a slow server through the proxy, and the proxy's
 SSRF rules. They never touch real media. [`AGENTS.md`](AGENTS.md) has the rules for developing safely on a live system.
 

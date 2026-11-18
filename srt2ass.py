@@ -1,4 +1,4 @@
-"""Official Arabic SRT (logical order, RLE/RLM marks) -> Cairo house-style ASS.
+"""Official Arabic SRT (logical order, RLE/RLM marks) -> ASS in the style chosen on the Settings page.
 
 Every visual line is wrapped in RLM so edge punctuation and dialogue dashes
 resolve right-to-left under libass; leading override tags such as {\\an8}
@@ -22,11 +22,16 @@ YCbCr Matrix: TV.709
 
 [V4+ Styles]
 Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
-Style: Default,Cairo,82,&H00FFFFFF,&H000000FF,&H002F2C2B,&H9E000000,-1,0,0,0,95,100,0,0,1,2.6,1.2,2,180,180,42,1
+{style}
 
 [Events]
 Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
 """
+
+
+def head(title, style=None):
+    import subtitle_style
+    return HEAD.format(title=title, style=subtitle_style.style_line(style or subtitle_style.current("ar")))
 
 
 def ts(s):
@@ -48,7 +53,7 @@ def line(l):
     return tags + RLM + l[len(tags):].strip() + RLM
 
 
-def convert(src, dst, title, offset=0.0):
+def convert(src, dst, title, offset=0.0, style=None):
     t = open(src, encoding="utf-8-sig").read()
     ev = []
     for b in re.split(r"\r?\n[ \t\r]*\n", t.strip()):     # "blank" lines may hold stray spaces
@@ -70,7 +75,7 @@ def convert(src, dst, title, offset=0.0):
         if tag:
             txt = tag + txt.replace(tag, "")
         ev.append(f"Dialogue: 0,{ts(a + offset)},{ts(e + offset)},Default,,0,0,0,,{txt}")
-    open(dst, "w", encoding="utf-8-sig", newline="\n").write(HEAD.format(title=title) + "\n".join(ev) + "\n")
+    open(dst, "w", encoding="utf-8-sig", newline="\n").write(head(title, style) + "\n".join(ev) + "\n")
     return len(ev)
 
 

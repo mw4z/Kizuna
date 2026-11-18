@@ -229,8 +229,20 @@ exact: {
   "Everything": "الكل", "Movies & TV": "أفلام وتلفزيون", "Section": "القسم", "Loading the latest stories…": "جارٍ تحميل آخر الأخبار…", "More stories": "المزيد من الأخبار",
   "No stories right now": "لا أخبار الآن", "The news sites did not answer. Kizuna keeps trying.": "مواقع الأخبار لم تستجب. سيواصل Kizuna المحاولة.", "English": "بالإنجليزية", "Machine-translated": "مترجم آليًا",
   // Settings
-  "Anime and movies & series keep their own languages and quality, so anime can stay Japanese-first while everything else is English-first. Saved on this PC only; changes apply right away.":
-    "للأنمي إعداداته الخاصة من اللغات والجودة، وللأفلام والمسلسلات إعداداتها، فيبقى الأنمي يابانيًا أولًا وغيره إنجليزيًا أولًا. تُحفظ على هذا الجهاز فقط وتُطبَّق فورًا.",
+  "Anime and movies & series keep their own languages and quality, so anime can stay Japanese-first while everything else is English-first. The Arabic subtitles' look is yours to set. Saved on this PC only; changes apply right away.":
+    "للأنمي إعداداته الخاصة من اللغات والجودة، وللأفلام والمسلسلات إعداداتها، فيبقى الأنمي يابانيًا أولًا وغيره إنجليزيًا أولًا. وشكل الترجمة العربية تختاره بنفسك. تُحفظ على هذا الجهاز فقط وتُطبَّق فورًا.",
+  "How the Arabic subtitles Kizuna adds look in every player. The preview is drawn by the same subtitle renderer as the episodes. Applies to subtitles added after you save; episodes already done keep their look.":
+    "شكل الترجمة العربية التي يضيفها Kizuna في كل مشغّل. المعاينة يرسمها محرّك الترجمة نفسه المستخدم في الحلقات. يُطبَّق على الترجمات المضافة بعد الحفظ، والحلقات الجاهزة تبقى كما هي.",
+  "Other languages are the release's own subtitle tracks; your player decides how they look.":
+    "اللغات الأخرى هي مسارات الترجمة الأصلية في الإصدار، ومشغّلك هو من يحدّد شكلها.",
+  "Font": "الخط", "Position": "الموضع", "Bottom": "أسفل", "Top": "أعلى", "Bold": "عريض", "Size": "الحجم",
+  "Distance from the edge": "المسافة من الحافة", "Text colour": "لون النص", "Background box": "خلفية خلف النص",
+  "Box colour": "لون الخلفية", "Opacity": "العتامة", "Padding": "الهامش", "Outline": "الحدّ", "Outline colour": "لون الحدّ",
+  "Thickness": "السماكة", "Shadow": "الظل", "Shadow colour": "لون الظل", "Distance": "المسافة",
+  "Dark scene": "مشهد داكن", "Bright scene": "مشهد فاتح", "Preview scene": "مشهد المعاينة", "Subtitle preview": "معاينة الترجمة",
+  "Unknown subtitle font.": "خط ترجمة غير معروف.", "Subtitle colours must look like #RRGGBB.": "ألوان الترجمة يجب أن تكون بصيغة ‎#RRGGBB.",
+  "Subtitle position must be bottom or top.": "موضع الترجمة يجب أن يكون أسفل أو أعلى.", "Subtitle sizes must be numbers.": "قيم الترجمة يجب أن تكون أرقامًا.",
+  "Subtitle style is not valid.": "نمط الترجمة غير صالح.",
   "Loading your settings…": "جارٍ تحميل الإعدادات…", "Movies & series": "الأفلام والمسلسلات",
   "Weekly episodes fetched from your Stremio add-ons, and Discover when you open an anime. Arabic subtitles are always added.": "حلقات الأنمي الأسبوعية من إضافات Stremio، وصفحة الاستكشاف عند فتح أنمي. تُضاف الترجمة العربية دائمًا.",
   "Discover preselects these when you open a movie or a series: the audio track, the filter and where it is saved.": "تختار صفحة الاستكشاف هذه تلقائيًا عند فتح فيلم أو مسلسل: مسار الصوت والمرشح ومكان الحفظ.",
