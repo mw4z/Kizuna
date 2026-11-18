@@ -1,4 +1,6 @@
 """Settings page and the redesigned pages: validation, safe defaults, and that every preference really changes behaviour."""
+import os
+os.environ.setdefault("KIZUNA_SUBTITLE_LANGUAGE", "ar")   # this suite tests the Arabic pipeline
 import json
 from pathlib import Path
 import threading

@@ -1,4 +1,6 @@
 """News page: feed parsing treats everything as untrusted; one broken feed never hides the others."""
+import os
+os.environ.setdefault("KIZUNA_SUBTITLE_LANGUAGE", "ar")   # this suite tests the Arabic pipeline
 import time
 import unittest
 from unittest import mock

@@ -1,0 +1,141 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="k-token" content="__STREMIO_TOKEN__">
+<title>Setup · Kizuna</title><link rel="icon" type="image/png" href="/app.png"><link rel="stylesheet" href="/kizuna.css">
+<style>
+.k-page>*{max-width:860px}
+.steps{display:grid;gap:16px;margin-top:28px;counter-reset:step}
+.step{border:1px solid var(--k-line);border-radius:14px;padding:22px 24px;background:var(--k-raised);counter-increment:step}
+.step>header{display:flex;align-items:center;gap:14px}
+.step>header::before{content:counter(step);flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;
+  font:600 13px var(--k-font-display);background:rgba(255,255,255,.08);color:var(--k-text-2)}
+.step.ok>header::before{content:"✓";background:#1f6f43;color:#fff}
+.step h2{margin:0;font:600 16px/1.3 var(--k-font-display);flex:1}
+.step .state{font-size:12px}
+.step .body{margin:14px 0 0 42px;display:grid;gap:12px;color:var(--k-text-2);font-size:13.5px;line-height:1.6}
+[dir=rtl] .step .body{margin:14px 42px 0 0}
+.step ol{margin:0;padding-inline-start:20px;display:grid;gap:6px}
+.checks{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.checks li{display:flex;align-items:center;gap:10px}
+.checks li::before{content:"";width:8px;height:8px;border-radius:50%;background:#c8364f;flex:none}
+.checks li.ok::before{background:#3fb37f}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+code{font:12.5px ui-monospace,Consolas,monospace;background:rgba(255,255,255,.06);padding:2px 6px;border-radius:5px;color:var(--k-text)}
+.path{display:flex;gap:8px;align-items:center}.path code{flex:1;overflow:auto;white-space:nowrap}
+.done-bar{display:flex;align-items:center;gap:14px;margin:26px 0 40px}
+@media (max-width:640px){.row2{grid-template-columns:1fr}.step .body{margin-inline-start:0}}
+</style></head><body>
+<header class="k-top"></header>
+<main class="k-page">
+<h1 class="k-title">Welcome to Kizuna</h1>
+<p class="k-lede">A few steps and Kizuna is ready: it fetches new episodes and movies, adds subtitles in your language and puts them in Jellyfin.
+Each step checks itself; come back here any time from Settings.</p>
+<div class="k-note" id="loading" style="margin-top:24px">Checking this PC…</div>
+<div class="steps" id="steps" hidden>
+
+ <section class="step" id="sLang"><header><h2>Languages</h2><span class="state"></span></header>
+  <div class="body"><div class="row2">
+   <label class="k-field">Interface language<select id="language"><option value="en">English</option><option value="ar">العربية</option></select></label>
+   <label class="k-field">Subtitle language Kizuna adds<select id="subtitle_language"></select></label></div>
+   <div class="row"><button type="button" class="k-btn k-btn-primary" id="saveLang">Save languages</button><span class="k-note" id="langNote" role="status"></span></div></div></section>
+
+ <section class="step" id="sApps"><header><h2>Apps Kizuna uses</h2><span class="state"></span></header>
+  <div class="body"><p>Kizuna uses FFmpeg to read and check videos and MKVToolNix to add the subtitle track. Install buttons open
+   Windows' own installer (winget) in a separate window; follow it there, then press Check again.</p>
+   <ul class="checks" id="toolList"></ul>
+   <div class="row" id="appButtons"></div>
+   <p class="k-meta" id="noWinget" hidden>winget is missing: install "App Installer" from the Microsoft Store, or install the apps from their websites.</p></div></section>
+
+ <section class="step" id="sFolders"><header><h2>Folders</h2><span class="state"></span></header>
+  <div class="body"><p>Where new episodes arrive and where your finished library lives. Use a drive with plenty of free space.</p>
+   <label class="k-field">Inbox (new episodes arrive here)<input id="folder_inbox" spellcheck="false" dir="ltr"></label>
+   <label class="k-field">Weekly library (Jellyfin)<input id="folder_weekly" spellcheck="false" dir="ltr"></label>
+   <label class="k-field">Anime library (Jellyfin)<input id="folder_anime" spellcheck="false" dir="ltr"></label>
+   <div class="row"><button type="button" class="k-btn k-btn-primary" id="makeFolders">Save and create folders</button><span class="k-note" id="folderNote" role="status"></span></div></div></section>
+
+ <section class="step" id="sJellyfin"><header><h2>Jellyfin</h2><span class="state"></span></header>
+  <div class="body"><ul class="checks" id="jfList"></ul>
+   <ol>
+    <li>Install Jellyfin Server (button below), or skip if you already have it.</li>
+    <li>Open Jellyfin (button below) and finish its own welcome steps: create your user and choose your metadata language.</li>
+    <li><span>In Jellyfin, open Dashboard, then Libraries, then Add Media Library. Choose the content type Shows, name it Weekly Anime and add this folder:</span>
+     <div class="path"><code id="pWeekly"></code><button type="button" class="k-btn k-btn-ghost copy" data-for="pWeekly">Copy</button></div></li>
+    <li><span>Add a second Shows library named Anime with this folder:</span>
+     <div class="path"><code id="pAnime"></code><button type="button" class="k-btn k-btn-ghost copy" data-for="pAnime">Copy</button></div></li>
+    <li>Optional: a Movies library for films you send from Discover.</li>
+    <li>If Jellyfin runs as a Windows service and shows the libraries empty, give it read access to these folders
+     (folder → Properties → Security → Edit → add "NETWORK SERVICE" with Read).</li>
+   </ol>
+   <div class="row"><button type="button" class="k-btn" data-install="jellyfin">Install Jellyfin</button>
+    <a class="k-btn k-btn-ghost" href="http://localhost:8096" target="_blank" rel="noopener">Open Jellyfin</a></div></div></section>
+
+ <section class="step" id="sStremio"><header><h2>Stremio</h2><span class="state"></span></header>
+  <div class="body"><ul class="checks" id="stList"></ul>
+   <p>Kizuna finds episodes and subtitles through the add-ons installed in your Stremio account. In the Stremio app or on Stremio Web, open Add-ons and install at least one add-on that provides streams you are allowed to use, and a subtitle add-on such as OpenSubtitles. Then sign in here.</p>
+   <p class="k-meta">Your password goes only to Stremio's own sign-in. Kizuna keeps the session key, encrypted for your Windows user; the password is never stored.</p>
+   <form class="row2" id="loginForm" autocomplete="on">
+    <label class="k-field">Stremio email<input id="stEmail" type="email" autocomplete="username" dir="ltr"></label>
+    <label class="k-field">Password<input id="stPassword" type="password" autocomplete="current-password" dir="ltr"></label>
+    <div class="row"><button class="k-btn k-btn-primary" id="stLogin">Sign in to Stremio</button><span class="k-note" id="stNote" role="status"></span></div>
+   </form>
+   <div class="row"><button type="button" class="k-btn k-btn-ghost" data-install="stremio">Install the Stremio app</button>
+    <a class="k-btn k-btn-ghost" href="https://web.stremio.com" target="_blank" rel="noopener">Open Stremio Web</a></div></div></section>
+
+ <section class="step" id="sDone"><header><h2>Ready</h2><span class="state"></span></header>
+  <div class="body"><p>Follow a few shows on the Weekly page; each new episode then arrives in Jellyfin with your subtitles. Discover sends
+   any movie or episode the same way.</p></div></section>
+</div>
+<div class="done-bar" id="doneBar" hidden><button type="button" class="k-btn k-btn-primary" id="finish">Finish setup</button>
+ <button type="button" class="k-btn k-btn-ghost" id="recheck">Check again</button><span class="k-note" id="finishNote" role="status"></span></div>
+</main>
+<script src="/kizuna-ar.js"></script><script src="/kizuna.js"></script>
+<script>
+const $=id=>document.getElementById(id),K=Kizuna,esc=K.esc;
+K.shell('settings');
+let st=null,meta=null;
+const mark=(id,ok,todo)=>{$(id).classList.toggle('ok',!!ok);$(id).querySelector('.state').innerHTML=ok?`<span class="k-tag on">${K.t('Done')}</span>`:`<span class="k-tag warn">${K.t(todo||'Needs a step')}</span>`};
+const li=(ok,text)=>`<li class="${ok?'ok':''}">${esc(K.t(text))}</li>`;
+function render(){
+  const s=meta.settings;
+  $('language').value=s.language;
+  const ls=$('subtitle_language');if(!ls.options.length)Object.entries(meta.subtitle_languages).forEach(([c,[en,nat]])=>{const o=document.createElement('option');o.value=c;o.textContent=nat===en?en:`${nat} · ${en}`;ls.append(o)});
+  ls.value=s.subtitle_language;
+  mark('sLang',true);
+  const t=st.tools;
+  $('toolList').innerHTML=li(t.ffmpeg&&t.ffprobe,'FFmpeg and FFprobe')+li(t.mkvtoolnix,'MKVToolNix');
+  $('appButtons').innerHTML=[!(t.ffmpeg&&t.ffprobe)&&'ffmpeg',!t.mkvtoolnix&&'mkvtoolnix'].filter(Boolean)
+    .map(a=>`<button type="button" class="k-btn" data-install="${a}">${esc(K.t('Install')+' '+(a==='ffmpeg'?'FFmpeg':'MKVToolNix'))}</button>`).join('');
+  $('noWinget').hidden=st.winget;
+  mark('sApps',t.ffmpeg&&t.ffprobe&&t.mkvtoolnix);
+  for(const k of ['folder_inbox','folder_weekly','folder_anime'])if(document.activeElement!==$(k))$(k).value=st.folders[k].path;
+  mark('sFolders',Object.values(st.folders).every(f=>f.exists));
+  $('pWeekly').textContent=st.folders.folder_weekly.path;$('pAnime').textContent=st.folders.folder_anime.path;
+  const j=st.jellyfin;
+  $('jfList').innerHTML=li(j.running,'Jellyfin is running')+li(j.weekly,'A library points at the Weekly folder')+li(j.anime,'A library points at the Anime folder');
+  mark('sJellyfin',j.running&&j.weekly);
+  const m=st.stremio;
+  $('stList').innerHTML=li(m.connected,'Signed in to Stremio')+li(m.streams,'A stream add-on is installed')+li(m.subtitles,'A subtitle add-on is installed');
+  mark('sStremio',m.connected&&m.streams);
+  mark('sDone',st.ready,'Finish the steps above');
+  $('finishNote').textContent=st.ready?'':K.t('You can finish now and complete the rest later.');
+}
+async function refresh(){[st,meta]=await Promise.all([K.api('setup-check'),K.api('settings')]);render();$('loading').hidden=true;$('steps').hidden=false;$('doneBar').hidden=false}
+function note(id,text,tone){$(id).textContent=K.t(text);$(id).className='k-note'+(tone?' '+tone:'')}
+$('saveLang').onclick=async()=>{try{const before=meta.settings.language;await K.api('settings',{language:$('language').value,subtitle_language:$('subtitle_language').value});
+  if($('language').value!==before)return location.reload();note('langNote','Saved.','ok');refresh()}catch(e){note('langNote',e.message,'bad')}};
+$('makeFolders').onclick=async()=>{try{await K.api('settings',{folder_inbox:$('folder_inbox').value,folder_weekly:$('folder_weekly').value,folder_anime:$('folder_anime').value});
+  const d=await K.api('setup-folders',{});
+  if(d.restarting){note('folderNote','Kizuna is restarting to use the new folders…');return waitForRestart()}
+  note('folderNote',d.made.length?'Folders created.':'The folders already exist.','ok');refresh()}catch(e){note('folderNote',e.message,'bad')}};
+async function waitForRestart(){for(let i=0;i<40;i++){await new Promise(r=>setTimeout(r,3000));
+  try{await K.api('setup-check');return location.reload()}catch{}}note('folderNote','Kizuna did not come back. Start it again from the Start menu.','bad')}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-install]');if(b){try{const d=await K.api('setup-install',{app:b.dataset.install});
+    b.textContent=K.t('Installer opened · Check again when it finishes')}catch(err){b.textContent=err.message}}
+  const c=e.target.closest('.copy');if(c){navigator.clipboard?.writeText($(c.dataset.for).textContent);c.textContent=K.t('Copied')}});
+$('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('stLogin').disabled=true;note('stNote','Signing in…');
+  try{st=await K.api('stremio-login',{email:$('stEmail').value,password:$('stPassword').value});$('stPassword').value='';note('stNote','Connected.','ok');render()}
+  catch(err){note('stNote',err.message,'bad')}finally{$('stLogin').disabled=false}});
+$('recheck').onclick=refresh;
+$('finish').onclick=async()=>{try{await K.api('setup-finish',{});location.href='/weekly'}catch(e){note('finishNote',e.message,'bad')}};
+refresh().catch(e=>{$('loading').textContent=e.message;$('loading').className='k-note bad'});
+</script></body></html>

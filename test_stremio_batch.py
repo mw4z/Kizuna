@@ -1,4 +1,6 @@
 """Offline queue checks; no account requests or real library downloads."""
+import os
+os.environ.setdefault("KIZUNA_SUBTITLE_LANGUAGE", "ar")   # this suite tests the Arabic pipeline
 import json
 from pathlib import Path
 import tempfile

@@ -706,7 +706,7 @@ def job_status():
         if data.get("status") == "running" and not _job_lock.locked():
             data.update(status="interrupted", stage="The app restarted. Select the source again to retry.")
             part = data.get("part")
-            # The half download of a dead job is never resumed; Arabic preparation owns the file once it started.
+            # The half download of a dead job is never resumed; subtitle preparation owns the file once it started.
             if part and part.endswith(".stremio.part") and data.get("phase") != "processing":
                 try:
                     Path(part).unlink(missing_ok=True)
@@ -726,7 +726,7 @@ def cancel_download():
         except (OSError, ValueError):
             current = {}
         if current.get("phase") == "processing":
-            raise UserError("Arabic preparation has started and cannot be cancelled safely.")
+            raise UserError("Subtitle preparation has started and cannot be cancelled safely.")
         _cancel_job.set()
     if _job_process and _job_process.poll() is None:
         _job_process.terminate()
@@ -757,7 +757,7 @@ def start_download(key, audio, subtitle, library_id, _batch=False):
     with library_processing._guard:
         pending = library_processing.read().get(library_processing.key_for(destination))
     if pending and pending["status"] != "done":
-        raise UserError("This item is already downloaded and waiting for mandatory Arabic preparation. Check the processing status; it will retry automatically.")
+        raise UserError("This item is already downloaded and waiting for subtitle preparation. Check the processing status; it will retry automatically.")
     size = source["stream"].get("behaviorHints", {}).get("videoSize") or source["probe"].get("format", {}).get("size")
     required = max(float(size or 0) * 1.1, 2e9)
     if shutil.disk_usage(library["path"]).free < required:
@@ -798,7 +798,7 @@ def pause_download():
     if not _job_lock.locked() or pr is None or pr.poll() is not None or job is None:
         raise UserError("No download is running.")
     if job.get("phase") == "processing":
-        raise UserError("Arabic preparation has started and cannot be paused.")
+        raise UserError("Subtitle preparation has started and cannot be paused.")
     if not job.get("paused"):
         psutil.Process(pr.pid).suspend()
         job.update(paused=True, paused_at=time.time(), stage="Paused")
@@ -813,7 +813,7 @@ def resume_download():
     if pr is not None and pr.poll() is None:
         psutil.Process(pr.pid).resume()
     job["started"] = job.get("started", time.time()) + time.time() - job.pop("paused_at", time.time())  # ETA ignores the pause
-    job.update(paused=False, stage="Downloading before Arabic preparation")
+    job.update(paused=False, stage="Downloading before subtitle preparation")
     write_job(job)
     return job
 
@@ -846,8 +846,9 @@ def download(source, audio, subtitle, destination, job):
             cmd += ["-map", f"0:{audio}"]
         if subtitle != "none":
             cmd += ["-map", "1:0" if external else f"0:{subtitle}"]
+        import language                    # keep the source's own text subtitles in the subtitle language
         arabic_subs = [t for t in source["probe"]["streams"] if t.get("codec_type") == "subtitle"
-                       and str(t.get("tags", {}).get("language", "")).lower().split("-")[0] in ("ar", "ara")
+                       and language.is_code(t.get("tags", {}).get("language", ""))
                        and str(t["index"]) != subtitle and t.get("codec_name") in ("ass", "ssa", "subrip", "webvtt", "mov_text")]
         for track in arabic_subs:
             cmd += ["-map", f"0:{track['index']}"]
@@ -901,7 +902,7 @@ def download(source, audio, subtitle, destination, job):
                         except ValueError:
                             continue
                         fraction = min(1, seconds / duration) if duration else 0
-                        job.update(stage="Downloading before Arabic preparation", pct=min(90, fraction * 90) if duration else None,
+                        job.update(stage="Downloading before subtitle preparation", pct=min(90, fraction * 90) if duration else None,
                                    eta_seconds=estimate_remaining(job.get("started", time.time()), fraction))
                         write_job(job)
                         last = time.time()
@@ -938,7 +939,7 @@ def download(source, audio, subtitle, destination, job):
             raise SourceError(str(e)) from None
         kinds = [t.get("codec_type") for t in data.get("streams", [])]
         actual = float(data.get("format", {}).get("duration") or 0)
-        # The selected subtitle is optional at acquisition time: the mandatory Arabic
+        # The selected subtitle is optional at acquisition time: the mandatory subtitle
         # processing pipeline can source and time a replacement after saving the media.
         if "video" not in kinds or (audio != "none" and "audio" not in kinds) or (
                 duration > 0 and actual < duration - max(5, duration * .01)):
@@ -951,9 +952,9 @@ def download(source, audio, subtitle, destination, job):
             if _cancel_job.is_set():        # Cancel pressed during "Verifying download"
                 job.update(status="cancelled", retryable=False, stage="Download cancelled.")
                 return
-            # processing_key now (not after submit returns): after a restart the card follows the queued Arabic job
+            # processing_key now (not after submit returns): after a restart the card follows the queued subtitle job
             job.update(phase="processing", processing_key=library_processing.key_for(destination),
-                       stage="Preparing Arabic subtitles and checking timing", pct=90, eta_seconds=None)
+                       stage="Preparing subtitles and checking timing", pct=90, eta_seconds=None)
             write_job(job)
         def processing_progress(stage, pct):
             job.update(stage=stage, pct=90 + min(100, max(0, pct)) * .09, eta_seconds=None)

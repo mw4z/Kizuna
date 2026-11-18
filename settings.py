@@ -2,10 +2,12 @@
 own language/quality choices (anime: Japanese first; movies & series: English first). Every value is validated and
 clamped; a missing or damaged file means the defaults, so the agent never stops over a setting."""
 import json
+import os
 from pathlib import Path
 import threading
 
 import agent
+import language as sublang   # the subtitle-language table ("language" is the interface setting)
 import subtitle_style
 
 FILE = Path(agent.HERE) / "settings.json"
@@ -17,7 +19,7 @@ KINDS = ("anime", "screen")                    # screen = movies & series
 DEFAULTS = {
     # anime (weekly episodes from Stremio, Discover defaults for anime)
     "anime_audio": ["ja"],
-    "anime_subtitle": "none",                  # extra subtitle track to keep besides the Arabic one
+    "anime_subtitle": "none",                  # extra subtitle track to keep besides the one Kizuna adds
     "anime_resolutions": ["1080p", "720p"],
     "anime_audio_filter": "",                  # Discover: preselected audio filter ("" = all)
     "library_anime": "Anime",
@@ -34,8 +36,15 @@ DEFAULTS = {
     "notify_ready": True,                      # Windows notification when an episode or movie is ready
     "clock": "auto",                           # air times: "auto" (Windows setting), "12h" or "24h"
     "language": "en",                          # interface language: "en" or "ar" (right-to-left)
-    "sub_style_ar": dict(subtitle_style.DEFAULT),   # look of the Arabic subtitles Kizuna builds
+    "subtitle_language": sublang.DEFAULT,     # the subtitle track Kizuna adds to every episode and movie
+    # folders (read when Kizuna starts): new episodes land in the inbox; finished weekly episodes are copied to the
+    # Weekly library; the Anime library holds finished shows (both cleaned up after watching)
+    **agent.FOLDER_DEFAULTS,
+    "setup_done": False,                       # the first-run setup wizard was finished
+    # the look of the subtitles Kizuna builds, one style per language
+    **{f"sub_style_{c}": subtitle_style.default_for(c) for c in subtitle_style.LANGUAGES},
 }
+FOLDERS = ("folder_inbox", "folder_weekly", "folder_anime")
 LEGACY = {"weekly_audio": "anime_audio", "weekly_subtitle": "anime_subtitle", "weekly_resolutions": "anime_resolutions",
           "default_audio_filter": "anime_audio_filter"}   # names used before the anime / movies & series split
 _lock = threading.Lock()
@@ -112,6 +121,18 @@ def _clean(raw, strict=False, base=None):
             out[key] = name
         else:
             bad("Choose a library.")
+    sub = str(raw.get("subtitle_language", out["subtitle_language"]))
+    if sub in sublang.TABLE:
+        out["subtitle_language"] = sub
+    else:
+        bad("Unknown subtitle language.")
+    for key in FOLDERS:
+        path = str(raw.get(key, out[key])).strip().strip('"')
+        if os.path.isabs(path) and len(path) < 260 and not any(c in path[2:] for c in '<>"|?*'):
+            out[key] = os.path.normpath(path)
+        else:
+            bad("Folders must be full paths, like C:\\Videos\\Anime.")
+    out["setup_done"] = str(raw.get("setup_done", out["setup_done"])).lower() in ("1", "true", "yes", "on")
     for lang in subtitle_style.LANGUAGES:
         key = f"sub_style_{lang}"
         try:
@@ -179,7 +200,8 @@ def page():
     except Exception:
         libraries = []
     return {"settings": get(), "languages": LANGUAGES, "resolutions": RESOLUTIONS, "libraries": libraries,
-            "defaults": DEFAULTS, "fonts": {f: list(files) for f, files in subtitle_style.FONTS.items()}}
+            "defaults": DEFAULTS, "fonts": {f: list(files) for f, files in subtitle_style.FONTS.items()},
+            "subtitle_languages": sublang.choices()}
 
 
 def preview(params):
@@ -188,4 +210,5 @@ def preview(params):
         style = subtitle_style.clean(json.loads(params.get("style", "{}")))
     except (ValueError, TypeError) as e:
         raise SettingsError(str(e) if str(e).startswith("Subtitle") else "Subtitle style is not valid.") from None
-    return {"image": subtitle_style.preview(style, params.get("scene") == "bright")}
+    lang = params.get("lang") if params.get("lang") in sublang.TABLE else get("subtitle_language")
+    return {"image": subtitle_style.preview(style, params.get("scene") == "bright", lang)}

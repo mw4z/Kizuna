@@ -76,7 +76,7 @@ pre.log{margin:10px 0 0;background:var(--k-sunken);border:1px solid var(--k-line
   </section>
 
   <section class="k-section" id="pending" aria-labelledby="hPending" hidden>
-    <div class="k-section-head"><h2 class="k-h" id="hPending">Waiting for Arabic<span class="k-count" id="pendingCount"></span></h2>
+    <div class="k-section-head"><h2 class="k-h" id="hPending">Waiting for subtitles<span class="k-count" id="pendingCount"></span></h2>
       <span class="k-meta">Checked again automatically</span></div>
     <ul class="k-rows" id="pendingList"></ul>
   </section>
@@ -130,16 +130,16 @@ async function tick(){
   $('dot').dataset.state=TONE[d.tone]||'idle';$('dot').classList.toggle('live',d.tone==='busy');
   if($('headline').dataset.v!==d.headline){$('headline').dataset.v=d.headline;$('headline').textContent=d.headline}
   const f=d.finished[0],sub=f?`Last ready: ${f.name}, ${K.ago(d.now-f.at)}.`:'Nothing has finished yet.';if($('sub').dataset.v!==sub){$('sub').dataset.v=sub;$('sub').textContent=sub}
-  // in progress: Arabic preparation + Stremio download + season batch, in one place
+  // in progress: subtitle preparation + Stremio download + season batch, in one place
   const tasks=[];const job=jb&&jb.job,batch=jb&&jb.batch;
   if(job&&(job.status==='running'||job.status==='waiting')&&!(job.phase==='processing'&&d.job)){
     const proc=job.phase==='processing';tasks.push({name:job.name+(job.season!=null?` · S${String(job.season).padStart(2,'0')}E${String(job.episode).padStart(2,'0')}`:''),
-      state:job.paused?'paused':proc?'processing':job.status==='waiting'?'waiting':'downloading',label:job.paused?'Paused':proc?'Preparing Arabic':job.status==='waiting'?'Waiting':'Downloading',
+      state:job.paused?'paused':proc?'processing':job.status==='waiting'?'waiting':'downloading',label:job.paused?'Paused':proc?'Preparing subtitles':job.status==='waiting'?'Waiting':'Downloading',
       stage:job.stage,pct:job.pct,live:!job.paused,foot:job.eta_seconds!=null&&!proc?etaText(job.eta_seconds):'',link:'/stremio',linkText:'Pause or cancel in Discover →'})}
   if(batch&&['running','stopping'].includes(batch.status)){const c=batch.counts||{},done=(c.done||0)+(c.existing||0)+(c.unavailable||0)+(c.failed||0);
     tasks.push({name:batch.name,state:'downloading',label:batch.status==='stopping'?'Stopping':'Season download',stage:batch.stage,
-      pct:batch.total?done/batch.total*100:null,live:true,foot:`${c.done||0} ready · ${c.waiting||0} waiting for Arabic · ${(c.failed||0)+(c.unavailable||0)} skipped`,link:'/stremio',linkText:'Open queue →'})}
-  if(d.job)tasks.push({name:d.job.name,state:d.job.stalled?'failed':'processing',label:d.job.stalled?'Stalled':'Preparing Arabic',stage:d.job.stage,pct:d.job.pct,live:!d.job.stalled});
+      pct:batch.total?done/batch.total*100:null,live:true,foot:`${c.done||0} ready · ${c.waiting||0} waiting for subtitles · ${(c.failed||0)+(c.unavailable||0)} skipped`,link:'/stremio',linkText:'Open queue →'})}
+  if(d.job)tasks.push({name:d.job.name,state:d.job.stalled?'failed':'processing',label:d.job.stalled?'Stalled':'Preparing subtitles',stage:d.job.stage,pct:d.job.pct,live:!d.job.stalled});
   put('tasks',tasks.length?tasks.map(task).join(''):`<div class="idle"><span class="k-state" data-state="ready"></span>Nothing running. New episodes are picked up automatically.</div>`);
   // attention vs waiting
   const att=[...(d.attention||[])],pend=d.pending||[];
@@ -155,7 +155,7 @@ async function tick(){
   if(K.lang==='ar')d.shows.forEach(s=>{if(s.local_title)s.title=s.local_title});
   put('shows',d.shows.length?d.shows.map(s=>`<a class="k-card" href="/weekly" data-title="${esc(s.title)}"><div class="k-art">${s.poster?`<img src="${esc(s.poster)}" alt="" loading="lazy">`:`<span class="k-fallback" aria-hidden="true">${esc((s.title||'?')[0])}</span>`}</div>
     <div class="k-card-title"><bdi>${esc(s.title)}</bdi></div><div class="k-card-meta">${s.latest?`${esc(s.latest)}${s.count?` · ${s.count} in library`:' · all watched'}`:'No episodes yet'}</div>${s.latest&&fill(s,+s.latest.split('E')[1])?`<div class="manual">${fill(s,+s.latest.split('E')[1])}</div>`:''}
-    ${s.manual?'<div class="manual"><span class="k-tag accent">Arabic by hand</span></div>':''}
+    ${s.manual?'<div class="manual"><span class="k-tag accent">Typeset by hand</span></div>':''}
     <div class="airing">${s.at?`<div class="ep">Ep ${esc(s.next)}${s.total?` of ${esc(s.total)}`:''} · ${esc(K.day(s.at))}${fill(s,s.next)}</div><span class="cd" data-at="${s.at}"></span>`:'<span class="k-meta">No air date announced</span>'}</div></a>`).join('')
     :`<div class="k-empty" style="grid-column:1/-1"><strong>No weekly shows yet</strong>Pick something airing this season on the <a href="/weekly">Weekly</a> page.</div>`);
   countdown();

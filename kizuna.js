@@ -27,7 +27,7 @@ function t(s){
 // never translated: titles, release and file names, the log
 const SKIP='bdi,pre,code,script,style,textarea,[translate=no],.notr,.poster strong,.suggestion strong,#title,#description,'+
   '.release strong,.release p,.release small,select#episode,.episode-check>span:first-of-type,'+
-  'select#library,select#library_movie,select#library_series,select#library_anime,select#language';   // your library names, language names
+  'select#library,select#library_movie,select#library_series,select#library_anime,select#language,select#subtitle_language';   // your library names, language names
 const ATTRS=['placeholder','aria-label','title'];
 function translateTree(root){
   if(LANG!=='ar'||!AR||!root)return;
@@ -48,7 +48,9 @@ if(LANG==='ar'&&AR){
 
 const NAV=[['now','/','Now'],['discover','/stremio','Discover'],['weekly','/weekly','Weekly'],['news','/news','News'],['settings','/settings','Settings']];
 let prefs={clock:'auto'};
-const ready=api('settings').then(d=>{prefs=d.settings;document.dispatchEvent(new CustomEvent('kizuna:settings',{detail:d}));return d}).catch(()=>null);
+const ready=api('settings').then(d=>{prefs=d.settings;
+  if(prefs.setup_done===false&&location.pathname!=='/setup'){location.replace('/setup');return d}   // first run: the setup wizard
+  document.dispatchEvent(new CustomEvent('kizuna:settings',{detail:d}));return d}).catch(()=>null);
 const hour12=()=>prefs.clock==='12h'?true:prefs.clock==='24h'?false:undefined;
 function time(ts,opts={}){return new Date(ts*1000).toLocaleString(LOCALE,{hour:'2-digit',minute:'2-digit',hour12:hour12(),...opts})}
 function day(ts){const d=new Date(ts*1000),n=new Date(),tm=new Date(n);tm.setDate(n.getDate()+1);
@@ -73,12 +75,12 @@ async function activity(){
     return set(job.paused?'paused':'downloading',`<b>${t(job.paused?'Paused':'Downloading')}</b> <bdi>${esc(job.name)}</bdi>${job.pct!=null?` · ${Math.round(job.pct)}%`:''}`,'/stremio',!job.paused);
   if(batch&&['running','stopping'].includes(batch.status)){const c=batch.counts||{};
     return set('downloading',`<b>${t('Season download')}</b> <bdi>${esc(batch.name)}</bdi> · ${(c.done||0)+(c.existing||0)} of ${batch.total||'?'}`,'/stremio',true)}
-  if(st.job)return set('processing',`<b>${t('Arabic')}</b> <bdi>${esc(st.job.name)}</bdi> · ${Math.round(st.job.pct||0)}%`,'/',true);
-  if(job&&job.status==='running')return set('processing',`<b>${t('Arabic')}</b> <bdi>${esc(job.name)}</bdi>`,'/',true);
+  if(st.job)return set('processing',`<b>${t('Subtitles')}</b> <bdi>${esc(st.job.name)}</bdi> · ${Math.round(st.job.pct||0)}%`,'/',true);
+  if(job&&job.status==='running')return set('processing',`<b>${t('Subtitles')}</b> <bdi>${esc(job.name)}</bdi>`,'/',true);
   const n=(st.attention||[]).length;
   if(n)return set('failed',`<b>${n}</b> ${t(n===1?'needs attention':'need attention')}`,'/#attention');
   const w=(st.pending||[]).length;
-  if(w)return set('waiting',`<b>${w}</b> ${t('waiting for Arabic')}`,'/#pending');
+  if(w)return set('waiting',`<b>${w}</b> ${t('waiting for subtitles')}`,'/#pending');
   set(st.tone==='bad'?'failed':'ready',st.tone==='bad'?`<b>${t('Agent stopped')}</b>`:t('All caught up'),'/');
   function set(state,html,href,live){box.href=href;const dot=box.firstElementChild;dot.dataset.state=state;dot.classList.toggle('live',!!live);
     if(box.lastElementChild.innerHTML!==html)box.lastElementChild.innerHTML=html}

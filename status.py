@@ -62,7 +62,7 @@ def _has_arabic(path):
             return c[2]
     try:
         video_tracks = agent.tracks(path)
-        ok = agent.has_arabic_audio(video_tracks) or any(t["properties"].get("track_name") == "العربية" for t in video_tracks)
+        ok = agent.has_target_audio(video_tracks) or any(agent.language.is_own(t["properties"].get("track_name")) for t in video_tracks)
     except Exception:
         ok = None
     with _lock:
@@ -274,14 +274,14 @@ def collect(pending=None, light=False):
     attention += [{"name": nice(fn), "reason": "Hit a problem. Retrying automatically", "kind": "retrying"}
                   for fn in (state.get("errors") or {})
                   if fn not in (state.get("failed") or {}) and os.path.exists(os.path.join(agent.FOLDER, fn))]
-    attention += [{"name": nice(fn), "reason": "Arabic added, but copying to Jellyfin failed. Retrying", "kind": "retrying"}
+    attention += [{"name": nice(fn), "reason": "Subtitles added, but copying to Jellyfin failed. Retrying", "kind": "retrying"}
                   for fn in (state.get("copy_failed") or {}) if os.path.exists(os.path.join(agent.FOLDER, fn))]
-    pending_items = [{"name": x, "reason": "Waiting for an Arabic subtitle"} for x in waiting]
+    pending_items = [{"name": x, "reason": "Waiting for a subtitle"} for x in waiting]
     problems = [f"{nice(fn)} — failed, skipped until the file changes"
                 for fn in (state.get("failed") or {}) if os.path.exists(os.path.join(agent.FOLDER, fn))]
     problems += [f"{nice(fn)} — retrying" for fn in (state.get("errors") or {})
                  if fn not in (state.get("failed") or {}) and os.path.exists(os.path.join(agent.FOLDER, fn))]
-    problems += [f"{nice(fn)} — Arabic added, but copying to Jellyfin failed; retrying"
+    problems += [f"{nice(fn)} — subtitles added, but copying to Jellyfin failed; retrying"
                  for fn in (state.get("copy_failed") or {}) if os.path.exists(os.path.join(agent.FOLDER, fn))]
     if job and job["stalled"]:
         problems.append(f"{job['name']} — no progress for over 10 minutes")
@@ -332,7 +332,7 @@ def collect(pending=None, light=False):
 
 
 PAGES = {"/": "dashboard.html", "/index.html": "dashboard.html", "/stremio": "stremio.html", "/weekly": "weekly.html",
-         "/settings": "settings.html", "/news": "news.html"}
+         "/settings": "settings.html", "/news": "news.html", "/setup": "setup.html"}
 ASSETS = {"/kizuna.css": ("kizuna.css", "text/css; charset=utf-8"), "/kizuna.js": ("kizuna.js", "text/javascript; charset=utf-8"),
           "/kizuna-ar.js": ("kizuna-ar.js", "text/javascript; charset=utf-8"),
           **{f"/fonts/{f}": (f"fonts/{f}", "font/ttf")                       # the subtitle fonts (Settings previews)
@@ -445,13 +445,29 @@ def make_handler(pending=None):
                 elif post and action == "subtitle-preview":
                     import settings
                     data = settings.preview(params)
+                elif not post and action == "setup-check":
+                    import setup
+                    data = setup.check()
+                elif post and action == "setup-install":
+                    import setup
+                    data = setup.install(params.get("app", ""))
+                elif post and action == "setup-folders":
+                    import setup
+                    data = setup.make_folders()
+                elif post and action == "stremio-login":
+                    import setup
+                    data = setup.stremio_login(params.get("email"), params.get("password"))
+                elif post and action == "setup-finish":
+                    import setup
+                    data = setup.finish()
                 else:
                     self.send_error(404)
                     return
                 code = 200
             except Exception as e:
                 import settings
-                data = {"error": str(e) if isinstance(e, (stremio.UserError, shows.ShowError, settings.SettingsError))
+                import setup
+                data = {"error": str(e) if isinstance(e, (stremio.UserError, shows.ShowError, settings.SettingsError, setup.SetupError))
                         else "The request could not be completed. Try another source or sync your Stremio add-ons."}
                 code = 400
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")

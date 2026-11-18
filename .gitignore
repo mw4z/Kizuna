@@ -20,3 +20,6 @@ backup/
 __pycache__/
 .venv*/
 .claude/
+/subtitle_policy.json
+/dist/
+/build/

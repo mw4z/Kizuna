@@ -1,4 +1,4 @@
-"""Durable mandatory Arabic processing for Stremio and manually added library files."""
+"""Durable mandatory subtitle processing (in the subtitle language) for Stremio and manually added library files."""
 import hashlib
 import json
 import os
@@ -11,6 +11,7 @@ import threading
 import time
 
 import agent
+import language
 
 FILE = Path(agent.HERE) / "library-processing.json"
 ROOT = Path(agent.WORK) / "library-processing"
@@ -41,8 +42,8 @@ def signature(path):
 STYLED = ("S_TEXT/ASS", "S_TEXT/SSA")
 
 
-def styled_arabic(path):
-    """True when the file already carries a styled (ASS/SSA) Arabic subtitle, whatever its track name.
+def styled_target(path):
+    """True when the file already carries a styled (ASS/SSA) subtitle in the subtitle language, whatever its name.
 
     Hand-made fansub tracks (e.g. Bleach's "العربية [Kurai Mangetsu]") are already house quality; rebuilding
     them in the plain weekly style flattened their styles, lyrics and signs (2026-11-15, Bleach 196-201)."""
@@ -51,25 +52,25 @@ def styled_arabic(path):
     except Exception:
         return False
     return any(t.get("type") == "subtitles"
-               and str(t.get("properties", {}).get("language", "")).lower() in ("ara", "ar")
+               and language.is_code(t.get("properties", {}).get("language", ""))
                and str(t.get("properties", {}).get("codec_id", "")).upper() in STYLED
                for t in tracks)
 
 
 def unchanged_reason(path):
-    """Why a library file needs no Arabic work (styled Arabic subtitles, or an Arabic dub), else None. Checked
+    """Why a library file needs no subtitle work (styled subtitles or a dub in the subtitle language), else None. Checked
     before any copy: most queued library files are dubs, and each used to be copied twice just to find out."""
-    if styled_arabic(path):
-        return "Styled Arabic subtitles already present; original unchanged"
+    if styled_target(path):
+        return "Styled subtitles in your language already present; original unchanged"
     try:
-        if agent.has_arabic_audio(agent.tracks(str(path))):
-            return "Arabic dub already present; original unchanged"
+        if agent.has_target_audio(agent.tracks(str(path))):
+            return "Dub in your subtitle language already present; original unchanged"
     except Exception:
         pass
     return None
 
 
-def leave_unchanged(key, path, destination, record=None, stage="Styled Arabic subtitles already present; original unchanged"):
+def leave_unchanged(key, path, destination, record=None, stage="Styled subtitles in your language already present; original unchanged"):
     """Record a library file that needs nothing as done, without copying or touching it."""
     record = dict(record or {}, source=str(path), destination=str(destination), manual=True,
                   metadata=(record or {}).get("metadata") or metadata_for(destination),
@@ -125,13 +126,13 @@ def decode_subtitle(data):
 
 
 def sidecar(path, folder):
-    for code in ("ar", "ara", "Arabic"):
+    for code in (*language.info()["codes"], language.name()):
         for suffix in ("srt", "ass", "vtt"):
             candidate = Path(path).with_suffix(f".{code}.{suffix}")
             if not candidate.exists():
                 continue
-            target = folder / "arabic.srt"
-            if suffix == "srt":                 # hand-made Arabic SRTs are often Windows-1256: store as UTF-8
+            target = folder / "arabic.srt"     # the worker's fixed name for the chosen subtitle (any language)
+            if suffix == "srt":                 # hand-made SRTs are often in a legacy code page: store as UTF-8
                 target.write_text(decode_subtitle(candidate.read_bytes()), encoding="utf-8", newline="")
             else:
                 subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-y", "-i", str(candidate), "-c:s", "srt", str(target)],
@@ -157,11 +158,11 @@ def submit(path, destination, metadata=None, progress=None, manual=False):
                 (folder / name).unlink(missing_ok=True)
             record = {"source": str(path), "destination": str(destination), "metadata": metadata or metadata_for(destination),
                       "manual": manual, "input_signature": signature(path), "status": "pending",
-                      "stage": "Waiting for Arabic preparation", "pct": 0}
+                      "stage": "Waiting for subtitle preparation", "pct": 0}
             record["backup"] = f"original.{record['input_signature'][0]}.{record['input_signature'][1]}{path.suffix}"
             save_record(key, record)
             if shutil.disk_usage(folder).free < path.stat().st_size * (3.2 if manual else 2.2) + 500e6:
-                record.update(status="waiting", stage="Not enough disk space for mandatory Arabic preparation; original retained", retry_at=time.time() + 1200)
+                record.update(status="waiting", stage="Not enough disk space for subtitle preparation; original retained", retry_at=time.time() + 1200)
                 save_record(key, record)
                 return record
             sidecar(path, folder)
@@ -181,7 +182,7 @@ def process_record(key, record, progress=None):
         pid = int((folder / "worker.pid").read_text(encoding="ascii"))
         arguments = psutil.Process(pid).cmdline()
         if any(Path(arg).name == "processing_worker.py" for arg in arguments) and str(folder) in arguments:
-            record.update(status="waiting", stage="Previous Arabic worker is still finishing; recovery will retry automatically", retry_at=time.time() + 30)
+            record.update(status="waiting", stage="Previous subtitle worker is still finishing; recovery will retry automatically", retry_at=time.time() + 30)
             save_record(key, record)
             return record
     except (OSError, ValueError, psutil.Error):
@@ -193,10 +194,10 @@ def process_record(key, record, progress=None):
             (folder / name).unlink(missing_ok=True)
         return leave_unchanged(key, source, destination, record, reason)
     if record.get("published_signature") and destination.exists() and signature(destination) == record["published_signature"]:
-        record.update(status="done", stage="Arabic verified and saved to Jellyfin", pct=100, completed_signature=signature(destination))
+        record.update(status="done", stage="Subtitles verified and saved to Jellyfin", pct=100, completed_signature=signature(destination))
         save_record(key, record)
         return record
-    record.update(status="running", stage="Preparing Arabic subtitles and checking timing", pct=0)
+    record.update(status="running", stage="Preparing subtitles and checking timing", pct=0)
     save_record(key, record)
     (folder / "metadata.json").write_text(json.dumps(dict(record["metadata"], _backup=record["backup"]), ensure_ascii=False), encoding="utf-8")
     (folder / "result.json").unlink(missing_ok=True)
@@ -216,7 +217,7 @@ def process_record(key, record, progress=None):
             try:
                 while process.poll() is None:
                     if time.monotonic() - started > 3 * 3600:
-                        raise TimeoutError("Arabic processing exceeded three hours")
+                        raise TimeoutError("Subtitle processing exceeded three hours")
                     try:
                         current = json.loads((folder / "progress.json").read_text(encoding="utf-8"))
                         record.update(stage=current["stage"], pct=current["pct"])
@@ -239,9 +240,9 @@ def process_record(key, record, progress=None):
                         process.kill()
                         process.wait()
             if process.returncode:
-                raise RuntimeError("Arabic worker stopped unexpectedly")
+                raise RuntimeError("Subtitle worker stopped unexpectedly")
         result = json.loads((folder / "result.json").read_text(encoding="utf-8"))
-        if result.get("leave_unchanged"):          # e.g. Arabic burned into the picture: nothing to add
+        if result.get("leave_unchanged"):          # e.g. subtitles burned into the picture: nothing to add
             if not record["manual"] and not destination.exists():   # Stremio download still in raw.media: deliver as is
                 # (a manual file the user deleted meanwhile must never come back)
                 deliver(key, record, folder / "raw.media", destination)
@@ -255,7 +256,7 @@ def process_record(key, record, progress=None):
             publish(key, record, folder)
             record.pop("attempts", None)
     except Exception as error:
-        record.update(status="waiting", stage="Arabic preparation or delivery failed; original retained. Automatic retry scheduled.",
+        record.update(status="waiting", stage="Subtitle preparation or delivery failed; original retained. Automatic retry scheduled.",
                       retry_at=backoff(record, 1200))
         agent.log(f"Library processing: {destination.name}: {type(error).__name__}")
     save_record(key, record)
@@ -284,14 +285,14 @@ def publish(key, record, folder):
     original = Path(record["source"])
     prepared = folder / "media.mkv"
     tracks = agent.tracks(str(prepared))
-    dubbed = agent.has_arabic_audio(tracks)
-    if not dubbed and not any(t.get("type") == "subtitles" and t.get("properties", {}).get("track_name") == "العربية"
-                              and t.get("properties", {}).get("language") == "ara" for t in tracks):
-        raise RuntimeError("Mandatory Arabic output track is missing")
+    dubbed = agent.has_target_audio(tracks)
+    if not dubbed and not any(t.get("type") == "subtitles" and t.get("properties", {}).get("track_name") == language.own_name()
+                              and language.is_code(t.get("properties", {}).get("language")) for t in tracks):
+        raise RuntimeError("The subtitle track Kizuna adds is missing")
     if record["manual"] and signature(original) != record["input_signature"]:
         raise RuntimeError("Original changed during processing")
     if record["manual"] and dubbed:
-        record.update(status="done", stage="Arabic dub already present; original unchanged", pct=100,
+        record.update(status="done", stage="Dub in your subtitle language already present; original unchanged", pct=100,
                       completed_signature=signature(original))
         for name in ("raw.media", "media.mkv"):
             (folder / name).unlink(missing_ok=True)
@@ -320,11 +321,11 @@ def publish(key, record, folder):
             original.unlink()
         except PermissionError:
             agent.log(f"Library processing: original still in use; retrying retirement for {original.name}")
-    record.update(status="done", stage="Arabic dub preserved" if dubbed else "Arabic subtitles and timing verified", pct=100)
+    record.update(status="done", stage="Dub preserved" if dubbed else "Subtitles and timing verified", pct=100)
     record["completed_signature"] = signature(destination)
     alert = "Kizuna: movie ready" if record["metadata"].get("type") == "movie" else "Kizuna: ready"
     try:
-        agent.notify(alert, f"{destination.stem}: Arabic preparation complete.")
+        agent.notify(alert, f"{destination.stem}: subtitles ready.")
     except Exception:
         agent.log("Library processing complete; notification unavailable")
     for name in ("raw.media", "media.mkv"):
@@ -382,7 +383,7 @@ def poll(observed):
             inbox = Path(agent.FOLDER) / path.name
             if Path(library["path"]).resolve() == Path(agent.LIBRARY).resolve() and inbox.exists() and signature(inbox) == stamp:
                 tracks = agent.tracks(str(path))
-                if agent.has_arabic_audio(tracks) or any(t.get("type") == "subtitles" and t.get("properties", {}).get("track_name") == "العربية" for t in tracks):
+                if agent.has_target_audio(tracks) or any(t.get("type") == "subtitles" and language.is_own(t.get("properties", {}).get("track_name")) for t in tracks):
                     continue
             prior = observed.get(str(path))
             observed[str(path)] = (stamp, prior[1] if prior and prior[0] == stamp else time.time())

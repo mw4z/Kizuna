@@ -1,6 +1,8 @@
 """Tests for the automatic fansub picker (fansub.py) and its use by the processing worker."""
-import json
 import os
+os.environ.setdefault("KIZUNA_SUBTITLE_LANGUAGE", "ar")   # this suite tests the Arabic pipeline
+FIXTURE_POLICY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "subtitle_policy.json")
+import json
 import shutil
 import tempfile
 import unittest
@@ -25,7 +27,7 @@ def srt(lines=120, text="مرحبا بك يا صديقي العزيز"):
 
 class Policy(unittest.TestCase):
     def test_modes_by_name_and_id(self):
-        with mock.patch.object(fansub, "POLICY_FILE", "missing.json"):      # built-in defaults
+        with mock.patch.object(fansub, "POLICY_FILE", FIXTURE_POLICY):      # the test show rules (Bleach, Conan)
             self.assertEqual(fansub.mode_for("Bleach"), "fansub_first")
             self.assertEqual(fansub.mode_for("المطهر"), "fansub_first")
             self.assertEqual(fansub.mode_for("", "tt0434665"), "fansub_first")
@@ -212,10 +214,10 @@ class Worker(unittest.TestCase):
             if picked:
                 Path(destination).write_text(srt(), encoding="utf-8")
             return picked
-        with mock.patch.object(agent, "tracks", return_value=[]), mock.patch.object(agent, "arabic_track", return_value=embedded), \
+        with mock.patch.object(agent, "tracks", return_value=[]), mock.patch.object(agent, "target_track", return_value=embedded), \
                 mock.patch.object(agent, "process", return_value=True) as process, \
-                mock.patch.object(worker, "fetch_arabic", side_effect=fetch) as f, \
-                mock.patch.object(fansub, "POLICY_FILE", "missing.json"):
+                mock.patch.object(worker, "fetch_subtitle", side_effect=fetch) as f, \
+                mock.patch.object(fansub, "POLICY_FILE", FIXTURE_POLICY):
             ready = worker.prepare(folder)
         return ready, process, f
 
@@ -269,17 +271,17 @@ class Identify(unittest.TestCase):
         self.assertIsNone(worker.identify(s, {"name": "Bleach"}, "series"))          # no year: ambiguous
 
     def test_policy_pins_whole_title_only(self):
-        with mock.patch.object(fansub, "POLICY_FILE", "missing.json"):
+        with mock.patch.object(fansub, "POLICY_FILE", FIXTURE_POLICY):
             self.assertEqual(fansub.imdb_for("Bleach"), "tt0434665")
             self.assertEqual(fansub.imdb_for("المطهر"), "tt0434665")
             self.assertIsNone(fansub.imdb_for("Bleach: Thousand-Year Blood War"))
             self.assertIsNone(fansub.imdb_for("Blue Box"))
 
     def test_unidentified_show_is_logged_not_silent(self):
-        with mock.patch.object(fansub, "POLICY_FILE", "missing.json"), \
+        with mock.patch.object(fansub, "POLICY_FILE", FIXTURE_POLICY), \
                 mock.patch.object(worker, "identify", return_value=None), \
                 mock.patch.object(agent, "log") as log, mock.patch.object(fansub, "pick") as pick:
-            self.assertIsNone(worker.fetch_arabic({"type": "series", "season": 1, "episode": 1,
+            self.assertIsNone(worker.fetch_subtitle({"type": "series", "season": 1, "episode": 1,
                                                    "meta": {"name": "Some Show"}}, "o.srt", "fansub", "v.mkv"))
         pick.assert_not_called()
         self.assertTrue(any("could not identify" in str(c) for c in log.call_args_list))
@@ -287,8 +289,8 @@ class Identify(unittest.TestCase):
 
 class AgentFallback(unittest.TestCase):
     def test_weekly_episode_uses_clean_show_title_and_policy(self):
-        with mock.patch.object(worker, "fetch_arabic", return_value="fan") as f, mock.patch.object(agent, "log"):
-            self.assertTrue(agent.addon_arabic("[DKB] Tokyo Revengers Santen Sensou-hen - S04E08 [1080p].mkv",
+        with mock.patch.object(worker, "fetch_subtitle", return_value="fan") as f, mock.patch.object(agent, "log"):
+            self.assertTrue(agent.addon_subtitle("[DKB] Tokyo Revengers Santen Sensou-hen - S04E08 [1080p].mkv",
                                                "v.mkv", "out.srt"))
         meta, out, mode, video = f.call_args.args
         self.assertEqual(meta, {"type": "series", "season": 4, "episode": 8, "meta": {"name": "Tokyo Revengers"}})

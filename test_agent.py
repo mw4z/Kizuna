@@ -1,7 +1,8 @@
 """Arabic dubs must bypass subtitle downloads, styling, timing, and muxing."""
+import os
+os.environ.setdefault("KIZUNA_SUBTITLE_LANGUAGE", "ar")   # this suite tests the Arabic pipeline
 import ast
 import json
-import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -25,17 +26,17 @@ class Tests(unittest.TestCase):
     def test_dub_detection_uses_audio_not_subtitles(self):
         for track in (audio(language="ara"), audio(language_ietf="ar-EG"), audio(track_name="Arabic (dub)"),
                       audio(track_name="العربية")):
-            self.assertTrue(agent.has_arabic_audio([audio(language="jpn"), track]))
-        self.assertFalse(agent.has_arabic_audio([{"type": "subtitles", "properties": {"language": "ara"}}]))
-        self.assertFalse(agent.has_arabic_audio([audio(language="ara", flag_commentary=True)]))
-        self.assertFalse(agent.has_arabic_audio([audio(language="ara", track_name="Arabic commentary")]))
-        self.assertFalse(agent.has_arabic_audio([audio(language="jpn")]))
+            self.assertTrue(agent.has_target_audio([audio(language="jpn"), track]))
+        self.assertFalse(agent.has_target_audio([{"type": "subtitles", "properties": {"language": "ara"}}]))
+        self.assertFalse(agent.has_target_audio([audio(language="ara", flag_commentary=True)]))
+        self.assertFalse(agent.has_target_audio([audio(language="ara", track_name="Arabic commentary")]))
+        self.assertFalse(agent.has_target_audio([audio(language="jpn")]))
 
     def test_dub_is_copied_without_any_subtitle_work(self):
         state = {"errors": {"dub.mkv": 2}, "failed": {"dub.mkv": 123}}
         with patch.object(agent, "tracks", return_value=[audio(language="ara")]), \
                 patch.object(agent, "copy_to_library") as copy, patch.object(agent, "show"), \
-                patch.object(agent, "log"), patch.object(agent, "nyaa_arabic") as download, \
+                patch.object(agent, "log"), patch.object(agent, "nyaa_subtitle") as download, \
                 patch.object(agent.srt2ass, "convert") as convert, patch.object(agent, "timing") as timing, \
                 patch.object(agent.mux, "mux") as mux:
             agent.process("dub.mkv", state)
@@ -47,8 +48,8 @@ class Tests(unittest.TestCase):
     def test_ordinary_episode_still_searches_for_arabic_subtitles(self):
         state = {"nyaa_tries": {}, "told": {}}
         with patch.object(agent, "tracks", return_value=[audio(language="jpn")]), \
-                patch.object(agent, "arabic_track", return_value=None), \
-                patch.object(agent, "nyaa_arabic", return_value=False) as download, \
+                patch.object(agent, "target_track", return_value=None), \
+                patch.object(agent, "nyaa_subtitle", return_value=False) as download, \
                 patch.object(agent, "show"), patch.object(agent, "notify"):
             agent.process("[DKB] Test - S01E01.mkv", state)
             download.assert_called_once()

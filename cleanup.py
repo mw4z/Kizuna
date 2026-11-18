@@ -31,7 +31,7 @@ def keep_seconds():
         return settings.get("keep_hours") * 3600
     except Exception:
         return 30 * 86400
-ANIME = r"C:\Users\moody\Downloads\Anime"          # finished shows (Bleach, البؤساء); Movies is never cleaned
+ANIME = agent.folder_setting("folder_anime")       # finished shows (Settings > Folders); Movies is never cleaned
 
 
 def inside(path, lib):

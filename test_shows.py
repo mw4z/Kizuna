@@ -1,8 +1,9 @@
 """Weekly shows: the private list, add/edit/remove, linking, and DKB + Stremio as competing sources.
 Temp folders only; AniList, DKB and Stremio are simulated."""
+import os
+os.environ.setdefault("KIZUNA_SUBTITLE_LANGUAGE", "ar")   # this suite tests the Arabic pipeline
 from datetime import datetime, timezone
 import json
-import os
 from pathlib import Path
 import threading
 import time
@@ -408,7 +409,7 @@ class StremioWeekly(ShowsSandbox):
         md = {"type": "series", "id": "tt9:5:64", "season": 2, "episode": 4, "meta": {"id": "tt9", "name": "Kaiju Squad"}}
         with mock.patch.object(s, "get_json", return_value={"meta": {"name": "Kaiju Squad"}}), \
                 mock.patch.object(worker.fansub, "pick", return_value="Arabic") as pick:
-            worker.fetch_arabic(md, "out.srt", "official_ok", "media.mkv")
+            worker.fetch_subtitle(md, "out.srt", "official_ok", "media.mkv")
         self.assertEqual(pick.call_args.args[1:4], ("tt9", 5, 64))
 
 

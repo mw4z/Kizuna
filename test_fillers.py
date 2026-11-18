@@ -1,3 +1,5 @@
+import os
+os.environ.setdefault("KIZUNA_SUBTITLE_LANGUAGE", "ar")   # this suite tests the Arabic pipeline
 import unittest
 from unittest.mock import patch
 import fillers

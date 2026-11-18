@@ -37,7 +37,7 @@ details.adv summary{cursor:pointer;color:var(--k-text-2);font-size:12.5px;margin
 <header class="k-top"></header>
 <main class="k-page">
 <div class="head"><div><h1 class="k-title">Weekly</h1>
-<p class="k-lede">Shows you follow are fetched as each episode releases, get Arabic subtitles and land in Jellyfin. DKB and your Stremio add-ons both look; whichever has the episode first is used.</p></div>
+<p class="k-lede">Shows you follow are fetched as each episode releases, get subtitles in your language and land in Jellyfin. DKB and your Stremio add-ons both look; whichever has the episode first is used.</p></div>
 <button class="k-btn" id="check" type="button">Check for new episodes</button></div>
 <div class="k-note" id="topMsg" role="status" style="margin-top:14px"></div>
 
@@ -66,7 +66,7 @@ details.adv summary{cursor:pointer;color:var(--k-text-2);font-size:12.5px;margin
   <details class="adv"><summary>Episode numbering</summary><div class="two" style="grid-template-columns:1fr 1fr;margin-top:10px">
    <label class="k-field">Stremio season<input id="fSSeason" type="number" min="0" max="99"></label>
    <label class="k-field">Library episode = Stremio episode +<input id="fOffset" type="number" min="-5000" max="5000"></label></div></details></div>
- <label class="k-field">Arabic subtitles<select id="fPolicy">
+ <label class="k-field">Subtitles<select id="fPolicy">
   <option value="official_ok">Official or fan translation, whichever is found</option>
   <option value="fansub_first">Fan translation first, official if none</option>
   <option value="fansub">Fan translation only</option>
@@ -100,7 +100,7 @@ async function loadList(){
    <span class="k-tag${s.policy==='manual'?' accent':''}">${esc(POL[s.policy]||'Official or fan')}</span>
    ${(s.not_found||[]).length?`<span class="k-tag warn" title="No Stremio source within ${3} days">${s.not_found.length} not found on Stremio</span>`:''}</div></div>
    <div class="acts">${!st&&s.anilist?`<button type="button" class="k-btn k-btn-sm k-btn-ghost" data-link="${i}">Link Stremio</button>`:''}<button type="button" class="k-btn k-btn-sm" data-edit="${i}">Edit</button><button type="button" class="k-btn k-btn-sm k-btn-ghost k-btn-danger" data-rm="${i}">Remove</button></div></div>`}).join('')
-  :'<div class="k-empty"><strong>Not following anything yet</strong>Pick a show below. New episodes will arrive with Arabic subtitles.</div>';
+  :'<div class="k-empty"><strong>Not following anything yet</strong>Pick a show below. New episodes will arrive with subtitles in your language.</div>';
   markFollowed()}catch(e){say($('topMsg'),e.message,'bad')}}
 
 let cards=[];
@@ -158,7 +158,7 @@ $('form').addEventListener('submit',async e=>{e.preventDefault();const st=linked
  if(st&&st.id)Object.assign(body,{stremio_id:st.id,stremio_type:st.type||'series',stremio_season:String($('fSSeason').value||st.season),stremio_offset:String($('fOffset').value||0)});
  if(editing)body.original=editing.release;
  $('save').disabled=true;try{await api(editing?'shows-edit':'shows-add',body);$('dlg').close();
-  say($('topMsg'),editing?'Saved.':`Following ${body.folder}. New episodes will arrive with Arabic subtitles.`,'ok');loadList()}
+  say($('topMsg'),editing?'Saved.':`Following ${body.folder}. New episodes will arrive with subtitles in your language.`,'ok');loadList()}
  catch(err){say($('fMsg'),err.message,'bad')}finally{$('save').disabled=false}});
 $('check').onclick=async()=>{$('check').disabled=true;try{await api('shows-check',{});say($('topMsg'),'Checking DKB and Stremio now. New episodes appear on the Now page.','ok')}
  catch(e){say($('topMsg'),e.message,'bad')}finally{setTimeout(()=>$('check').disabled=false,5000)}};
