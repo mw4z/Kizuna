@@ -21,39 +21,72 @@ class Prefs(Sandbox):
         super().setUp()
         self.p = mock.patch.object(settings, "FILE", Path(self.tmp, "settings.json"))
         self.p.start()
-        settings._cache["stamp"] = "reset"
+        self.r = mock.patch.object(shows, "RESETS", Path(self.tmp, "shows-pending.json"))
+        self.r.start()
+        settings._cache.update(stamp="reset", data=dict(settings.DEFAULTS), damaged=False)
 
     def tearDown(self):
         self.p.stop()
-        settings._cache["stamp"] = "reset"
+        self.r.stop()
+        settings._cache.update(stamp="reset", data=dict(settings.DEFAULTS), damaged=False)
         super().tearDown()
 
     def test_missing_or_damaged_file_means_todays_defaults(self):
         self.assertEqual(settings.get(), settings.DEFAULTS)
         settings.FILE.write_text("{broken", encoding="utf-8")
         self.assertEqual(settings.get(), settings.DEFAULTS)
-        settings.FILE.write_text(json.dumps({"check_minutes": 9999, "weekly_audio": ["xx"], "clock": "13h"}), encoding="utf-8")
+        settings.FILE.write_text(json.dumps({"check_minutes": 9999, "anime_audio": ["xx"], "clock": "13h"}), encoding="utf-8")
         self.assertEqual(settings.get(), settings.DEFAULTS)                       # bad values fall back, never crash
 
     def test_update_validates_and_keeps_the_old_file_on_error(self):
         with mock.patch.object(s, "libraries", return_value=[{"name": "Anime"}, {"name": "Movies"}]):
-            saved = settings.update({"weekly_audio": "ar,ja", "weekly_resolutions": "1080p", "check_minutes": "30",
+            saved = settings.update({"anime_audio": "ar,ja", "anime_resolutions": "1080p", "check_minutes": "30",
                                      "keep_hours": "72", "notify_ready": "false", "clock": "24h", "library_movie": "Movies"})
-        self.assertEqual(saved["settings"]["weekly_audio"], ["ar", "ja"])
+        self.assertEqual(saved["settings"]["anime_audio"], ["ar", "ja"])
+        self.assertEqual(saved["settings"]["screen_audio"], ["en"])                 # movies & series untouched
         self.assertEqual((settings.get("check_minutes"), settings.get("keep_hours"), settings.get("notify_ready")), (30, 72, False))
         before = settings.FILE.read_text(encoding="utf-8")
-        for bad in ({"check_minutes": "1"}, {"keep_hours": "0"}, {"weekly_audio": ""}, {"weekly_resolutions": "999p"},
+        for bad in ({"check_minutes": "1"}, {"keep_hours": "0"}, {"anime_audio": ""}, {"screen_audio": ""}, {"screen_resolutions": "999p"},
                     {"clock": "never"}, {"library_movie": "../x"}):
             with self.assertRaises(settings.SettingsError):
                 settings.update(bad)
         self.assertEqual(settings.FILE.read_text(encoding="utf-8"), before)
 
-    def test_weekly_source_choices_follow_languages_and_resolutions(self):
-        settings.update({"weekly_audio": "ja,en", "weekly_resolutions": "1080p,720p", "weekly_subtitle": "en"})
-        prefs = shows.preferences()
-        self.assertEqual([(p["resolution"], p["audio"]) for p in prefs],
-                         [("1080p", "ja"), ("1080p", "en"), ("720p", "ja"), ("720p", "en")])
-        self.assertEqual({p["subtitle"] for p in prefs}, {"en"})
+    def test_anime_and_movies_have_their_own_defaults(self):
+        s = settings.get()
+        self.assertEqual((s["anime_audio"], s["screen_audio"]), (["ja"], ["en"]))
+
+    def test_values_saved_before_the_split_carry_over_to_anime(self):
+        settings.FILE.write_text(json.dumps({"weekly_audio": ["ko"], "weekly_resolutions": ["720p"]}), encoding="utf-8")
+        s = settings.get()
+        self.assertEqual((s["anime_audio"], s["anime_resolutions"], s["screen_audio"]), (["ko"], ["720p"], ["en"]))
+
+    def test_damaged_file_keeps_the_last_good_values_and_cleanup_holds_off(self):
+        settings.update({"keep_hours": "720", "check_minutes": "60"})
+        self.assertEqual(cleanup.keep_seconds(), 720 * 3600)
+        time.sleep(0.01)
+        settings.FILE.write_text("{broken", encoding="utf-8")
+        settings._cache["stamp"] = "changed"
+        self.assertEqual(settings.get("keep_hours"), 720)                      # not the 24 h default
+        self.assertTrue(settings.damaged())
+        self.assertEqual(cleanup.keep_seconds(), 30 * 86400)                   # never earlier than the user chose
+
+    def test_hand_edited_nonsense_never_raises(self):
+        for raw in ('{"anime_audio": [["ja"]], "keep_hours": {"x": 1}}', '[1, 2]', '"text"', '{"anime_resolutions": [null]}'):
+            settings.FILE.write_text(raw, encoding="utf-8")
+            settings._cache["stamp"] = "changed"
+            self.assertIsInstance(settings.get(), dict)
+            self.assertGreater(settings.minutes(), 0)
+
+    def test_language_beats_resolution_and_extra_subtitle_is_optional(self):
+        settings.update({"anime_audio": "ja,en", "anime_resolutions": "1080p,720p", "anime_subtitle": "en"})
+        prefs = [(p["audio"], p["resolution"], p["subtitle"]) for p in shows.preferences()]
+        self.assertEqual(prefs[:4], [("ja", "1080p", "en"), ("ja", "1080p", "none"), ("ja", "720p", "en"), ("ja", "720p", "none")])
+        self.assertEqual(prefs[4][0], "en")
+
+    def test_weekly_source_choices_use_the_anime_settings_only(self):
+        settings.update({"anime_audio": "ja", "anime_resolutions": "720p", "anime_subtitle": "none", "screen_audio": "ar"})
+        self.assertEqual({(p["audio"], p["resolution"]) for p in shows.preferences()}, {("ja", "720p")})
 
     def test_cleanup_waits_as_long_as_the_setting_says(self):
         settings.update({"keep_hours": "72"})
@@ -107,7 +140,7 @@ class Pages(Sandbox):
             return e.code, "", b""
 
     def test_every_page_shares_the_shell_and_gets_the_token(self):
-        for path in ("/", "/stremio", "/weekly", "/settings"):
+        for path in ("/", "/stremio", "/weekly", "/settings", "/news"):
             code, ctype, body = self.get(path)
             page = body.decode("utf-8")
             self.assertEqual(code, 200, path)
@@ -133,6 +166,28 @@ class Pages(Sandbox):
         self.assertEqual(code, 200)
         self.assertEqual(json.loads(body)["settings"], settings.DEFAULTS)
         self.assertEqual(self.get("/", host="evil.example")[0], 403)
+
+    def test_pages_and_api_refuse_to_be_framed(self):
+        for path, token in (("/", False), ("/settings", False), ("/api/stremio/settings", True)):
+            req = urllib.request.Request(self.base + path, headers={"X-MyAnimeWatcher": s.TOKEN} if token else {})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                self.assertEqual(r.headers["X-Frame-Options"], "DENY", path)
+                self.assertIn("frame-ancestors 'none'", r.headers["Content-Security-Policy"])
+
+    def test_light_status_skips_the_jellyfin_database(self):
+        import status
+        with mock.patch.object(status, "_deletions", side_effect=AssertionError("db copy")), \
+                mock.patch.object(status, "_shows", side_effect=AssertionError("artwork")):
+            d = status.collect(light=True)
+        self.assertEqual((d["deletions"], d["shows"]), ([], []))
+
+    def test_news_route_validates_the_section(self):
+        import news
+        with mock.patch.object(news, "latest", return_value={"items": [], "updated": 0, "failed": [], "sources": []}) as latest:
+            self.assertEqual(self.get("/api/stremio/news?kind=anime", token=True)[0], 200)
+            self.assertEqual(self.get("/api/stremio/news?kind=../x", token=True)[0], 400)
+        latest.assert_called_once_with("anime")
+        self.assertEqual(self.get("/news")[0], 200)
 
     def test_status_separates_real_problems_from_waiting(self):
         import status

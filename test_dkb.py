@@ -26,7 +26,8 @@ class DKBTests(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory()             # never look at the real library, inbox or state files
         self.addCleanup(tmp.cleanup)
         for p in [patch.object(dkb.agent, n, tmp.name) for n in ("LIBRARY", "FOLDER", "HERE")] + \
-                 [patch.object(shows, "STATE", Path(tmp.name) / "weekly-state.json")]:
+                 [patch.object(shows, "STATE", Path(tmp.name) / "weekly-state.json"),
+                  patch.object(shows, "RESETS", Path(tmp.name) / "shows-pending.json")]:
             p.start()
             self.addCleanup(p.stop)
 

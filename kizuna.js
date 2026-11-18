@@ -8,7 +8,7 @@ async function api(path,data){
     headers:{'X-MyAnimeWatcher':token,'Content-Type':'application/json'},...(data===undefined?{}:{body:JSON.stringify(data)})});
   let d;try{d=await r.json()}catch{throw new Error('Kizuna restarted. Reload this page.')}
   if(!r.ok||d.error)throw new Error(d.error||'The request failed. Try again.');return d}
-const NAV=[['now','/','Now'],['discover','/stremio','Discover'],['weekly','/weekly','Weekly'],['settings','/settings','Settings']];
+const NAV=[['now','/','Now'],['discover','/stremio','Discover'],['weekly','/weekly','Weekly'],['news','/news','News'],['settings','/settings','Settings']];
 let prefs={clock:'auto'};
 const ready=api('settings').then(d=>{prefs=d.settings;document.dispatchEvent(new CustomEvent('kizuna:settings',{detail:d}));return d}).catch(()=>null);
 const hour12=()=>prefs.clock==='12h'?true:prefs.clock==='24h'?false:undefined;
@@ -22,13 +22,13 @@ function shell(page){
   const top=document.querySelector('.k-top');if(!top)return;
   top.innerHTML=`<div class="k-top-in"><a class="k-brand" href="/" aria-label="Kizuna home"><span class="k-seal" aria-hidden="true">絆</span><span class="k-word">Kizuna</span></a>
   <nav class="k-nav" aria-label="Main">${NAV.map(([id,href,label])=>`<a href="${href}"${id===page?' aria-current="page"':''}>${label}</a>`).join('')}</nav>
-  <a class="k-activity" id="kActivity" href="/" aria-live="polite"><span class="k-state" data-state="idle"></span><span>Checking…</span></a></div>`;
+  <a class="k-activity" id="kActivity" href="/"><span class="k-state" data-state="idle"></span><span>Checking…</span></a></div>`;
   activity();setInterval(activity,4000);
 }
 async function activity(){
   const box=document.getElementById('kActivity');if(!box)return;
   let st=null,jb=null;
-  try{[st,jb]=await Promise.all([fetch('/api/status',{cache:'no-store'}).then(r=>r.json()),api('job').catch(()=>null)])}
+  try{[st,jb]=await Promise.all([fetch('/api/status?light=1',{cache:'no-store'}).then(r=>r.json()),api('job').catch(()=>null)])}
   catch{return set('failed','Kizuna is not responding','/')}
   const job=jb&&jb.job,batch=jb&&jb.batch;
   if(job&&job.status==='running'&&job.phase!=='processing')

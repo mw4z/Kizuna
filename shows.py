@@ -107,15 +107,38 @@ def claim(release, episode_tag, source):
         return True
 
 
-def request_reset(release):
+RESETS = Path(agent.HERE) / "shows-pending.json"   # resets / renames not yet applied by a poller (survives restarts)
+
+
+def _pending():
+    try:
+        data = json.loads(RESETS.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def request_reset(release, renamed_to=None):
+    """Ask both pollers to restart a show from its (new) starting point; with renamed_to, also carry its history
+    (finished episodes) over to the new release name so nothing is fetched twice."""
     with _lock:
         _resets["dkb"].add(release)
         _resets["stremio"].add(release)
+        data = _pending()
+        for source in ("dkb", "stremio"):
+            data.setdefault(source, {})[release] = renamed_to or release
+        agent.write_atomic(RESETS, json.dumps(data, ensure_ascii=False))
 
 
 def take_resets(source):
+    """{old release name: current name} to reset for this poller (memory + the persisted file), then forget them."""
     with _lock:
-        out, _resets[source] = set(_resets[source]), set()
+        data = _pending()
+        out = dict(data.pop(source, {}) or {})
+        out.update({r: out.get(r, r) for r in _resets[source]})
+        _resets[source] = set()
+        if RESETS.exists():
+            agent.write_atomic(RESETS, json.dumps(data, ensure_ascii=False))
         return out
 
 
@@ -164,7 +187,8 @@ def have_episode(show, episode_tag):
 # ---------------------------------------------------------------- AniList
 ANILIST_URL = "https://graphql.anilist.co"
 FIELDS = ("id title{romaji english} synonyms format season seasonYear episodes status "
-          "nextAiringEpisode{episode airingAt} coverImage{large} startDate{year}")
+          "nextAiringEpisode{episode airingAt} coverImage{large} bannerImage description(asHtml:false) genres "
+          "startDate{year}")
 _recommend = {"t": 0, "data": None}
 
 
@@ -190,7 +214,13 @@ def current_season(now=None):
 def card(m, followed, new_season):
     nxt = m.get("nextAiringEpisode") or {}
     poster = (m.get("coverImage") or {}).get("large") or ""
+    banner = m.get("bannerImage") or ""
+    about = re.sub(r"\s+", " ", re.sub(r"<[^>]+>|\(Source:[^)]*\)", " ", __import__("html").unescape(m.get("description") or ""))).strip()
+    if len(about) > 320:
+        about = about[:320].rsplit(" ", 1)[0].rstrip(".,;: ") + "…"
     return {"anilist": m["id"], "title": m["title"].get("english") or m["title"]["romaji"], "romaji": m["title"]["romaji"],
+            "banner": banner if banner.startswith("https://s4.anilist.co/") else "", "about": about,
+            "genres": [g for g in (m.get("genres") or []) if isinstance(g, str)][:3],
             "year": (m.get("startDate") or {}).get("year"), "episodes": m.get("episodes"), "next": nxt.get("episode"),
             "at": nxt.get("airingAt"), "poster": poster if poster.startswith("https://s4.anilist.co/") else "",
             "new": new_season, "followed": m["id"] in followed}
@@ -415,7 +445,7 @@ def edit(form):
             raise ShowError("An episode of this show is still being prepared. Rename it once that has finished.")
         if any(show.get(k) != current.get(k) for k in ("season", "from", "release")) or \
                 (show.get("stremio") or {}).get("season") != (current.get("stremio") or {}).get("season"):
-            request_reset(current["release"])          # start again from the new point
+            request_reset(current["release"], renamed_to=show["release"])   # restart from the new point, keep history
         if show["folder"] != current["folder"]:
             old, new = Path(agent.LIBRARY) / current["folder"], Path(agent.LIBRARY) / show["folder"]
             if new.exists():
@@ -487,10 +517,14 @@ GIVE_UP_DAYS = 3        # an episode no Stremio source offers this long after it
 
 
 def read_state():
+    """The Stremio ledger. Missing = a fresh start; damaged = fail closed (raise): rewriting it from scratch would
+    re-download episodes that were already watched and recycled."""
     try:
         state = json.loads(STATE.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except FileNotFoundError:
         state = {}
+    if not isinstance(state, dict):
+        raise ValueError("weekly-state.json is damaged")
     for k in ("baseline", "done", "fails", "skipped"):
         state.setdefault(k, {})
     return state
@@ -501,11 +535,16 @@ def write_state(state):
 
 
 def preferences():
-    """Source choices for weekly episodes, best first: every preferred audio language at every resolution (Settings)."""
+    """Source choices for weekly anime episodes, best first: each preferred anime audio language at each resolution
+    (Settings → Anime)."""
     import settings
     s = settings.get()
-    return [{"audio": audio, "subtitle": s["weekly_subtitle"], "resolution": res, "hdr": "Unspecified", "provider": ""}
-            for res in s["weekly_resolutions"] for audio in s["weekly_audio"]]
+    out = []
+    for audio in s["anime_audio"]:                # a preferred language beats a higher resolution
+        for res in s["anime_resolutions"]:
+            for sub in dict.fromkeys((s["anime_subtitle"], "none")):   # the extra subtitle is kept when offered, never required
+                out.append({"audio": audio, "subtitle": sub, "resolution": res, "hdr": "Unspecified", "provider": ""})
+    return out
 
 
 def catalog_meta(st):
@@ -570,13 +609,22 @@ def _season_key(show):
 def stremio_poll():
     import stremio as s
     import stremio_batch as b
-    state = read_state()
-    for release in take_resets("stremio"):
-        for k in [k for k in state["baseline"] if k.split("|")[0] == release]:
+    try:
+        state = read_state()
+    except ValueError:
+        agent.log("Stremio weekly: weekly-state.json is damaged; not checking until it is repaired or removed")
+        return None
+    resets = take_resets("stremio")
+    for old, new in resets.items():
+        for k in [k for k in state["baseline"] if k.split("|")[0] == old]:
             del state["baseline"][k]
         for bucket in ("fails", "skipped"):
-            for k in [k for k in state[bucket] if k.split("|")[0] == release]:
+            for k in [k for k in state[bucket] if k.split("|")[0] == old]:
                 del state[bucket][k]
+        if new != old:                             # renamed: finished episodes keep counting as finished
+            for k in [k for k in state["done"] if k.split("|")[0] == old]:
+                state["done"][new + "|" + k.split("|", 1)[1]] = state["done"].pop(k)
+    if resets:
         write_state(state)
     for show in load():
         st = show.get("stremio") or {}
@@ -607,6 +655,8 @@ def stremio_poll():
                 continue
             if s._job_lock.locked() or b.active():
                 return state                       # the user is downloading something: next check
+            if not any(x["release"] == release for x in load()):
+                break                              # stopped following it during this check
             if not claim(release, ep_tag, "stremio"):
                 continue                           # DKB is fetching it right now
             try:
@@ -653,13 +703,17 @@ def run_stremio():
             stremio_poll()
         except Exception as e:
             agent.log(f"Stremio weekly: check failed ({type(e).__name__})")
-        wake_stremio.wait(settings.get("check_minutes") * 60)
+        wake_stremio.wait(settings.minutes())
         wake_stremio.clear()
 
 
 def overview():
     """The followed list for the page, with each source's state."""
-    dkb_state, weekly = {}, read_state()
+    dkb_state = {}
+    try:
+        weekly = read_state()
+    except ValueError:
+        weekly = {"baseline": {}, "done": {}, "fails": {}, "skipped": {}}
     try:
         dkb_state = json.loads((Path(agent.HERE) / "dkb-state.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):

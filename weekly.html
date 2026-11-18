@@ -92,7 +92,7 @@ async function loadList(){
   $('list').innerHTML=following.length?following.map((s,i)=>{const st=s.stremio;
    return `<div class="follow" data-title="${esc(s.folder)}"><div class="k-art">${art(s.poster,s.folder)}</div><div style="min-width:0">
    <div class="follow-title" dir="auto">${esc(s.folder)}</div>
-   <div class="follow-meta">Season ${esc(s.season)} · ${s.episodes?`${s.episodes} to watch`:'nothing waiting'}${s.latest?` · latest ${esc(s.latest)}`:s.dkb_after?` · following after ${esc(s.dkb_after)}`:''}${s.from?` · from episode ${esc(s.from)}`:''}</div>
+   <div class="follow-meta">Season ${esc(s.season)} · ${s.episodes?`${s.episodes} in library`:'nothing in library'}${s.latest?` · latest ${esc(s.latest)}`:s.dkb_after?` · following after ${esc(s.dkb_after)}`:''}${s.from?` · from episode ${esc(s.from)}`:''}</div>
    <div class="tags"><span class="k-tag ${s.dkb?'on':''}">DKB ${s.dkb?'on':'off'}</span>
    ${st?`<span class="k-tag ${st.on?'on':''}">Stremio ${st.on?'on':'off'}</span>`:''}
    <span class="k-tag${s.policy==='manual'?' accent':''}">${esc(POL[s.policy]||'Official or fan')}</span>
@@ -120,7 +120,8 @@ function sources(l){const d=l.dkb,st=l.stremio;
  $('dDkb').innerHTML=d?`<b>Found</b> “${esc(d.release)}”, latest S${String(d.season).padStart(2,'0')}E${String(d.latest).padStart(2,'0')}`:'<b>Not on DKB</b>. Stremio will be the source.';
  $('srcStremio').className='src '+(st?'found':'missing');$('fStremio').checked=!!st;$('fStremio').disabled=!st;
  $('dStremio').innerHTML=st?`<b>Found</b> ${esc(st.name)}, season ${esc(st.season)}${st.latest?`, latest episode ${esc(st.latest)}`:''}`:'<b>Not found</b> in your Stremio add-ons.';
- $('fSSeason').value=st?st.season:'';$('fOffset').value=st?st.offset||0:'';linked=l}
+ $('fSSeason').value=st?st.season:'';$('fOffset').value=st?st.offset||0:'';linked=l;
+ if(d&&st&&st.latest&&d.latest!==st.latest+(st.offset||0)){$('dStremio').innerHTML+=` <br><b style="color:var(--k-wait)">Check numbering:</b> DKB's latest is episode ${esc(d.latest)}, Stremio's is ${esc(st.latest)}. One may simply be a day ahead; if they really count differently, set the offset under “Episode numbering”.`;$('srcStremio').querySelector('details').open=true}}
 function openForm(l,show){editing=show||null;say($('fMsg'),'');
  const title=show?show.folder:l.title,pic=show?show.poster:poster[l.anilist];
  $('fArt').innerHTML=art(pic,title);$('fTitle').textContent=show?`Edit ${show.folder}`:`Follow ${l.title}`;

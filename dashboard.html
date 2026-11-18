@@ -48,7 +48,7 @@ pre.log{margin:10px 0 0;background:var(--k-sunken);border:1px solid var(--k-line
 
   <section class="k-section" aria-labelledby="hProgress" style="margin-top:32px">
     <div class="k-section-head"><h2 class="k-h" id="hProgress">In progress</h2><span class="k-meta"><a href="/stremio">Discover &amp; download →</a></span></div>
-    <div id="tasks" aria-live="polite"></div>
+    <div id="tasks"></div>
   </section>
 
   <section class="k-section" id="attention" aria-labelledby="hAttention" hidden>
@@ -135,7 +135,7 @@ async function tick(){
   // weekly shows
   $('showCount').textContent=d.shows.length||'';
   put('shows',d.shows.length?d.shows.map(s=>`<a class="k-card" href="/weekly" data-title="${esc(s.title)}"><div class="k-art">${s.poster?`<img src="${esc(s.poster)}" alt="" loading="lazy">`:`<span class="k-fallback" aria-hidden="true">${esc((s.title||'?')[0])}</span>`}</div>
-    <div class="k-card-title"><bdi>${esc(s.title)}</bdi></div><div class="k-card-meta">${s.latest?`${esc(s.latest)}${s.count?` · ${s.count} to watch`:' · all watched'}`:'No episodes yet'}</div>
+    <div class="k-card-title"><bdi>${esc(s.title)}</bdi></div><div class="k-card-meta">${s.latest?`${esc(s.latest)}${s.count?` · ${s.count} in library`:' · all watched'}`:'No episodes yet'}</div>
     ${s.manual?'<div class="manual"><span class="k-tag accent">Arabic by hand</span></div>':''}
     <div class="airing">${s.at?`<div class="ep">Ep ${esc(s.next)}${s.total?` of ${esc(s.total)}`:''} · ${esc(K.day(s.at))}</div><span class="cd" data-at="${s.at}"></span>`:'<span class="k-meta">No air date announced</span>'}</div></a>`).join('')
     :`<div class="k-empty" style="grid-column:1/-1"><strong>No weekly shows yet</strong>Pick something airing this season on the <a href="/weekly">Weekly</a> page.</div>`);

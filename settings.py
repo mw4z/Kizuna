@@ -1,5 +1,6 @@
-"""Personal preferences (settings.json, git-ignored), edited on the Settings page. Every value is validated and
-clamped; a missing or damaged file means today's defaults, so the agent never stops over a setting."""
+"""Personal preferences (settings.json, git-ignored), edited on the Settings page. Anime and movies & series have their
+own language/quality choices (anime: Japanese first; movies & series: English first). Every value is validated and
+clamped; a missing or damaged file means the defaults, so the agent never stops over a setting."""
 import json
 from pathlib import Path
 import threading
@@ -11,19 +12,29 @@ LANGUAGES = {"ja": "Japanese", "en": "English", "ar": "Arabic", "ko": "Korean", 
              "fr": "French", "de": "German", "it": "Italian", "pt": "Portuguese", "ru": "Russian", "tr": "Turkish",
              "hi": "Hindi"}
 RESOLUTIONS = ("2160p", "1080p", "720p", "576p", "480p")
+KINDS = ("anime", "screen")                    # screen = movies & series
 DEFAULTS = {
-    "weekly_audio": ["ja"],                    # audio for weekly episodes fetched from Stremio, in order of preference
-    "weekly_resolutions": ["1080p", "720p"],   # tried in this order
-    "weekly_subtitle": "none",                 # extra subtitle track to keep from Stremio ("none" = only Arabic)
+    # anime (weekly episodes from Stremio, Discover defaults for anime)
+    "anime_audio": ["ja"],
+    "anime_subtitle": "none",                  # extra subtitle track to keep besides the Arabic one
+    "anime_resolutions": ["1080p", "720p"],
+    "anime_audio_filter": "",                  # Discover: preselected audio filter ("" = all)
+    "library_anime": "Anime",
+    # movies & series
+    "screen_audio": ["en"],
+    "screen_subtitle": "none",
+    "screen_resolutions": ["1080p", "720p"],
+    "screen_audio_filter": "",
+    "library_movie": "Movies",
+    "library_series": "Series",
+    # everything
     "check_minutes": 20,                       # how often DKB and Stremio look for new episodes
     "keep_hours": 24,                          # watched episodes go to the Recycle Bin this long after finishing
     "notify_ready": True,                      # Windows notification when an episode or movie is ready
     "clock": "auto",                           # air times: "auto" (Windows setting), "12h" or "24h"
-    "default_audio_filter": "",                # Discover: preselected audio filter ("" = all)
-    "library_movie": "Movies",                 # Discover: default library per type
-    "library_series": "Anime",
-    "library_anime": "Anime",
 }
+LEGACY = {"weekly_audio": "anime_audio", "weekly_subtitle": "anime_subtitle", "weekly_resolutions": "anime_resolutions",
+          "default_audio_filter": "anime_audio_filter"}   # names used before the anime / movies & series split
 _lock = threading.Lock()
 _cache = {"stamp": None, "data": dict(DEFAULTS)}
 
@@ -32,33 +43,45 @@ class SettingsError(ValueError):
     pass
 
 
-def _clean(raw, strict=False):
-    """Validated copy of `raw` (unknown keys dropped). strict: raise on bad values instead of using the default."""
-    out = dict(DEFAULTS)
+def _list(value):
+    items = value if isinstance(value, list) else str(value).split(",")
+    return [x.strip() for x in items if isinstance(x, str)]
 
-    def bad(key, why):
+
+def _clean(raw, strict=False, base=None):
+    """Validated copy of `raw` (unknown keys dropped). A bad value keeps the one in `base` (the last good settings),
+    so e.g. a damaged cleanup delay never silently drops to the default. strict: raise instead."""
+    raw = dict(raw)
+    for old, new in LEGACY.items():
+        if old in raw and new not in raw:
+            raw[new] = raw[old]
+    out = dict(base or DEFAULTS)
+
+    def bad(why):
         if strict:
             raise SettingsError(why)
 
-    def langs(key):
-        v = raw.get(key, out[key])
-        v = v if isinstance(v, list) else [x.strip() for x in str(v).split(",")]
-        v = [x for x in dict.fromkeys(v) if x in LANGUAGES]
-        if v:
-            out[key] = v[:4]
+    for kind, label in (("anime", "anime"), ("screen", "movies & series")):
+        langs = [x for x in dict.fromkeys(_list(raw.get(f"{kind}_audio", out[f"{kind}_audio"]))) if x in LANGUAGES]
+        if langs:
+            out[f"{kind}_audio"] = langs[:4]
         else:
-            bad(key, "Choose at least one audio language.")
-
-    langs("weekly_audio")
-    res = raw.get("weekly_resolutions", out["weekly_resolutions"])
-    res = res if isinstance(res, list) else [x.strip() for x in str(res).split(",")]
-    res = [x for x in dict.fromkeys(res) if x in RESOLUTIONS]
-    if res:
-        out["weekly_resolutions"] = res
-    else:
-        bad("weekly_resolutions", "Choose at least one resolution.")
-    sub = str(raw.get("weekly_subtitle", out["weekly_subtitle"]))
-    out["weekly_subtitle"] = sub if sub == "none" or sub in LANGUAGES else (bad("weekly_subtitle", "Unknown subtitle language.") or "none")
+            bad(f"Choose at least one audio language for {label}.")
+        res = [x for x in dict.fromkeys(_list(raw.get(f"{kind}_resolutions", out[f"{kind}_resolutions"]))) if x in RESOLUTIONS]
+        if res:
+            out[f"{kind}_resolutions"] = res
+        else:
+            bad(f"Choose at least one resolution for {label}.")
+        sub = str(raw.get(f"{kind}_subtitle", out[f"{kind}_subtitle"]))
+        if sub == "none" or sub in LANGUAGES:
+            out[f"{kind}_subtitle"] = sub
+        else:
+            bad("Unknown subtitle language.")
+        audio = str(raw.get(f"{kind}_audio_filter", out[f"{kind}_audio_filter"]))
+        if audio in ("", "und") or audio in LANGUAGES:
+            out[f"{kind}_audio_filter"] = audio
+        else:
+            bad("Unknown language.")
     for key, low, high, label in (("check_minutes", 5, 240, "Check every"), ("keep_hours", 1, 24 * 30, "Keep watched episodes for")):
         try:
             n = int(str(raw.get(key, out[key])).strip())
@@ -66,18 +89,19 @@ def _clean(raw, strict=False):
                 raise ValueError
             out[key] = n
         except (TypeError, ValueError):
-            bad(key, f"{label} must be between {low} and {high}.")
+            bad(f"{label} must be between {low} and {high}.")
     out["notify_ready"] = str(raw.get("notify_ready", out["notify_ready"])).lower() in ("1", "true", "yes", "on")
     clock = str(raw.get("clock", out["clock"]))
-    out["clock"] = clock if clock in ("auto", "12h", "24h") else (bad("clock", "Unknown clock format.") or "auto")
-    audio = str(raw.get("default_audio_filter", out["default_audio_filter"]))
-    out["default_audio_filter"] = audio if audio in ("", "und") or audio in LANGUAGES else (bad("default_audio_filter", "Unknown language.") or "")
+    if clock in ("auto", "12h", "24h"):
+        out["clock"] = clock
+    else:
+        bad("Unknown clock format.")
     for key in ("library_movie", "library_series", "library_anime"):
         name = str(raw.get(key, out[key])).strip()
         if 1 <= len(name) <= 100 and not any(c in name for c in '<>:"/\\|?*'):
             out[key] = name
         else:
-            bad(key, "Choose a library.")
+            bad("Choose a library.")
     return out
 
 
@@ -90,12 +114,29 @@ def get(key=None):
         if stamp != _cache["stamp"]:
             try:
                 raw = json.loads(FILE.read_text(encoding="utf-8")) if stamp else {}
-                data = _clean(raw if isinstance(raw, dict) else {})
-            except (OSError, ValueError):
-                data = dict(DEFAULTS)              # damaged file: defaults, never a crash
-            _cache.update(stamp=stamp, data=data)
+                if not isinstance(raw, dict):
+                    raise ValueError("not an object")
+                data, damaged = _clean(raw, base=_cache["data"] if _cache["stamp"] else None), False
+            except Exception:                      # damaged by hand: keep the last good values, never crash
+                data, damaged = dict(_cache["data"]), True
+            _cache.update(stamp=stamp, data=data, damaged=damaged)
         data = dict(_cache["data"])
     return data if key is None else data[key]
+
+
+def damaged():
+    """True when settings.json exists but can't be read (cleanup then holds off rather than guess)."""
+    get()
+    with _lock:
+        return bool(_cache.get("damaged"))
+
+
+def minutes():
+    """Seconds between checks for the DKB / Stremio loops; never raises (a bad setting must not stop them)."""
+    try:
+        return get("check_minutes") * 60
+    except Exception:
+        return DEFAULTS["check_minutes"] * 60
 
 
 def update(form):

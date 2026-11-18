@@ -175,7 +175,7 @@ def _jellyfin_up():
         return False
 
 
-def collect(pending=None):
+def collect(pending=None, light=False):
     import fansub
     now = time.time()
     procs = _procs()
@@ -252,7 +252,7 @@ def collect(pending=None):
     du = shutil.disk_usage(os.path.splitdrive(agent.FOLDER)[0] + "\\")
     return {
         "now": now, "headline": headline, "tone": tone, "job": job, "finished": finished,
-        "waiting": waiting, "problems": problems, "deletions": _deletions(), "shows": _shows(lines),
+        "waiting": waiting, "problems": problems, "deletions": [] if light else _deletions(), "shows": [] if light else _shows(lines),
         "attention": attention, "pending": pending_items, "keep_hours": _keep_hours(),
         "system": {
             "Watcher": "running" if procs["watcher"] else "not running",
@@ -270,7 +270,7 @@ def collect(pending=None):
 
 
 PAGES = {"/": "dashboard.html", "/index.html": "dashboard.html", "/stremio": "stremio.html", "/weekly": "weekly.html",
-         "/settings": "settings.html"}
+         "/settings": "settings.html", "/news": "news.html"}
 ASSETS = {"/kizuna.css": ("kizuna.css", "text/css; charset=utf-8"), "/kizuna.js": ("kizuna.js", "text/javascript; charset=utf-8"),
           "/fonts/Cairo-SemiBold.ttf": ("fonts/Cairo-SemiBold.ttf", "font/ttf"),
           "/fonts/Cairo-Bold.ttf": ("fonts/Cairo-Bold.ttf", "font/ttf")}
@@ -366,6 +366,12 @@ def make_handler(pending=None):
                     data = shows.remove(params.get("release", ""))
                 elif post and action == "shows-check":
                     data = shows.check_now()
+                elif not post and action == "news":
+                    import news
+                    kind = params.get("kind", "all")
+                    if kind not in ("all", "anime", "screen"):
+                        raise stremio.UserError("Unknown news section.")
+                    data = news.latest(kind)
                 elif not post and action == "settings":
                     import settings
                     data = settings.page()
@@ -385,6 +391,8 @@ def make_handler(pending=None):
             self.send_response(code)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Frame-Options", "DENY")                       # no other site may frame these pages
+            self.send_header("Content-Security-Policy", "frame-ancestors 'none'")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             try:
@@ -416,7 +424,8 @@ def make_handler(pending=None):
                 body, ctype = open(os.path.join(HERE, *ASSETS[route][0].split("/")), "rb").read(), ASSETS[route][1]
             elif self.path.startswith("/api/status"):
                 try:
-                    body = json.dumps(collect(pending), ensure_ascii=False).encode("utf-8")
+                    # ?light=1 (the navigation's activity indicator): no Jellyfin database copy, no artwork lookups
+                    body = json.dumps(collect(pending, light="light=1" in self.path), ensure_ascii=False).encode("utf-8")
                 except Exception as e:
                     body = json.dumps({"headline": f"Status error: {e!r}", "tone": "bad", "now": time.time(),
                                        "finished": [], "waiting": [], "problems": [], "deletions": [], "shows": [],
@@ -430,6 +439,8 @@ def make_handler(pending=None):
             self.send_response(200)
             self.send_header("Content-Type", ctype)
             self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Frame-Options", "DENY")                       # no other site may frame these pages
+            self.send_header("Content-Security-Policy", "frame-ancestors 'none'")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)

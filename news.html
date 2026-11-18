@@ -1,0 +1,103 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="k-token" content="__STREMIO_TOKEN__">
+<meta name="referrer" content="no-referrer">
+<title>News · Kizuna</title><link rel="icon" type="image/png" href="/app.png"><link rel="stylesheet" href="/kizuna.css">
+<style>
+.n-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.n-tabs{display:flex;gap:4px;padding:3px;border:1px solid var(--k-line-strong);border-radius:999px}
+.n-tabs button{border:0;background:none;color:var(--k-text-2);font:500 13px var(--k-font);height:30px;padding:0 14px;border-radius:999px;cursor:pointer}
+.n-tabs button[aria-pressed=true]{background:var(--k-raised);color:var(--k-text);box-shadow:inset 0 0 0 1px var(--k-line-strong)}
+.n-status{display:flex;align-items:center;gap:12px;margin-top:10px}
+.fresh{display:none;align-items:center;gap:8px;height:30px;padding:0 14px;border-radius:999px;border:0;cursor:pointer;
+  background:var(--k-accent);color:#fff;font:600 12.5px var(--k-font);animation:k-in .3s var(--k-ease)}
+.fresh.show{display:inline-flex}
+/* lead story + top stories */
+.lead-wrap{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr);gap:28px;margin-top:26px}
+.lead{position:relative;display:block;border-radius:12px;overflow:hidden;min-height:420px;background:#141418;text-decoration:none;color:#fff;isolation:isolate}
+.lead img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;transition:transform 1.2s var(--k-ease),opacity .6s;opacity:0}
+.lead img.in{opacity:1}
+.lead:hover img{transform:scale(1.03)}
+.lead::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(8,8,10,0) 30%,rgba(8,8,10,.55) 58%,rgba(8,8,10,.96) 100%),
+  linear-gradient(90deg,rgba(8,8,10,.55),rgba(8,8,10,0) 60%)}
+.lead-body{position:absolute;left:0;right:0;bottom:0;padding:28px 30px}
+.lead h2{font:650 30px/1.15 var(--k-font-display);letter-spacing:-.015em;margin:10px 0 10px;max-width:30ch;text-wrap:balance}
+.lead p{margin:0;color:rgba(255,255,255,.78);max-width:60ch;font-size:14px;line-height:1.55}
+.kicker{display:flex;align-items:center;gap:10px;font-size:12px;color:rgba(255,255,255,.72)}
+.kicker .k-tag{background:var(--k-accent);color:#fff}
+.kicker .k-tag.screen{background:#2b4c8f}
+.side{display:grid;gap:0;align-content:start}
+.side a{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px;padding:14px 0;border-bottom:1px solid var(--k-line);text-decoration:none;color:inherit}
+.side a:first-child{padding-top:0}.side a:last-child{border-bottom:0}
+.side .thumb{aspect-ratio:16/10;border-radius:6px;overflow:hidden;background:var(--k-raised);position:relative}
+.side .thumb img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s}.side .thumb img.in{opacity:1}
+.side h3{font:600 14px/1.35 var(--k-font-display);margin:0 0 6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.side a:hover h3,.card:hover h3{color:#fff;text-decoration:underline;text-decoration-color:rgba(255,255,255,.3);text-underline-offset:3px}
+.meta{font-size:12px;color:var(--k-text-3)}
+.meta b{font-weight:600;color:var(--k-text-2)}
+/* grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:30px 24px}
+.card{display:block;text-decoration:none;color:inherit}
+.card .thumb{position:relative;aspect-ratio:16/9;border-radius:var(--k-r-art);overflow:hidden;background:var(--k-raised);margin-bottom:12px}
+.card .thumb img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s,transform .6s var(--k-ease)}.card .thumb img.in{opacity:1}
+.card:hover .thumb img{transform:scale(1.04)}
+.card h3{font:600 15px/1.35 var(--k-font-display);margin:0 0 6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.card p{margin:0 0 8px;color:var(--k-text-2);font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* text tile for stories without a picture */
+.tile{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:14px 16px;
+  background:radial-gradient(120% 140% at 0% 0%,rgba(200,54,79,.30),transparent 55%),linear-gradient(160deg,#1c1a21,#121116)}
+.tile.screen{background:radial-gradient(120% 140% at 0% 0%,rgba(84,124,214,.30),transparent 55%),linear-gradient(160deg,#181b22,#111318)}
+.tile .src{font:700 11px/1 var(--k-font-display);letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+.tile .seal{align-self:flex-end;font:600 40px/1 "Yu Gothic UI","Meiryo UI",sans-serif;color:rgba(255,255,255,.07)}
+.side .tile{padding:8px}.side .tile .src{font-size:9px;letter-spacing:.1em}.side .tile .seal{font-size:22px}
+.sk{border-radius:var(--k-r-art)}
+@media (max-width:980px){.lead-wrap{grid-template-columns:1fr}.lead{min-height:340px}.lead h2{font-size:25px}}
+@media (max-width:600px){.lead-body{padding:20px}.lead h2{font-size:21px}.side a{grid-template-columns:84px minmax(0,1fr)}}
+</style></head><body>
+<header class="k-top"></header>
+<main class="k-page">
+<div class="n-head"><div><h1 class="k-title">News</h1>
+ <p class="k-lede">The latest from anime, film and television, refreshed every few minutes while this page is open.</p></div>
+ <div class="n-tabs" role="group" aria-label="Section"><button type="button" data-kind="all" aria-pressed="true">Everything</button>
+  <button type="button" data-kind="anime" aria-pressed="false">Anime</button><button type="button" data-kind="screen" aria-pressed="false">Movies &amp; TV</button></div></div>
+<div class="n-status"><span class="k-meta" id="updated" aria-live="polite">Loading the latest stories…</span>
+ <button type="button" class="fresh" id="fresh"></button></div>
+<div class="lead-wrap" id="top"><div class="lead k-sk" style="min-height:420px"></div><div class="side">
+ <div class="k-sk" style="height:84px;margin-bottom:14px"></div><div class="k-sk" style="height:84px;margin-bottom:14px"></div><div class="k-sk" style="height:84px"></div></div></div>
+<section class="k-section" aria-labelledby="hMore"><div class="k-section-head"><h2 class="k-h" id="hMore">More stories</h2><span class="k-meta" id="sources"></span></div>
+ <div class="grid" id="grid"></div></section>
+</main>
+<script src="/kizuna.js"></script>
+<script>
+const $=id=>document.getElementById(id),K=Kizuna,esc=K.esc;
+K.shell('news');
+let kind='all',shown=[],pending=null;
+const KIND={anime:'Anime',screen:'Movies & TV'};
+const ago=at=>at?K.ago(Date.now()/1000-at):'';
+const pic=(n,cls)=>n.image?`<img src="${esc(n.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
+  :`<div class="tile ${n.kind}"><span class="src">${esc(n.source)}</span><span class="seal" aria-hidden="true">絆</span></div>`;
+const link=n=>`href="${esc(n.link)}" target="_blank" rel="noopener noreferrer"`;
+function render(items){
+  shown=items;const lead=items.find(n=>n.image)||items[0];
+  if(!lead){$('top').innerHTML='<div class="k-empty" style="grid-column:1/-1"><strong>No stories right now</strong>The news sites did not answer. Kizuna keeps trying.</div>';$('grid').innerHTML='';return}
+  const rest=items.filter(n=>n!==lead),mix=kind==='all'?[0,1].flatMap(i=>[rest.filter(n=>n.kind==='anime')[i],rest.filter(n=>n.kind==='screen')[i]]).filter(Boolean):[],side=(mix.length===4?mix:rest.slice(0,4)),more=rest.filter(n=>!side.includes(n));
+  $('top').innerHTML=`<a class="lead" ${link(lead)}>${lead.image?`<img src="${esc(lead.image)}" alt="" referrerpolicy="no-referrer">`:''}
+    <div class="lead-body"><div class="kicker"><span class="k-tag ${lead.kind}">${KIND[lead.kind]}</span><span>${esc(lead.source)} · ${esc(ago(lead.at))}</span></div>
+    <h2><bdi>${esc(lead.title)}</bdi></h2>${lead.summary?`<p>${esc(lead.summary)}</p>`:''}</div></a>
+    <div class="side">${side.map(n=>`<a ${link(n)}><div class="thumb">${pic(n)}</div><div><h3><bdi>${esc(n.title)}</bdi></h3><div class="meta"><b>${esc(n.source)}</b> · ${esc(ago(n.at))}</div></div></a>`).join('')}</div>`;
+  $('grid').innerHTML=more.map(n=>`<a class="card" ${link(n)}><div class="thumb">${pic(n)}</div><h3><bdi>${esc(n.title)}</bdi></h3>${n.summary?`<p>${esc(n.summary)}</p>`:''}
+    <div class="meta"><b>${esc(n.source)}</b> · ${esc(ago(n.at))}</div></a>`).join('');
+}
+async function load(fresh){
+  let d;try{d=await K.api('news?kind='+kind)}catch(e){$('updated').textContent=e.message;return}
+  $('updated').textContent=`Updated ${K.ago(Date.now()/1000-d.updated)}`+(d.failed.length?` · ${d.failed.join(', ')} not answering`:'');
+  $('sources').textContent=d.sources.filter(s=>kind==='all'||s.kind===kind).map(s=>s.name).join(' · ');
+  if(!fresh||!shown.length){render(d.items);return}
+  const known=new Set(shown.map(n=>n.link)),added=d.items.filter(n=>!known.has(n.link));
+  if(added.length){pending=d.items;$('fresh').textContent=`${added.length} new ${added.length===1?'story':'stories'} · show`;$('fresh').classList.add('show')}
+}
+$('fresh').onclick=()=>{if(pending)render(pending);pending=null;$('fresh').classList.remove('show');window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})};
+document.querySelector('.n-tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.dataset.kind===kind)return;kind=b.dataset.kind;
+  document.querySelectorAll('.n-tabs button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));shown=[];pending=null;$('fresh').classList.remove('show');load(false)});
+load(false);setInterval(()=>load(true),60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)load(true)});
+</script></body></html>

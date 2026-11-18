@@ -32,11 +32,22 @@ some hours later.
 
 ## Settings
 
-The **Settings** page (`/settings`, private `settings.json`, every value validated; a missing or damaged file means the
-defaults) holds: audio languages (up to three, in order) and an optional extra subtitle track for weekly Stremio
-episodes; resolutions tried (highest first); how often DKB and Stremio check (5–240 min); 12/24-hour air times; how
-long watched Weekly Anime/Anime episodes stay before the Recycle Bin (1 h – 30 days); Windows "ready" notifications;
-default libraries and audio filter for Discover.
+The **Settings** page (`/settings`, private `settings.json`, every value validated) has separate **Anime** and
+**Movies & series** sections: audio languages (up to three, in order: anime defaults to Japanese, movies & series to
+English), an optional extra subtitle track (kept when a source has it, never required), resolutions (highest first),
+the Discover audio filter and default libraries. Weekly Stremio fetches try every resolution of the first language
+before the next language. Shared: how often DKB and Stremio check (5–240 min), 12/24-hour air times, how long watched
+Weekly Anime/Anime episodes stay before the Recycle Bin (1 h – 30 days; a change applies to already-watched episodes
+from the next hourly cleanup) and Windows "ready" notifications. A damaged settings.json keeps the last good values,
+and cleanup then waits the longest allowed time rather than guess.
+
+## News
+
+The **News** page shows anime (Crunchyroll News, Anime News Network, Anime Corner, MyAnimeList) and movies & TV
+(Deadline, Variety, Collider) headlines from their public RSS feeds. Feeds are re-read in the background every 3
+minutes and the open page checks every minute ("N new stories"). Feed content is untrusted: text is stripped of
+HTML, links must be http(s), images https, each feed is size-limited and at most 25 stories per source are kept.
+Articles open on the publisher's site.
 
 ## What happens when an episode lands
 

@@ -22,11 +22,15 @@ KEEP_SECONDS = 24 * 3600          # default; the Settings page can change it
 
 
 def keep_seconds():
+    """How long a watched episode stays. If settings.json can't be read at all, wait the longest allowed time (30 days)
+    instead of guessing a shorter one: recycling too late is harmless, too early is not."""
     try:
         import settings
+        if settings.damaged():
+            return 30 * 86400
         return settings.get("keep_hours") * 3600
     except Exception:
-        return KEEP_SECONDS
+        return 30 * 86400
 ANIME = r"C:\Users\moody\Downloads\Anime"          # finished shows (Bleach, البؤساء); Movies is never cleaned
 
 

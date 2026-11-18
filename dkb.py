@@ -168,8 +168,11 @@ def poll(folder, ready, initialize_only=False):
         state = {"baseline": {}, "done": {}}
     resets = shows.take_resets("dkb")
     if resets:
-        for release in resets:                    # season or start episode changed on the page, or show re-added
-            state["baseline"].pop(release, None)
+        for old, new in resets.items():           # season / start episode changed on the page, show re-added or renamed
+            state["baseline"].pop(old, None)
+            if new != old:
+                for k in [k for k in state["done"] if k.split("|")[0] == old]:
+                    state["done"][new + "|" + k.split("|", 1)[1]] = state["done"].pop(k)
         save(state)
     for show in names():
         try:
@@ -214,7 +217,7 @@ def run(folder, ready):
         except Exception as e:
             agent.log(f"DKB: check failed: {e!r}")
         import settings
-        shows.wake_dkb.wait(settings.get("check_minutes") * 60)   # "Check now" on the page wakes it early
+        shows.wake_dkb.wait(settings.minutes())   # "Check now" on the page wakes it early
         shows.wake_dkb.clear()
 
 

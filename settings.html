@@ -2,13 +2,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="k-token" content="__STREMIO_TOKEN__">
 <title>Settings · Kizuna</title><link rel="icon" type="image/png" href="/app.png"><link rel="stylesheet" href="/kizuna.css">
 <style>
-.k-page>*{max-width:900px}
-.group{display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px 40px;padding:28px 0;border-bottom:1px solid var(--k-line)}
+.k-page>*{max-width:920px}
+.group{display:grid;grid-template-columns:230px minmax(0,1fr);gap:24px 44px;padding:30px 0;border-bottom:1px solid var(--k-line)}
 .group:last-of-type{border-bottom:0}
-.group h2{font:600 15px/1.3 var(--k-font-display);margin:0}
-.group p{margin:6px 0 0;color:var(--k-text-3);font-size:12.5px;line-height:1.5}
+.group h2{font:600 15px/1.3 var(--k-font-display);margin:0;display:flex;align-items:center;gap:10px}
+.group h2 .mark{width:3px;height:16px;border-radius:2px;background:var(--k-accent)}
+.group h2 .mark.screen{background:var(--k-download)}
+.group p{margin:6px 0 0;color:var(--k-text-3);font-size:12.5px;line-height:1.55}
 .fields{display:grid;gap:18px;align-content:start}
-.inline{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.label{font-size:12.5px;color:var(--k-text-2);margin-bottom:8px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{position:relative}
 .chip input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
@@ -16,7 +20,7 @@
 .chip input:checked+span{border-color:var(--k-accent);color:var(--k-text);background:var(--k-accent-soft)}
 .chip input:focus-visible+span{outline:2px solid var(--k-accent);outline-offset:2px}
 .hint{color:var(--k-text-3);font-size:12px;margin-top:-6px}
-.bar{position:sticky;bottom:0;margin-top:24px;padding:14px 0;background:linear-gradient(to top,var(--k-bg) 70%,transparent);display:flex;align-items:center;gap:14px}
+.bar{position:sticky;bottom:0;margin-top:20px;padding:16px 0;background:linear-gradient(to top,var(--k-bg) 70%,transparent);display:flex;align-items:center;gap:14px}
 .bar .k-note{flex:1}
 .toggle{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .switch{position:relative;width:40px;height:22px;flex:none}
@@ -25,47 +29,38 @@
 .switch i::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#d9d9de;transition:transform .2s var(--k-ease)}
 .switch input:checked+i{background:var(--k-accent)}.switch input:checked+i::after{transform:translateX(18px)}
 .switch input:focus-visible+i{outline:2px solid var(--k-accent);outline-offset:2px}
-@media (max-width:760px){.group{grid-template-columns:1fr;gap:14px}.inline{grid-template-columns:1fr}}
+@media (max-width:760px){.group{grid-template-columns:1fr;gap:14px}.row3,.row2{grid-template-columns:1fr}}
 </style></head><body>
 <header class="k-top"></header>
 <main class="k-page">
 <h1 class="k-title">Settings</h1>
-<p class="k-lede">Your preferences for downloads, timing and the library. Saved on this PC only; changes apply right away.</p>
+<p class="k-lede">Anime and movies &amp; series keep their own languages and quality, so anime can stay Japanese-first while
+everything else is English-first. Saved on this PC only; changes apply right away.</p>
 <form id="form" novalidate>
 <div id="loading" class="k-note" style="margin-top:24px">Loading your settings…</div>
 <div id="body" hidden>
- <section class="group" aria-labelledby="g1"><div><h2 id="g1">Languages</h2><p>Used when a weekly episode is fetched from your Stremio add-ons. Arabic subtitles are always added on top.</p></div>
-  <div class="fields">
-   <div class="inline">
-    <label class="k-field">Audio, first choice<select id="audio1"></select></label>
-    <label class="k-field">Second choice<select id="audio2"></select></label>
-    <label class="k-field">Third choice<select id="audio3"></select></label></div>
-   <label class="k-field">Extra subtitle track to keep<select id="weekly_subtitle"></select></label>
-   <label class="k-field">Discover: preselected audio filter<select id="default_audio_filter"></select></label>
-  </div></section>
+ <section class="group" aria-labelledby="gAnime" data-kind="anime"><div><h2 id="gAnime"><span class="mark" aria-hidden="true"></span>Anime</h2>
+  <p>Weekly episodes fetched from your Stremio add-ons, and Discover when you open an anime. Arabic subtitles are always added.</p></div>
+  <div class="fields"></div></section>
 
- <section class="group" aria-labelledby="g2"><div><h2 id="g2">Downloads</h2><p>Resolutions tried for weekly episodes from Stremio, highest first. DKB releases are always 1080p.</p></div>
-  <div class="fields"><div class="chips" id="resolutions" role="group" aria-label="Resolutions"></div></div></section>
+ <section class="group" aria-labelledby="gScreen" data-kind="screen"><div><h2 id="gScreen"><span class="mark screen" aria-hidden="true"></span>Movies &amp; series</h2>
+  <p>Discover preselects these when you open a movie or a series: the audio track, the filter and where it is saved.</p></div>
+  <div class="fields"></div></section>
 
- <section class="group" aria-labelledby="g3"><div><h2 id="g3">Schedule &amp; time</h2><p>How often DKB and Stremio look for new episodes, and how air times are shown.</p></div>
-  <div class="fields"><div class="inline" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+ <section class="group" aria-labelledby="g3"><div><h2 id="g3">Schedule &amp; time</h2><p>How often DKB and Stremio look for new weekly episodes, and how air times are shown.</p></div>
+  <div class="fields"><div class="row2">
    <label class="k-field">Check for new episodes<select id="check_minutes">
     <option value="10">Every 10 minutes</option><option value="15">Every 15 minutes</option><option value="20">Every 20 minutes</option>
     <option value="30">Every 30 minutes</option><option value="60">Every hour</option><option value="120">Every 2 hours</option></select></label>
    <label class="k-field">Air times<select id="clock"><option value="auto">Like Windows</option><option value="24h">24-hour (18:30)</option><option value="12h">12-hour (6:30 PM)</option></select></label>
   </div><div class="hint" id="clockPreview"></div></div></section>
 
- <section class="group" aria-labelledby="g4"><div><h2 id="g4">Library &amp; cleanup</h2><p>Where Discover saves by default, and how long watched Weekly Anime and Anime episodes stay. Movies are never cleaned up.</p></div>
-  <div class="fields">
-   <div class="inline">
-    <label class="k-field">Movies go to<select id="library_movie"></select></label>
-    <label class="k-field">Series go to<select id="library_series"></select></label>
-    <label class="k-field">Anime go to<select id="library_anime"></select></label></div>
-   <label class="k-field">Move watched episodes to the Recycle Bin<select id="keep_hours">
+ <section class="group" aria-labelledby="g4"><div><h2 id="g4">Cleanup</h2><p>Watched Weekly Anime and Anime episodes go to the Recycle Bin (never deleted outright). Movies are never cleaned up.</p></div>
+  <div class="fields"><label class="k-field">Move watched episodes to the Recycle Bin<select id="keep_hours">
     <option value="6">6 hours after watching</option><option value="12">12 hours after watching</option><option value="24">1 day after watching</option>
     <option value="48">2 days after watching</option><option value="72">3 days after watching</option><option value="168">1 week after watching</option>
     <option value="336">2 weeks after watching</option><option value="720">30 days after watching</option></select></label>
-  </div></section>
+   <div class="hint" style="margin-top:0">Applies to episodes already watched too, from the next hourly cleanup.</div></div></section>
 
  <section class="group" aria-labelledby="g5"><div><h2 id="g5">Notifications</h2><p>Problems are always shown on the Now page.</p></div>
   <div class="fields"><label class="toggle"><span>Windows notification when an episode or movie is ready</span>
@@ -79,30 +74,44 @@
 const $=id=>document.getElementById(id),K=Kizuna;
 K.shell('settings');
 let meta=null;
+// one block per kind; ids are <kind>_<field>
+function kindFields(kind){const libs=kind==='anime'?[['library_anime','Anime goes to']]:[['library_movie','Movies go to'],['library_series','Series go to']];
+ return `<div class="row3">
+  <label class="k-field">Audio, first choice<select id="${kind}_a1"></select></label>
+  <label class="k-field">Second choice<select id="${kind}_a2"></select></label>
+  <label class="k-field">Third choice<select id="${kind}_a3"></select></label></div>
+ <div class="row2"><label class="k-field">Extra subtitle track to keep<select id="${kind}_subtitle"></select></label>
+  <label class="k-field">Discover: preselected audio filter<select id="${kind}_audio_filter"></select></label></div>
+ <div><div class="label">Resolutions${kind==='anime'?' for weekly episodes, highest first':' preferred, highest first'}</div><div class="chips" id="${kind}_resolutions" role="group" aria-label="${kind==='anime'?'Anime':'Movies and series'} resolutions"></div></div>
+ <div class="row${libs.length===1?'2':'2'}">${libs.map(([id,l])=>`<label class="k-field">${l}<select id="${id}"></select></label>`).join('')}</div>`}
+document.querySelectorAll('.group[data-kind]').forEach(g=>g.querySelector('.fields').innerHTML=kindFields(g.dataset.kind));
 function opt(sel,value,label){const o=document.createElement('option');o.value=value;o.textContent=label;sel.append(o)}
 function fill(s){
-  const langs=Object.entries(meta.languages);
-  ['audio1','audio2','audio3'].forEach((id,i)=>{const sel=$(id);sel.replaceChildren();if(i)opt(sel,'','None');langs.forEach(([c,n])=>opt(sel,c,n));sel.value=s.weekly_audio[i]||''});
-  const sub=$('weekly_subtitle');sub.replaceChildren();opt(sub,'none','None, Arabic only');langs.forEach(([c,n])=>opt(sub,c,n));sub.value=s.weekly_subtitle;
-  const af=$('default_audio_filter');af.replaceChildren();opt(af,'','All languages');langs.forEach(([c,n])=>opt(af,c,n));opt(af,'und','Unspecified');af.value=s.default_audio_filter;
-  $('resolutions').innerHTML=meta.resolutions.map(r=>`<label class="chip"><input type="checkbox" value="${r}" ${s.weekly_resolutions.includes(r)?'checked':''}><span>${r}</span></label>`).join('');
-  for(const id of ['check_minutes','keep_hours']){const sel=$(id);if(![...sel.options].some(o=>o.value===String(s[id])))opt(sel,s[id],id==='keep_hours'?`${s[id]} hours after watching`:`Every ${s[id]} minutes`);sel.value=String(s[id])}
-  $('clock').value=s.clock;preview();
-  for(const id of ['library_movie','library_series','library_anime']){const sel=$(id);sel.replaceChildren();const names=[...new Set([...meta.libraries,s[id]])];names.forEach(n=>opt(sel,n,n));sel.value=s[id]}
-  $('notify_ready').checked=s.notify_ready;
+ const langs=Object.entries(meta.languages);
+ for(const kind of ['anime','screen']){
+  [1,2,3].forEach(i=>{const sel=$(`${kind}_a${i}`);sel.replaceChildren();if(i>1)opt(sel,'','None');langs.forEach(([c,n])=>opt(sel,c,n));sel.value=s[kind+'_audio'][i-1]||''});
+  const sub=$(kind+'_subtitle');sub.replaceChildren();opt(sub,'none','None, Arabic only');langs.forEach(([c,n])=>opt(sub,c,n));sub.value=s[kind+'_subtitle'];
+  const af=$(kind+'_audio_filter');af.replaceChildren();opt(af,'','All languages');langs.forEach(([c,n])=>opt(af,c,n));opt(af,'und','Unspecified');af.value=s[kind+'_audio_filter'];
+  $(kind+'_resolutions').innerHTML=meta.resolutions.map(r=>`<label class="chip"><input type="checkbox" value="${r}" ${s[kind+'_resolutions'].includes(r)?'checked':''}><span>${r}</span></label>`).join('');
+ }
+ for(const id of ['check_minutes','keep_hours']){const sel=$(id);if(![...sel.options].some(o=>o.value===String(s[id])))opt(sel,s[id],id==='keep_hours'?`${s[id]} hours after watching`:`Every ${s[id]} minutes`);sel.value=String(s[id])}
+ $('clock').value=s.clock;preview();
+ for(const id of ['library_movie','library_series','library_anime']){const sel=$(id);sel.replaceChildren();[...new Set([...meta.libraries,s[id]])].forEach(n=>opt(sel,n,n));sel.value=s[id]}
+ $('notify_ready').checked=s.notify_ready;
 }
 function preview(){const c=$('clock').value,t=new Date();t.setHours(18,30,0,0);
-  $('clockPreview').textContent='Example: '+t.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:c==='12h'?true:c==='24h'?false:undefined})}
+ $('clockPreview').textContent='Example: '+t.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:c==='12h'?true:c==='24h'?false:undefined})}
 $('clock').onchange=preview;
-function collect(){return{weekly_audio:['audio1','audio2','audio3'].map(id=>$(id).value).filter(Boolean).join(','),
-  weekly_resolutions:[...document.querySelectorAll('#resolutions input:checked')].map(i=>i.value).join(','),
-  weekly_subtitle:$('weekly_subtitle').value,default_audio_filter:$('default_audio_filter').value,check_minutes:$('check_minutes').value,
-  clock:$('clock').value,keep_hours:$('keep_hours').value,library_movie:$('library_movie').value,library_series:$('library_series').value,
-  library_anime:$('library_anime').value,notify_ready:String($('notify_ready').checked)}}
+function collect(){const out={check_minutes:$('check_minutes').value,clock:$('clock').value,keep_hours:$('keep_hours').value,
+  library_movie:$('library_movie').value,library_series:$('library_series').value,library_anime:$('library_anime').value,notify_ready:String($('notify_ready').checked)};
+ for(const kind of ['anime','screen']){out[kind+'_audio']=[1,2,3].map(i=>$(`${kind}_a${i}`).value).filter(Boolean).join(',');
+  out[kind+'_resolutions']=[...document.querySelectorAll(`#${kind}_resolutions input:checked`)].map(i=>i.value).join(',');
+  out[kind+'_subtitle']=$(kind+'_subtitle').value;out[kind+'_audio_filter']=$(kind+'_audio_filter').value}
+ return out}
 function say(t,tone){$('note').textContent=t;$('note').className='k-note'+(tone?' '+tone:'')}
 $('form').addEventListener('input',()=>say('Unsaved changes'));
 $('form').addEventListener('submit',async e=>{e.preventDefault();$('save').disabled=true;say('Saving…');
-  try{meta=await K.api('settings',collect());fill(meta.settings);say('Saved. Changes apply right away.','ok')}catch(err){say(err.message,'bad')}finally{$('save').disabled=false}});
-$('reset').onclick=()=>{fill(meta.defaults);say('Defaults restored here. Save to keep them.')};
+ try{meta=await K.api('settings',collect());fill(meta.settings);say('Saved. Changes apply right away.','ok')}catch(err){say(err.message,'bad')}finally{$('save').disabled=false}});
+$('reset').onclick=()=>{if(!meta)return;fill(meta.defaults);say('Defaults restored here. Save to keep them.')};
 K.api('settings').then(d=>{meta=d;fill(d.settings);$('loading').hidden=true;$('body').hidden=false}).catch(e=>{$('loading').textContent=e.message;$('loading').className='k-note bad'});
 </script></body></html>

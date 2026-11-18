@@ -31,8 +31,12 @@ class ShowsSandbox(Sandbox):
     def setUp(self):
         super().setUp()
         self.anime_lib = self.anime
+        import settings
+        settings._cache.update(stamp="reset", data=dict(settings.DEFAULTS), damaged=False)
         self.extra = [mock.patch.object(shows, "FILE", Path(self.tmp, "shows.json")),
                       mock.patch.object(shows, "STATE", Path(self.tmp, "weekly-state.json")),
+                      mock.patch.object(shows, "RESETS", Path(self.tmp, "shows-pending.json")),
+                      mock.patch.object(settings, "FILE", Path(self.tmp, "settings.json")),
                       mock.patch.object(lp, "FILE", Path(self.tmp, "queue.json")),
                       mock.patch.object(lp, "ROOT", Path(self.tmp, "q"))]
         for p in self.extra:
@@ -296,6 +300,37 @@ class StremioWeekly(ShowsSandbox):
         state, fetch = self.poll([61, 62, 63, 64, 65])
         fetch.assert_not_called()
         self.assertEqual(state["baseline"]["Kaiju Squad|S02"], 5)
+
+    def test_damaged_ledger_fails_closed_and_is_never_rewritten(self):
+        self.poll([61, 62, 63])
+        shows.STATE.write_text("{half a file", encoding="utf-8")
+        with mock.patch.object(shows, "aired", return_value=self.aired([61, 62, 63, 64])), \
+                mock.patch.object(shows, "fetch") as fetch:
+            self.assertIsNone(shows.stremio_poll())
+        fetch.assert_not_called()
+        self.assertEqual(shows.STATE.read_text(encoding="utf-8"), "{half a file")   # left for the user to see
+        self.assertEqual(len(shows.overview()["shows"]), 1)                          # the page still works
+
+    def test_reset_survives_a_restart(self):
+        self.poll([61, 62, 63])
+        with mock.patch.object(shows, "RESETS", Path(self.tmp, "pending.json")):
+            shows.request_reset("Kaiju Squad")
+            for pending in shows._resets.values():
+                pending.clear()                                                      # "restart": memory is gone
+            state, fetch = self.poll([61, 62, 63, 64, 65])
+            self.assertEqual(state["baseline"]["Kaiju Squad|S02"], 5)
+            self.assertEqual(shows.take_resets("stremio"), {})
+
+    def test_renaming_the_release_keeps_finished_episodes_finished(self):
+        self.poll([61, 62, 63])
+        self.poll([61, 62, 63, 64])                                                  # S02E04 fetched under the old name
+        with mock.patch.object(shows, "RESETS", Path(self.tmp, "pending.json")):
+            self.follow(show(release="Kaiju Squad TV", stremio={"id": "tt9", "type": "series", "season": 5, "offset": -60, "on": True},
+                             **{"from": 1}))
+            shows.request_reset("Kaiju Squad", renamed_to="Kaiju Squad TV")
+            state, fetch = self.poll([61, 62, 63, 64])
+        self.assertIn("Kaiju Squad TV|S02E04", state["done"])
+        self.assertNotIn("S02E04", [c.args[1] for c in fetch.call_args_list])        # not fetched twice
 
     def test_busy_user_is_not_a_failed_attempt(self):
         self.poll([61, 62, 63])
