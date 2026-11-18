@@ -56,7 +56,7 @@ class ReleaseLinks(HTMLParser):
 
 
 def fetch(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "AnimeFYA/1.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Kizuna/1.0"})
     with urllib.request.urlopen(req, timeout=60) as response:
         if urllib.parse.urlsplit(response.url).hostname != urllib.parse.urlsplit(url).hostname:
             raise ValueError("unexpected download redirect")

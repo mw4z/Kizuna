@@ -1,6 +1,6 @@
 # Kizuna operations guide
 
-Kizuna (formerly the "Anime FYA" agent) gives every new weekly anime episode styled Arabic subtitles, unattended, and puts it in
+Kizuna gives every new weekly anime episode styled Arabic subtitles, unattended, and puts it in
 Jellyfin so it plays on the TVs.
 
 ## Shows (the Weekly page)
@@ -283,7 +283,7 @@ interaction handlers without installing browser dependencies.
 
 ## How it stays running
 
-- Task Scheduler task **"Anime FYA"** starts `watcher.py` at logon and unlock.
+- Task Scheduler task **"Kizuna"** starts `watcher.py` at logon and unlock.
 - `watcher.py` runs as a supervisor that relaunches the real watcher (`--child`) within 10 s
   if it dies; named mutexes keep a single copy of each.
 - Transient errors retry every 20 min (3 strikes); episodes without Arabic yet are retried for

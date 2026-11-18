@@ -57,7 +57,7 @@ class Tests(Sandbox):
         self.assertEqual(destination.read_bytes(), b"processed bytes")
         self.assertEqual((folder / record["backup"]).read_bytes(), b"original bytes")
         self.assertEqual(record["status"], "done")
-        self.assertEqual(self.toasts, ["Anime FYA: ready"])
+        self.assertEqual(self.toasts, ["Kizuna: ready"])
 
     def test_changed_manual_file_is_never_overwritten(self):
         key, folder, source, destination, record = self.record(manual=True)
@@ -224,7 +224,7 @@ class Tests(Sandbox):
         self.assertEqual(result["status"], "done", result)
         self.assertTrue(destination.exists())
         self.assertTrue(agent.has_arabic_audio(agent.tracks(str(destination))))
-        self.assertEqual(self.toasts, ["Anime FYA: movie ready"])
+        self.assertEqual(self.toasts, ["Kizuna: movie ready"])
 
     def test_real_subtitle_extraction_style_mux_and_verification_before_delivery(self):
         folder = Path(self.tmp, "styled")

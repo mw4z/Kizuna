@@ -51,7 +51,7 @@ def log(msg):
         f.write(time.strftime("%Y-%m-%d %H:%M:%S ") + msg + "\n")
 
 
-ALERTS = {"Anime FYA: ready": "New episode ready", "Anime FYA: movie ready": "New movie ready"}
+ALERTS = {"Kizuna: ready": "New episode ready", "Kizuna: movie ready": "New movie ready"}
 
 
 def notify(title, text):
@@ -448,7 +448,7 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
         if not nyaa_arabic(search_name or fn, srt) and not (addons and addon_arabic(search_name or fn, video, srt)):
             show(LABEL, "No official Arabic released yet. Will retry hourly", 100, "fail")
             if not state["told"].get(key + "|noarabic"):
-                notify("Anime FYA: waiting", f"No official Arabic for {fn[:60]} yet. Will keep checking hourly.")
+                notify("Kizuna: waiting", f"No official Arabic for {fn[:60]} yet. Will keep checking hourly.")
                 state["told"][key + "|noarabic"] = 1
             return
     title = f"{show_} {ep_} - Arabic" if show_ else fn
@@ -468,7 +468,7 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
                 off, ok = ref, True
     if not ok:
         show(LABEL, "Timing inconsistent. Not muxed, needs a look", 100, "fail")
-        notify("Anime FYA: needs a look", f"Timing of {fn[:60]} is inconsistent. Not muxed.")
+        notify("Kizuna: needs a look", f"Timing of {fn[:60]} is inconsistent. Not muxed.")
         state["told"][key + "|timing"] = 1
         state["failed"][key] = os.path.getsize(video)
         return
@@ -478,7 +478,7 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
     bad = qc(ass)
     if bad:
         show(LABEL, "Quality check failed. Not muxed, needs a look", 100, "fail")
-        notify("Anime FYA: needs a look", f"{fn[:60]}: {', '.join(bad)}. Not muxed.")
+        notify("Kizuna: needs a look", f"{fn[:60]}: {', '.join(bad)}. Not muxed.")
         state["failed"][key] = os.path.getsize(video)
         return
     need = os.path.getsize(video) * 1.05 + 500e6
@@ -512,7 +512,7 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
             verified = e.tmp
         except mux.VerifyFailed:
             show(LABEL, "Verification failed, needs a look", 100, "fail")
-            notify("Anime FYA: needs a look", f"{fn[:60]}: built file failed verification; original untouched.")
+            notify("Kizuna: needs a look", f"{fn[:60]}: built file failed verification; original untouched.")
             state["failed"][key] = os.path.getsize(video)
             state["errors"].pop(key, None)
             return
@@ -530,7 +530,7 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
     run(MKV + r"\mkvextract.exe", video, "tracks", f"{tid}:{emb}")
     if dl(emb) != dl(ass):
         show(LABEL, "Verification failed, needs a look", 100, "fail")
-        notify("Anime FYA: needs a look", f"{fn[:60]}: embedded track differs from the built one.")
+        notify("Kizuna: needs a look", f"{fn[:60]}: embedded track differs from the built one.")
         state["failed"][key] = os.path.getsize(video)   # visible under "Needs a look" (audit #3)
         state["errors"].pop(key, None)
         return
@@ -546,10 +546,10 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
     if copied:
         state["delivery"].pop(key, None)
         show(LABEL, f"Done. Arabic added ({n} lines), ready to watch", 100, "done")
-        notify("Anime FYA: ready", f"{LABEL[:50]}: Arabic added ({n} lines).")
+        notify("Kizuna: ready", f"{LABEL[:50]}: Arabic added ({n} lines).")
     else:
         show(LABEL, "Arabic added, but copying to Jellyfin failed. Retrying", 100, "fail")
-        notify("Anime FYA: needs a look", f"{fn[:60]}: Arabic added, Jellyfin copy failed; retrying.")
+        notify("Kizuna: needs a look", f"{fn[:60]}: Arabic added, Jellyfin copy failed; retrying.")
 
 
 def dialogue_hash(path):
@@ -578,7 +578,7 @@ def retry_copy(video, video_tracks, state):
     log(f"library: copy recovered for {fn}")
     show(label, "Done. Copied to Jellyfin, ready to watch", 100, "done")
     if not has_arabic_audio(video_tracks):            # dubs never had a ready alert
-        notify("Anime FYA: ready", f"{label[:50]}: Arabic added.")
+        notify("Kizuna: ready", f"{label[:50]}: Arabic added.")
 
 
 def save_state(state):
@@ -669,7 +669,7 @@ def main():
                     continue
                 if not dubbed and fansub.mode_for(parse_name(fn)[0] or fn) == "manual":
                     if not state["told"].get(fn + "|conan"):   # key kept: existing state stays valid
-                        notify("Anime FYA: manual", f"{fn[:60]} needs hand typesetting. Ask Claude.")
+                        notify("Kizuna: manual", f"{fn[:60]} needs hand typesetting. Ask Claude.")
                         state["told"][fn + "|conan"] = 1
                     continue
                 log(f"processing {fn}")
@@ -681,7 +681,7 @@ def main():
                     state["failed"][fn] = size
                     state["errors"].pop(fn, None)   # a replaced file starts again with 3 tries (audit #5)
                     show(fn[:60], f"Failed 3 times: {e}"[:80], 100, "fail")
-                    notify("Anime FYA: error", f"{fn[:60]}: {e}"[:200])
+                    notify("Kizuna: error", f"{fn[:60]}: {e}"[:200])
                 else:
                     show(fn[:60], f"Problem, retrying in 20 min: {e}"[:80], 100, "fail")
             save_state(state)

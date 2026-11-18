@@ -218,6 +218,7 @@ def supervise():
     """Parent process: keeps the real watcher alive, relaunching it 10 s after it dies for any reason."""
     global MUTEX
     import ctypes
+    # old lock names kept on purpose: renaming them would let a new supervisor run beside the old one
     MUTEX = ctypes.windll.kernel32.CreateMutexW(None, False, r"Local\AnimeFYA-supervisor")
     if ctypes.windll.kernel32.GetLastError() == 183:
         sys.exit(0)

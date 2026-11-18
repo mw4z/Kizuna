@@ -2,7 +2,7 @@
 
 ## Python environment
 
-There is no virtual environment. The live agent (watcher.py, started by the "Anime FYA" scheduled
+There is no virtual environment. The live agent (watcher.py, started by the "Kizuna" scheduled
 task) runs on the user's main install, so run and test with exactly that interpreter:
 
     C:\Users\moody\AppData\Local\Programs\Python\Python313\python.exe

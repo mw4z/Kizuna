@@ -322,7 +322,7 @@ def publish(key, record, folder):
             agent.log(f"Library processing: original still in use; retrying retirement for {original.name}")
     record.update(status="done", stage="Arabic dub preserved" if dubbed else "Arabic subtitles and timing verified", pct=100)
     record["completed_signature"] = signature(destination)
-    alert = "Anime FYA: movie ready" if record["metadata"].get("type") == "movie" else "Anime FYA: ready"
+    alert = "Kizuna: movie ready" if record["metadata"].get("type") == "movie" else "Kizuna: ready"
     try:
         agent.notify(alert, f"{destination.stem}: Arabic preparation complete.")
     except Exception:

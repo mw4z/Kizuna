@@ -105,6 +105,35 @@ class Refresh(unittest.TestCase):
         self.assertNotIn("Deadline", counts)
         self.assertEqual(d["items"], sorted(d["items"], key=lambda i: -i["at"]))
 
+    def test_arabic_interface_gets_machine_translated_english_stories(self):
+        news._tr.clear()
+        feed = lambda s, k, u, lg: [dict(self.item(s.replace(" ", ""), 1, k), lang=lg, summary="Sum " + s)]   # noqa: E731
+
+        def translate(text, target):
+            if text.startswith("Deadline"):
+                raise OSError("translator down")
+            if text.startswith("Variety"):
+                return "انقر تنزيل mp3 youtube com"            # spam the free translator sometimes injects
+            return "ع " + text
+        with mock.patch.object(news, "fetch", side_effect=feed), mock.patch.object(news, "translate", side_effect=translate) as tr:
+            news.latest("all", "en")                           # fill the list without translating
+            self.assertEqual(tr.call_count, 0)
+            news._state.update(want="ar", updated=0)
+            news.refresh()
+            ar = news.latest("all", "ar")["items"]
+            calls = tr.call_count
+            news._state["updated"] = 0
+            news.refresh()                                     # cached: only the failures are tried again
+            self.assertEqual(tr.call_count, calls + 3)         # Deadline once, Variety twice (quote retry)
+            en = news.latest("all", "en")["items"]
+        crunchy = next(i for i in ar if i["source"] == "CrunchyrollNews")
+        self.assertEqual((crunchy["title"], crunchy["summary"], crunchy["translated"]),
+                         ("ع CrunchyrollNews 1", "ع Sum Crunchyroll News", True))
+        self.assertNotIn("translated", next(i for i in ar if i["source"] == "Deadline"))    # failure: stays English
+        self.assertEqual(next(i for i in ar if i["source"] == "Variety")["title"], "Variety 1")   # junk rejected
+        self.assertNotIn("translated", next(i for i in ar if i["lang"] == "ar"))            # Arabic stories untouched
+        self.assertTrue(all("translated" not in i and not i["title"].startswith("ع") for i in en))
+
     def test_all_feeds_down_keeps_the_last_good_list(self):
         news._state.update(items=[self.item("X", 1)], updated=0)
         with mock.patch.object(news, "fetch", side_effect=OSError("offline")):

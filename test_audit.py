@@ -160,7 +160,7 @@ class AgentFailures(Sandbox):
         v = self.episode("[DKB] Ao no Hako - S02E06 [1080p].mkv")
         state = agent.load_state()
         self.process(v, state)
-        self.assertEqual(self.toasts, ["Anime FYA: ready"])
+        self.assertEqual(self.toasts, ["Kizuna: ready"])
         self.assertTrue(os.path.exists(agent.library_target(os.path.basename(v))))
         self.assertEqual(state["copy_failed"], {})
 
@@ -169,13 +169,13 @@ class AgentFailures(Sandbox):
         state = agent.load_state()
         with mock.patch.object(agent.shutil, "copy2", side_effect=OSError("disk full")):
             self.process(v, state)
-        self.assertNotIn("Anime FYA: ready", self.toasts)                    # no false success
+        self.assertNotIn("Kizuna: ready", self.toasts)                    # no false success
         self.assertIn(os.path.basename(v), state["copy_failed"])
         self.assertEqual(self.progress()["status"], "fail")
         self.assertFalse(any(f.endswith(".part") for _, _, fs in os.walk(self.lib) for f in fs))
         with mock.patch.object(agent, "has_arabic_audio", lambda t: False), self.fake_pipeline()[-1]:
             agent.retry_copy(v, ARABIC, state)                                  # disk freed: retry works
-        self.assertEqual(self.toasts.count("Anime FYA: ready"), 1)
+        self.assertEqual(self.toasts.count("Kizuna: ready"), 1)
         self.assertEqual(state["copy_failed"], {})
         self.assertTrue(os.path.exists(agent.library_target(os.path.basename(v))))
 
@@ -184,7 +184,7 @@ class AgentFailures(Sandbox):
         state = agent.load_state()
         self.process(v, state, embedded_matches=False)
         self.assertEqual(state["failed"].get(os.path.basename(v)), os.path.getsize(v))
-        self.assertNotIn("Anime FYA: ready", self.toasts)
+        self.assertNotIn("Kizuna: ready", self.toasts)
 
     def test_waiting_for_arabic_does_not_look_busy(self):
         v = self.episode("[DKB] Ao no Hako - S02E06 [1080p].mkv")

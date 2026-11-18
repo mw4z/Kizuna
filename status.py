@@ -159,7 +159,7 @@ def _airing():
         req = urllib.request.Request("https://graphql.anilist.co",
                                      data=json.dumps({"query": q, "variables": {"ids": list(ids)}}).encode(),
                                      headers={"Content-Type": "application/json", "Accept": "application/json",
-                                              "User-Agent": "AnimeFYA-status"})
+                                              "User-Agent": "Kizuna"})
         media = json.load(urllib.request.urlopen(req, timeout=15))["data"]["Page"]["media"]
         _air["data"] = {m["id"]: {"next": (m["nextAiringEpisode"] or {}).get("episode"),
                                   "at": (m["nextAiringEpisode"] or {}).get("airingAt"), "total": m["episodes"],
