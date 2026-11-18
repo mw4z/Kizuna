@@ -1,7 +1,22 @@
 # Kizuna operations guide
 
-Kizuna gives every new weekly anime episode styled Arabic subtitles, unattended, and puts it in
-Jellyfin so it plays on the TVs.
+Kizuna gives every new weekly anime episode styled subtitles in your language, unattended, and puts it in
+Jellyfin so it plays on the TVs. The subtitle language is a setting (14 languages, see `language.py`); the examples
+below often use Arabic, the language Kizuna was first built for.
+
+## First-run setup and the installer
+
+`Kizuna-Setup.exe` (built by `.github/workflows/release.yml`: PyInstaller with `installer/kizuna.spec`, then Inno Setup
+with `installer/kizuna.iss`) installs per user to `%LOCALAPPDATA%\Programs\Kizuna`, adds Start menu (and optional
+Desktop) shortcuts that open the app window (`Kizuna.exe --open`), a Startup shortcut that starts Kizuna at sign-in
+(`Kizuna.exe`), and can install FFmpeg, MKVToolNix, Jellyfin and Stremio with winget, each in a visible window.
+`Kizuna.exe <script>.py` runs one of the bundled scripts: that is how Kizuna starts its helper processes
+(`kizuna_app.py`). Settings and state files live next to the bundled scripts (`_internal`), so an update keeps them.
+
+While `setup_done` is false every page redirects to `/setup` (`setup.html`, `setup.py`): languages, required apps,
+folders (created on request), Jellyfin (running, and a library containing the Weekly and the Anime folders) and
+Stremio (sign-in through Stremio's own login API: only the session key is stored, DPAPI-encrypted in
+`stremio-account.bin`; a stream add-on and a subtitle add-on). Settings → Run setup again reopens it.
 
 ## Shows (the Weekly page)
 
@@ -41,9 +56,17 @@ Weekly Anime/Anime episodes stay before the Recycle Bin (1 h – 30 days; a chan
 from the next hourly cleanup) and Windows "ready" notifications. A damaged settings.json keeps the last good values,
 and cleanup then waits the longest allowed time rather than guess.
 
-## Arabic subtitle style
+## Subtitle language and style
 
-Settings → Arabic subtitles sets the look of the Arabic track Kizuna builds (`sub_style_ar`, validated in
+Settings → Subtitles chooses the **subtitle language** (`subtitle_language`; new installs: English) and its look.
+`language.py` holds, per language: the codes that count (track and add-on labels), the native track name, right-to-left
+handling, the "is this really that language" check (script share, and frequent words for languages sharing a
+script), translator-credit patterns, the Windows OCR language and the default font. Kizuna's own track is named
+`العربية` for Arabic (every earlier version wrote that name, so existing libraries stay recognised) and
+`<Native name> (Kizuna)` for other languages; any of those names counts as "already done", so switching language
+never re-processes a library. `KIZUNA_SUBTITLE_LANGUAGE` overrides the setting (the test suite pins Arabic with it).
+
+Each language has its own style (`sub_style_<code>`, validated in
 `subtitle_style.py`): font (13 bundled OFL fonts in `fonts/`, listed in `subtitle_style.FONTS`; variable fonts were cut to static Regular/Bold
 with fontTools, only for families without a Reserved Font Name), size, bold, colour, position and edge distance, outline, shadow, and an optional background box. The
 preview is rendered by ffmpeg/libass, the same renderer players use. `srt2ass` writes the saved style; `mux` embeds
@@ -88,9 +111,8 @@ starting point. Show subscriptions are the `SHOWS` tuple in `dkb.py`; the Jellyf
 folder map in `agent.py` is separate. The DKB listing is limited to the site's recent
 results, so very long offline periods can miss episodes that leave that listing.
 
-1. **`watcher.py`** sees a new `.mkv` in
-   `C:\Users\moody\OneDrive\Videos\أنمي\آخر حلقات الأنمي` and waits until its size has been
-   stable for 60 s (download or OneDrive sync finished).
+1. **`watcher.py`** sees a new `.mkv` in the inbox folder (Settings → Folders, `folder_inbox`) and waits until
+   its size has been stable for 60 s (download or sync finished).
 2. It starts **`agent.py --now`**. Files with a non-commentary Arabic audio track skip
    all subtitle extraction/search, styling, timing checks, and muxing; their original
    video is copied to Jellyfin if needed. This includes Arabic-dubbed episodes of `manual` shows. Detection
@@ -117,9 +139,9 @@ and translated). An Arabic-dubbed episode of such a show bypasses subtitle proce
 
 ## Jellyfin
 
-Finished episodes are copied (the OneDrive copy stays) to
-`C:\Users\moody\Downloads\Weekly Anime\<Show (Year)>\Season NN\`, which is the Jellyfin
-library **Weekly Anime**. The `SHOWS` map in `agent.py` turns release names into folder names:
+Finished episodes are copied (the inbox copy stays) to
+`<Weekly library>\<Show (Year)>\Season NN\` (Settings → Folders, `folder_weekly`), which is the Jellyfin
+library **Weekly Anime**. Folders are read when Kizuna starts. The `SHOWS` map in `agent.py` turns release names into folder names:
 
 | Release name starts with | Folder |
 |---|---|
