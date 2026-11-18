@@ -7,8 +7,9 @@
 .d-head>.k-btn{margin-top:2px}
 #landing .k-shelf{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
 /* cinematic hero: the most popular shows airing now, one every 7 seconds */
-.hero .slide{position:absolute;inset:0;display:flex;align-items:flex-end;opacity:0;visibility:hidden;transition:opacity .8s var(--k-ease),visibility .8s}
-.hero .slide.on{opacity:1;visibility:visible}
+.hero .slide{position:absolute;inset:0;display:flex;align-items:flex-end;isolation:isolate;transform:translateX(100%);visibility:hidden;will-change:transform}
+.hero .slide.on{transform:none;visibility:visible}
+.hero .slide.anim{transition:transform .75s cubic-bezier(.65,0,.35,1);visibility:visible}
 .hero .hero-body{padding-bottom:46px}
 .hero .dots{position:absolute;bottom:18px;inset-inline-start:34px;display:flex;gap:6px;z-index:2}
 #hero .dots button{all:unset;cursor:pointer;width:8px;height:8px;border-radius:999px;background:rgba(255,255,255,.35);transition:width .3s var(--k-ease),background .3s}
@@ -23,7 +24,7 @@
 .hero{position:relative;margin-top:30px;border-radius:14px;overflow:hidden;min-height:340px;display:flex;align-items:flex-end;isolation:isolate;background:#141418}
 .hero img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;opacity:0;transition:opacity .8s,transform 8s linear}
 .hero img.bg.in{opacity:1}.hero:hover img.bg{transform:scale(1.04)}
-.hero::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(9,9,11,.97) 0%,rgba(9,9,11,.82) 34%,rgba(9,9,11,.15) 72%),
+.hero .slide::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(9,9,11,.97) 0%,rgba(9,9,11,.82) 34%,rgba(9,9,11,.15) 72%),
   linear-gradient(0deg,rgba(9,9,11,.9),rgba(9,9,11,0) 55%)}
 .hero-body{display:grid;grid-template-columns:120px minmax(0,1fr);gap:26px;align-items:end;padding:30px 34px;max-width:860px}
 .hero-poster{aspect-ratio:2/3;border-radius:8px;overflow:hidden;box-shadow:0 20px 40px -10px rgba(0,0,0,.9);background:#1d1d23}
@@ -32,7 +33,7 @@
 .hero h2{font:650 32px/1.1 var(--k-font-display);letter-spacing:-.015em;margin:10px 0 10px;color:#fff;text-wrap:balance}
 .hero p{margin:0 0 18px;color:rgba(255,255,255,.75);font-size:14px;line-height:1.6;max-width:62ch;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .hero-actions{display:flex;gap:10px;flex-wrap:wrap}
-[dir=rtl] .hero::after{background:linear-gradient(270deg,rgba(9,9,11,.97) 0%,rgba(9,9,11,.82) 34%,rgba(9,9,11,.15) 72%),linear-gradient(0deg,rgba(9,9,11,.9),rgba(9,9,11,0) 55%)}
+[dir=rtl] .hero .slide::after{background:linear-gradient(270deg,rgba(9,9,11,.97) 0%,rgba(9,9,11,.82) 34%,rgba(9,9,11,.15) 72%),linear-gradient(0deg,rgba(9,9,11,.9),rgba(9,9,11,0) 55%)}
 [dir=rtl] .batch-problems{padding-left:0;padding-right:18px}
 @media (max-width:700px){.hero-body{grid-template-columns:1fr;padding:22px}.hero-poster{display:none}.hero h2{font-size:24px}.hero{min-height:380px}}
 #connection{margin-top:8px;color:var(--k-text-3);font-size:12.5px;max-width:80ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -290,13 +291,24 @@ Kizuna.shell('discover');
     +(picks.length>1?`<button type="button" class="nav prev" aria-label="Previous show">${ARROW}</button><button type="button" class="nav next" aria-label="Next show">${ARROW.replace('M15 6l-6 6 6 6','M9 6l6 6-6 6')}</button>
     <div class="dots">${picks.map((h,j)=>`<button type="button" aria-label="Show ${j+1}"></button>`).join('')}</div>`:'');
    let at=0,timer=null;
-   const go=i=>{const all=[...hero.querySelectorAll('.slide')];at=(i+all.length)%all.length;
+   // slide (not fade): the outgoing show moves out while the next moves in, in reading direction
+   const go=(i,dir)=>{const all=[...hero.querySelectorAll('.slide')],n=all.length,next=(i+n)%n,cur=all[at],nxt=all[next];
+     if(hero.dataset.ready&&next!==at&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+       const s=(dir||(next>at?1:-1))*(document.documentElement.dir==='rtl'?-1:1);
+       all.forEach(x=>{if(x!==cur&&x!==nxt){x.classList.remove('anim');x.style.transform='';x.style.visibility=''}});
+       nxt.classList.remove('anim');nxt.style.transform=`translateX(${s*100}%)`;nxt.style.visibility='visible';void nxt.offsetWidth;
+       nxt.classList.add('anim');cur.classList.add('anim');nxt.style.transform='translateX(0)';cur.style.transform=`translateX(${-s*100}%)`;
+       const settle=e=>{if(e.target!==cur)return;cur.removeEventListener('transitionend',settle);
+         if(!cur.classList.contains('on')){cur.classList.remove('anim');cur.style.transform='';cur.style.visibility=''}nxt.classList.remove('anim')};
+       cur.addEventListener('transitionend',settle)}
+     else all.forEach(x=>{x.classList.remove('anim');x.style.transform='';x.style.visibility=''});
+     hero.dataset.ready='1';at=next;
      all.forEach((x,j)=>{const on=j===at;x.classList.toggle('on',on);x.setAttribute('aria-hidden',String(!on));x.querySelectorAll('a,button').forEach(b=>b.tabIndex=on?0:-1)});
      hero.querySelectorAll('.dots button').forEach((b,j)=>b.setAttribute('aria-current',String(j===at)))};
-   const play=()=>{clearInterval(timer);if(picks.length>1)timer=setInterval(()=>{if(!document.hidden&&!hero.hidden&&!hero.matches(':hover,:focus-within'))go(at+1)},7000)};
+   const play=()=>{clearInterval(timer);if(picks.length>1)timer=setInterval(()=>{if(!document.hidden&&!hero.hidden&&!hero.matches(':hover,:focus-within'))go(at+1,1)},7000)};
    hero.onclick=e=>{const f=e.target.closest('[data-find]');
      if(f){const h=picks[+f.dataset.find];$('query').value=h.romaji||h.title;hideSuggestions();$('searchForm').requestSubmit();return}
-     if(e.target.closest('.prev')){go(at-1);play()}else if(e.target.closest('.next')){go(at+1);play()}
+     if(e.target.closest('.prev')){go(at-1,-1);play()}else if(e.target.closest('.next')){go(at+1,1);play()}
      else{const d=e.target.closest('.dots button');if(d){go([...hero.querySelectorAll('.dots button')].indexOf(d));play()}}};
    go(0);play();
    hero.hidden=false;$('searchForm').addEventListener('submit',()=>{hero.hidden=true;clearInterval(timer)})}
