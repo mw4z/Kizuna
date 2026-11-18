@@ -26,7 +26,7 @@ function t(s){
   const out=tr(m[2].replace(/\s+/g,' '));return out==null?str:m[1]+out+m[3]}
 // never translated: titles, release and file names, the log
 const SKIP='bdi,pre,code,script,style,textarea,[translate=no],.notr,.poster strong,.suggestion strong,#title,#description,'+
-  '.release strong,.release p,.release small,select#episode,.episode-check>span:first-of-type,'+
+  '.release>div>strong,.release>div>p,.release>div>small,select#episode,.episode-check>span:first-of-type,'+
   'select#library,select#library_movie,select#library_series,select#library_anime,select#language,select#subtitle_language';   // your library names, language names
 const ATTRS=['placeholder','aria-label','title'];
 function translateTree(root){

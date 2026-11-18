@@ -295,7 +295,7 @@ def collect(pending=None, light=False):
                 failed = "failed" in entry["stage"].lower() or "needs" in entry["stage"].lower()
                 (attention if failed else pending_items).append(
                     {"name": nice(entry["destination"]), "reason": entry["stage"], "kind": "failed" if failed else "waiting",
-                     "retry_at": entry.get("retry_at")})
+                     "retry_at": entry.get("retry_at"), "key": entry["key"]})
             elif entry["status"] == "running" and not job:
                 job = {"name": nice(entry["destination"]), "stage": entry["stage"], "pct": entry.get("pct", 0),
                        "stalled": now - entry["updated"] > 600, "age": now - entry["updated"]}
@@ -442,6 +442,9 @@ def make_handler(pending=None):
                 elif post and action == "settings":
                     import settings
                     data = settings.update(params)
+                elif post and action == "queue-cancel":
+                    import library_processing
+                    data = library_processing.cancel(params.get("key", ""))
                 elif post and action == "subtitle-preview":
                     import settings
                     data = settings.preview(params)

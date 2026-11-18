@@ -90,7 +90,7 @@ let following=[],editing=null,linked=null;const poster={};
 
 async function loadList(){
  try{const d=await api('shows');following=d.shows;$('count').textContent=following.length||'';
-  if(K.lang==='ar')following.forEach(s=>{if(s.local_title)s.shown=s.local_title;if(s.local_poster)s.poster=s.local_poster});
+  if(K.lang==='ar')following.forEach(s=>{if(s.local_poster)s.poster=s.local_poster});   // titles stay original
   $('list').innerHTML=following.length?following.map((s,i)=>{const st=s.stremio;
    return `<div class="follow" data-title="${esc(s.folder)}"><div class="k-art">${art(s.poster,s.folder)}</div><div style="min-width:0">
    <div class="follow-title"><bdi>${esc(s.shown||s.folder)}</bdi></div>
@@ -104,7 +104,7 @@ async function loadList(){
   markFollowed()}catch(e){say($('topMsg'),e.message,'bad')}}
 
 let cards=[];
-function drawCards(list){if(K.lang==='ar')list.forEach(c=>{if(c.local_title){c.title=c.local_title;c.poster=c.local_poster||c.poster}});cards=list;$('grid').innerHTML=list.map((c,i)=>`<button type="button" class="k-card" data-pick="${i}" data-title="${esc(c.title)}" ${c.followed?'aria-disabled="true"':''}>
+function drawCards(list){if(K.lang==='ar')list.forEach(c=>{if(c.local_poster)c.poster=c.local_poster});cards=list;$('grid').innerHTML=list.map((c,i)=>`<button type="button" class="k-card" data-pick="${i}" data-title="${esc(c.title)}" ${c.followed?'aria-disabled="true"':''}>
  <div class="k-art">${art(c.poster,c.title)}${c.followed?`<span class="k-badge"><span class="k-tag on">${K.lang==='ar'?'Followed':'Following'}</span></span>`:c.new?'<span class="k-badge"><span class="k-tag accent">New this season</span></span>':''}</div>
  <div class="k-card-title"><bdi>${esc(c.title)}</bdi></div>
  <div class="k-card-meta">${c.next?`Ep ${esc(c.next)}${c.episodes?` of ${esc(c.episodes)}`:''} · <span class="when">${esc(soon(c.at))}</span>`:c.year?esc(c.year):''}</div></button>`).join('');

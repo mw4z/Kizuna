@@ -60,22 +60,21 @@ const fire=()=>{assert.equal(timers.size,1);const [id,fn]=[...timers][0];timers.
  vm.runInContext(html.match(/^function etaLabel\(seconds\).*$/m)[0],context);
  assert.equal(context.etaLabel(60),'About 1 min left');assert.equal(context.etaLabel(3660),'About 1h 1m left');
  assert.equal(context.etaLabel(null),'Estimating time left…');
- assert.ok(html.includes("Kizuna.shell('discover')")&&html.includes('src="/kizuna.js"')&&html.includes('downloadSeason')&&html.includes('downloadShow'));  // shared navigation replaces the old back link
+ assert.ok(html.includes("Kizuna.shell('discover')")&&html.includes('src="/kizuna.js"')&&!html.includes('downloadSeason')&&html.includes('downloadShow'));   // the season button was redundant with ticking episodes  // shared navigation replaces the old back link
  assert.ok(html.indexOf('id="bulkControls"')<html.indexOf('id="sourcesSection"'));
  context.selected={key:'selected-source'};context.jobBusy=false;context.batchBusy=false;context.inspectVersion=0;context.currentType='series';context.episodeChoices=new Set();
  get('season').value='2';
  vm.runInContext(html.match(/^function updateDownloadButtons\(\).*$/m)[0],context);
  vm.runInContext(html.match(/^function resetEpisodeSelection\(\).*$/m)[0],context);
- context.updateDownloadButtons();assert.equal(get('downloadSeason').disabled,false);
- assert.equal(get('downloadSeasonHere').disabled,false);
- assert.equal(get('downloadSeasonHere').textContent,'Download Season 2');
+ context.updateDownloadButtons();assert.equal(get('downloadShow').disabled,false);
+ assert.equal(get('downloadShowHere').disabled,false);
  context.Date=Date;context.currentType='series';
  vm.runInContext(html.match(/^function showJob\(j\).*$/m)[0],context);
  context.showJob({name:'Show',season:1,episode:13,status:'running',stage:'Downloading',pct:49.2,started:Date.now()/1000});
  assert.equal(get('jobName').textContent,'Show · S01E13');
  context.showJob({name:'Show',status:'done',path:'Show - S00E01.mkv',pct:100});
  assert.equal(get('jobName').textContent,'Show · S00E01');
- context.currentType='movie';context.updateDownloadButtons();assert.equal(get('downloadSeasonHere').hidden,true);
+ context.currentType='movie';context.updateDownloadButtons();assert.equal(get('downloadShowHere').hidden,true);
  context.showJob({name:'Movie',status:'done',pct:100});assert.equal(get('jobName').textContent,'Movie');
  // Library list refreshes in place (a library added after the page opened must appear, selection kept by name)
  vm.runInContext(html.match(/^function option\(select,value,label\).*$/m)[0],context);
@@ -126,8 +125,7 @@ const fire=()=>{assert.equal(timers.size,1);const [id,fn]=[...timers][0];timers.
  vm.runInContext(html.match(/^function renderSources\(\).*$/m)[0],context);context.renderSources();
  assert.ok(get('releases').children[0].children.includes(get('selection')));
  assert.match(html,/\.release>\.selection\{grid-column:1\/-1/);
- assert.equal(get('downloadSeason').textContent,'Download Season 2');
- context.resetEpisodeSelection();assert.equal(get('downloadSeason').disabled,true);
+ context.resetEpisodeSelection();assert.equal(get('downloadShow').disabled,true);
  assert.equal(context.selected,null);assert.match(get('bulkHelp').textContent,/Check tracks/);
  context.selected={key:'old-release'};
  context.message=()=>{};
@@ -136,7 +134,7 @@ const fire=()=>{assert.equal(timers.size,1);const [id,fn]=[...timers][0];timers.
  const inlineRow=new Element(),checkButton=new Element();checkButton.closest=()=>inlineRow;
  const inspection=context.checkSource({key:'new-release'},checkButton);
  assert.ok(inlineRow.children.includes(get('selectionLoading')));
- assert.equal(context.selected,null);assert.equal(get('downloadSeason').disabled,true);
+ assert.equal(context.selected,null);assert.equal(get('downloadShow').disabled,true);
  const pending=requests.at(-1);assert.equal(pending.path,'inspect');
  pending.reject(Error('unavailable'));await inspection;
  assert.equal(context.selected,null);assert.equal(get('downloadShow').disabled,true);
@@ -160,6 +158,7 @@ const fire=()=>{assert.equal(timers.size,1);const [id,fn]=[...timers][0];timers.
  context.matchMedia=()=>({matches:true});context.moveTo('results');assert.equal(get('results').scrolled.behavior,'auto');
  get('results').hidden=true;get('results').scrolled=null;context.moveTo('results');assert.equal(get('results').scrolled,null);
  context.matchMedia=()=>({matches:false});context.searchVersion=0;
+ context.rememberSearch=()=>{};   // recent searches live outside this slice
  vm.runInContext(html.slice(html.indexOf("$('searchForm').onsubmit=async"),html.indexOf('function renderTitles()')),context);
  const searchAction=get('searchForm').onsubmit({preventDefault(){}});
  requests.at(-1).resolve({results:[{name:'Result',type:'series'}],failed_addons:0});await searchAction;

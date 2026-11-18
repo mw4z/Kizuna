@@ -648,10 +648,34 @@ def clean_name(text):
     return name
 
 
+_ORIGINAL = {}
+TRANSLATED = re.compile("[\u0600-\u06FF]")
+
+
+def original_name(video):
+    """The show's original title for folders: catalogs such as an Arabic add-on give translated names (Bleach ->
+    "المطهر"), which would split a show already in the library into a second folder. Cinemeta (by IMDb id) has
+    the original; without an IMDb id, or offline, the catalog's name is kept."""
+    meta = video["meta"]
+    name = str(meta.get("name", ""))
+    if not TRANSLATED.search(name):
+        return name
+    imdb = next((str(x).split(":")[0] for x in (meta.get("id", ""), video.get("id", "")) if str(x).startswith("tt")), "")
+    if imdb and imdb not in _ORIGINAL:
+        kind = "movie" if video.get("type") == "movie" else "series"
+        try:
+            found = (get_json(f"https://v3-cinemeta.strem.io/meta/{kind}/{imdb}.json", timeout=15).get("meta") or {}).get("name")
+            if found and not TRANSLATED.search(found):
+                _ORIGINAL[imdb] = found
+        except Exception:
+            pass
+    return _ORIGINAL.get(imdb) or name
+
+
 def target(video, library):
     meta = video["meta"]
     year = re.search(r"\b(19|20)\d{2}\b", str(meta.get("releaseInfo", "")))
-    name = clean_name(meta["name"] + (f" ({year.group()})" if year else ""))
+    name = clean_name(original_name(video) + (f" ({year.group()})" if year else ""))
     root = Path(library["path"]).resolve()
     if video["type"] == "movie":
         dest = root / name / (name + ".mkv")

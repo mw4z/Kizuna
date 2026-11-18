@@ -379,5 +379,36 @@ class Tests(unittest.TestCase):
                 server.server_close()
 
 
+class OriginalTitles(unittest.TestCase):
+    """Folders use the show's original title: an Arabic catalog's translated name ("المطهر") must not split
+    Bleach into a second library folder (2026-11-18)."""
+    def setUp(self):
+        s._ORIGINAL.clear()
+
+    def video(self, name, meta_id="tmdb:30984", vid="tt0434665:13:1"):
+        return {"type": "series", "id": vid, "season": 13, "episode": 1,
+                "meta": {"id": meta_id, "name": name, "releaseInfo": "2004-2026"}}
+
+    def test_translated_names_fall_back_to_the_original(self):
+        lib = {"path": tempfile.gettempdir()}
+        with patch.object(s, "get_json", return_value={"meta": {"name": "Bleach"}}) as call:
+            path = s.target(self.video("المطهر"), lib)
+            s.target(self.video("المطهر"), lib)
+        self.assertEqual(path.parent.parent.name, "Bleach (2004)")
+        self.assertEqual(call.call_count, 1)                                  # looked up once, then remembered
+        self.assertIn("tt0434665", call.call_args.args[0])
+
+    def test_original_names_and_failures_keep_the_catalog_name(self):
+        lib = {"path": tempfile.gettempdir()}
+        with patch.object(s, "get_json") as call:
+            self.assertEqual(s.target(self.video("Blue Box"), lib).parent.parent.name, "Blue Box (2004)")
+        call.assert_not_called()                                              # nothing to translate back
+        with patch.object(s, "get_json", side_effect=OSError("offline")):
+            self.assertEqual(s.target(self.video("المطهر"), lib).parent.parent.name, "المطهر (2004)")
+        with patch.object(s, "get_json") as call:
+            s.target(self.video("المطهر", vid="x:1:1"), lib)
+        call.assert_not_called()                                              # no IMDb id: nothing to ask
+
+
 if __name__ == "__main__":
     unittest.main()
