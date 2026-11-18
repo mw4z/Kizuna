@@ -169,6 +169,36 @@ class Pick(unittest.TestCase):
         self.assertEqual(name, "Bleach Ep_1 fits")
         self.assertIn("fits", open(dest, encoding="utf-8").read())
 
+    def test_local_library_is_matched_by_episode_and_absolute_number(self):
+        lib = os.path.join(self.d, "fansubs", "tt1")
+        os.makedirs(lib)
+        for n in ("Bleach - 266 [KM][1080p][A266B0C1].ass", "Show S14E01.srt", "Bleach - 1266.ass",
+                  "Bleach - 267 [KM].ass", "notes.txt", "Other S02E266.srt"):
+            open(os.path.join(lib, n), "w").close()
+        with mock.patch.object(fansub, "LOCAL_DIR", os.path.join(self.d, "fansubs")):
+            got = [os.path.basename(p) for p in fansub.local_subs("tt1", 14, 1, 266)]
+            self.assertEqual(got, ["Show S14E01.srt", "Bleach - 266 [KM][1080p][A266B0C1].ass"])   # CRC tags ignored
+            self.assertEqual(fansub.local_subs("tt1", 14, 9, 274), [])
+            self.assertEqual(fansub.local_subs("../tt1", 14, 1, 266), [])                          # IMDb ids only
+
+    def test_local_library_file_is_checked_and_chosen_before_the_addons(self):
+        import stremio
+        lib = os.path.join(self.d, "fansubs", "tt1")
+        os.makedirs(lib)
+        open(os.path.join(lib, "Bleach - 266 [Kurai Mangetsu].srt"), "w", encoding="utf-8").write(
+            srt(text="مرحبا بك يا صديقي العزيز في هذه الحلقة الجديدة KM"))
+
+        def timing(video, ass):
+            return 0.0, "KM" in open(ass, encoding="utf-8-sig").read()
+        with mock.patch.object(fansub, "LOCAL_DIR", os.path.join(self.d, "fansubs")), \
+                mock.patch.object(stremio, "addons", return_value=[]), \
+                mock.patch.object(fansub, "episode_ids", return_value=["tt1:14:1", "tt1:1:266"]), \
+                mock.patch.object(agent, "timing", side_effect=timing):
+            dest = os.path.join(self.d, "out.srt")
+            name = fansub.pick("video.mkv", "tt1", 14, 1, dest, "fansub_first")
+        self.assertEqual(name, "Bleach - 266 [Kurai Mangetsu].srt (local library)")
+        self.assertIn("KM", open(dest, encoding="utf-8").read())
+
     def test_nothing_acceptable_returns_none(self):
         name, dest = self.run_pick([sub("Shahid official fits"), sub("AI fits")], {"fits": True})
         self.assertIsNone(name)

@@ -26,6 +26,9 @@ import language
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 POLICY_FILE = os.path.join(HERE, "subtitle_policy.json")          # private (git-ignored)
+# private library of fan subtitle files the add-ons don't have (git-ignored): fansubs/<IMDb id>/<file>.ass|.srt,
+# named with the episode as "S14E01" or as the absolute number ("Bleach - 266 [KM].ass"). Checked before the add-ons.
+LOCAL_DIR = os.path.join(HERE, "fansubs")
 DEFAULT_POLICY = {"default": "official_ok", "shows": []}
 OFFICIAL = re.compile(r"shahid|شاهد|netflix|\bNF\b|crunchyroll|\bCR\b|amazon|\bAMZN\b|prime ?video|\bOSN\b|disney|"
                       r"\bDSNP\b|hidive|anghami|starz|\bTOD\b|weyyak|yango|\bviu\b|iqiyi|\bWAKANIM\b", re.I)
@@ -115,6 +118,20 @@ def episode_ids(meta_id, season, episode):
     return ids
 
 
+def local_subs(imdb, season, episode, absolute=None):
+    """Files in the local fan-subtitle library for this episode, exact SxxEyy names first, then absolute numbers."""
+    folder = os.path.join(LOCAL_DIR, imdb) if re.fullmatch(r"tt\d+", str(imdb or "")) else ""
+    try:
+        names = sorted(n for n in os.listdir(folder) if n.lower().endswith((".ass", ".ssa", ".srt")))
+    except OSError:
+        return []
+    bare = {n: re.sub(r"\[[^\]]*\]|\([^)]*\)", " ", os.path.splitext(n)[0]) for n in names}   # drop [group][CRC] tags
+    exact = [n for n in names if re.search(rf"S0*{season}\s*E0*{episode}(?!\d)", bare[n], re.I)]
+    numbered = [n for n in names if absolute and n not in exact and not re.search(r"S\d+\s*E\d+", bare[n], re.I)
+                and re.search(rf"(?<!\d)0*{absolute}(?!\d)", bare[n])]
+    return [os.path.join(folder, n) for n in exact + numbered]
+
+
 def text_ok(path):
     """Real dialogue in the subtitle language: enough cues, the right letters and words. -> (ok, reason)."""
     try:
@@ -177,6 +194,10 @@ def copies_official(candidate, official):
 
 def download(sub, out):
     import stremio as s
+    if sub.get("local"):                          # a library file: same SRT conversion, no network
+        r = subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-y", "-i", sub["local"], "-map", "0:s:0", "-c:s", "srt", out],
+                           timeout=90, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=agent.NO_CF)
+        return r.returncode == 0 and os.path.exists(out) and os.path.getsize(out) > 1000
     r = subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-y", "-protocol_whitelist", s.egress.PROTOCOLS,
                         "-rw_timeout", "30000000", "-i", s.safe_url(sub["url"]), "-map", "0:s:0", "-c:s", "srt", out],
                        timeout=90, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -201,6 +222,10 @@ def pick(video, meta_id, season, episode, destination, mode, kind="series"):
     label = meta_id if kind == "movie" else f"{meta_id} S{season:02d}E{episode:02d}"
     official = official_lines(video, work) if mode in ("fansub", "fansub_first") else set()
     first = ranked(subs, "fansub" if mode == "fansub_first" else mode)
+    if kind != "movie" and mode in ("fansub", "fansub_first"):   # the user's own fan-subtitle library goes first
+        absolute = next((int(v.rsplit(":", 1)[1]) for v in ids[1:]), episode if season == 1 else None)
+        first = [(4, f"{os.path.basename(p)} (local library)", {"local": p, "url": p})
+                 for p in local_subs(meta_id, season, episode, absolute)] + first
     queue = [(c, 1) for c in first]
     if mode == "fansub_first":                   # level 2: official human subtitles, only after every fansub failed
         queue += [(c, 2) for c in ranked(subs, "official_ok") if c not in first]

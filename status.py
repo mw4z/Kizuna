@@ -291,8 +291,9 @@ def collect(pending=None, light=False):
         library_jobs = library_processing.status()
         for entry in library_jobs:
             if entry["status"] in ("waiting", "pending"):
-                problems.append(f"{nice(entry['destination'])} — {entry['stage']}")
                 failed = "failed" in entry["stage"].lower() or "needs" in entry["stage"].lower()
+                if failed:                             # waiting for subtitles is normal: its own list, not a warning
+                    problems.append(f"{nice(entry['destination'])} — {entry['stage']}")
                 (attention if failed else pending_items).append(
                     {"name": nice(entry["destination"]), "reason": entry["stage"], "kind": "failed" if failed else "waiting",
                      "retry_at": entry.get("retry_at"), "key": entry["key"]})

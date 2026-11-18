@@ -459,6 +459,24 @@ class StatusServer(Sandbox):
         self.assertEqual(len([p for p in d["problems"] if "Ranma" in p]), 1)
         self.assertNotIn(s.nice(os.path.basename(conan)), d["waiting"])
 
+    def test_episodes_waiting_for_subtitles_are_not_a_warning(self):
+        import library_processing
+        s, now = self.status, time.time()
+        queue = [{"key": "a", "status": "waiting", "destination": "Bleach - S14E01.mkv", "updated": now, "retry_at": now + 60,
+                  "stage": "No acceptable fansub subtitles yet; checking hourly"},
+                 {"key": "b", "status": "waiting", "destination": "Ranma - S03E08.mkv", "updated": now, "retry_at": 0,
+                  "stage": "Timing inconsistent. Not muxed, needs a look"}]
+        with mock.patch.object(s, "_has_arabic", lambda p: False), mock.patch.object(s, "_shows", lambda l=(): []), \
+                mock.patch.object(s, "_deletions", lambda: []), mock.patch.object(s, "_jellyfin_up", lambda: True), \
+                mock.patch.object(library_processing, "status", lambda: queue[:1]):
+            calm = s.collect()
+        self.assertEqual((len(calm["pending"]), calm["problems"], calm["tone"]), (1, [], "ok"))   # waiting ≠ problem
+        with mock.patch.object(s, "_has_arabic", lambda p: False), mock.patch.object(s, "_shows", lambda l=(): []), \
+                mock.patch.object(s, "_deletions", lambda: []), mock.patch.object(s, "_jellyfin_up", lambda: True), \
+                mock.patch.object(library_processing, "status", lambda: queue):
+            warn = s.collect()
+        self.assertEqual((len(warn["attention"]), len(warn["problems"]), warn["tone"]), (1, 1, "warn"))
+
 
 # ---------------------------------------------------------------- 8. egress proxy (redirects, HLS, https, DNS)
 class _Origin(http.server.ThreadingHTTPServer):
