@@ -77,6 +77,8 @@ exact: {
   "Cancel": "إلغاء", "Cancelled": "أُلغيت",
   "Remove?": "إزالة؟",
   "That episode is no longer waiting.": "هذه الحلقة لم تعد في الانتظار.",
+  "That show could not be opened.": "تعذّر فتح هذا العمل.",
+  "That show isn't in the anime catalog yet. Search for it by name instead.": "هذا العمل غير موجود في كتالوج الأنمي بعد. ابحث عنه بالاسم بدلًا من ذلك.",
   "It is being prepared right now. Try again when it finishes.": "يجري تجهيزها الآن. حاول مجددًا عند انتهائها.",
   "Recent": "الأخيرة",
   "Clear": "مسح",

@@ -410,5 +410,34 @@ class OriginalTitles(unittest.TestCase):
         call.assert_not_called()                                              # no IMDb id: nothing to ask
 
 
+class KitsuEpisodes(unittest.TestCase):
+    """Anime catalogs hand out kitsu: ids that the installed add-ons can't open: the episodes then come from
+    the public Anime Kitsu catalog instead of an empty list (2026-11-18)."""
+    def test_kitsu_ids_without_episodes_use_the_anime_kitsu_catalog(self):
+        key = s.remember({"kind": "title", "type": "series", "meta": {"id": "kitsu:48239", "name": "Ao no Hako"}})
+        kitsu = {"meta": {"name": "Ao no Hako", "background": "https://media.kitsu.app/b.jpg", "genres": ["Romance"],
+                          "videos": [{"id": "kitsu:48239:1", "season": 1, "episode": 1, "title": "Chinatsu Senpai"}]}}
+        with patch.object(s, "addons", return_value=[]), patch.object(s, "get_json", return_value=kitsu) as call:
+            d = s.details(key)
+        self.assertIn("anime-kitsu", call.call_args.args[0])
+        self.assertEqual([(v["id"], v["season"], v["episode"]) for v in d["videos"]], [("kitsu:48239:1", 1, 1)])
+        self.assertEqual((d["background"], d["genres"]), ("https://media.kitsu.app/b.jpg", ["Romance"]))
+        fresh = s.remember({"kind": "title", "type": "series", "meta": {"id": "kitsu:49752", "name": "Ao no Hako 2"}})
+        with patch.object(s, "addons", return_value=[]), patch.object(s, "get_json", side_effect=OSError("offline")):
+            self.assertEqual(s.details(fresh)["videos"], [])                  # offline: same empty list as before
+
+    def test_season_cards_open_the_imdb_show_at_their_season(self):
+        meta = {"meta": {"id": "kitsu:48939", "type": "series", "name": "SPY x FAMILY Season 3", "imdb_id": "tt13706018",
+                         "videos": [{"id": "kitsu:48939:1", "season": 1, "episode": 1, "imdbSeason": 3, "imdbEpisode": 1}]}}
+        with patch.object(s, "get_json", return_value=meta) as call:
+            t = s.open_anilist("177937")
+        self.assertIn("anilist:177937", call.call_args.args[0])
+        self.assertEqual((t["type"], t["season"], s.item(t["key"], "title")["meta"]["id"]), ("series", 3, "tt13706018"))
+        with self.assertRaises(s.UserError):
+            s.open_anilist("1/../x")                                          # only numeric ids reach the URL
+        with patch.object(s, "get_json", side_effect=OSError("offline")), self.assertRaises(s.UserError):
+            s.open_anilist("177937")                                          # page falls back to a name search
+
+
 if __name__ == "__main__":
     unittest.main()

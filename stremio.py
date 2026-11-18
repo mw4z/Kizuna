@@ -278,6 +278,32 @@ def search(query, media_type):
     return {"results": values[:60], "failed_addons": failures}
 
 
+def open_anilist(anilist_id):
+    """A season card (AniList id) opens that exact show: the Anime Kitsu catalog maps it to the IMDb show and
+    season the library already uses, so it lands on the same page and folders a search would."""
+    if not str(anilist_id).isdigit():
+        raise UserError("That show could not be opened.")
+    meta = {}
+    for kind in ("series", "movie"):
+        try:
+            meta = get_json(f"https://anime-kitsu.strem.fun/meta/{kind}/anilist:{anilist_id}.json", timeout=20).get("meta") or {}
+        except Exception:
+            meta = {}
+        if meta.get("id"):
+            break
+    if not meta.get("id"):
+        raise UserError("That show isn't in the anime catalog yet. Search for it by name instead.")
+    kind = "movie" if meta.get("type") == "movie" else "series"
+    first = (meta.get("videos") or [{}])[0]
+    imdb = meta.get("imdb_id") if re.fullmatch(r"tt\d+", str(meta.get("imdb_id") or "")) else ""
+    season = first.get("imdbSeason") if imdb and isinstance(first.get("imdbSeason"), int) else None
+    title = {"kind": "title", "type": kind,
+             "meta": {"id": imdb or meta["id"], "name": meta.get("name") or "Untitled", "poster": meta.get("poster", ""),
+                      "releaseInfo": meta.get("releaseInfo", "")}}
+    return {"key": remember(title), "type": kind, "name": title["meta"]["name"], "poster": safe_poster(meta.get("poster", "")),
+            "year": str(meta.get("releaseInfo") or "")[:9], "season": season}
+
+
 def details(key):
     selected = item(key, "title")
     meta = selected["meta"]
@@ -286,6 +312,15 @@ def details(key):
     richer = [r["meta"] for r in results if isinstance(r.get("meta"), dict) and r["meta"].get("name")]
     if richer:
         meta = max(richer, key=lambda m: len(m.get("videos", [])))
+    if selected["type"] != "movie" and not meta.get("videos") and str(meta.get("id", "")).startswith("kitsu:"):
+        # anime catalogs give Kitsu ids that Cinemeta and most add-ons can't open: the public Anime Kitsu
+        # catalog has their episodes (and art)
+        try:
+            kitsu = get_json(f"https://anime-kitsu.strem.fun/meta/series/{meta['id']}.json", timeout=20).get("meta") or {}
+            if kitsu.get("videos"):
+                meta = dict(kitsu, id=meta["id"], name=meta.get("name") or kitsu.get("name"))
+        except Exception:
+            pass
     selected["meta"] = meta
     videos = []
     for v in meta.get("videos", []):
@@ -298,7 +333,11 @@ def details(key):
     if not videos and selected["type"] == "movie":
         videos = [{"key": remember({"kind": "video", "type": "movie", "id": meta["id"], "meta": meta}),
                    "name": meta["name"]}]
-    return {"name": meta["name"], "description": meta.get("description", ""), "videos": videos}
+    genres = meta.get("genres") or meta.get("genre") or []
+    return {"name": meta["name"], "description": meta.get("description", ""), "videos": videos,
+            "poster": safe_poster(meta.get("poster", "")), "background": safe_poster(meta.get("background", "")),
+            "genres": [str(g) for g in genres if isinstance(g, str)][:3], "year": str(meta.get("releaseInfo") or meta.get("year") or "")[:9],
+            "rating": str(meta.get("imdbRating") or ""), "runtime": str(meta.get("runtime") or "")[:12]}
 
 
 def quality(stream):

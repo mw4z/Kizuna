@@ -94,7 +94,28 @@ progress::-moz-progress-bar{background:var(--k-download)}
 .poster:disabled{opacity:.6;cursor:wait}
 /* title detail */
 .section{margin-top:28px}
-#detail{margin-top:20px}
+#detail{margin-top:20px;position:relative;isolation:isolate}
+/* inside a title: its art fills a banner, and a soft blur of it tints the page behind */
+#detail .ambient{position:absolute;inset:-40px -10vw auto;height:640px;z-index:-1;pointer-events:none;overflow:hidden;
+  -webkit-mask-image:linear-gradient(#000 0%,rgba(0,0,0,.6) 45%,transparent 100%);mask-image:linear-gradient(#000 0%,rgba(0,0,0,.6) 45%,transparent 100%)}
+#detail .ambient img{width:100%;height:100%;object-fit:cover;filter:blur(70px) saturate(1.5);opacity:0;transform:scale(1.2);transition:opacity 1s}
+#detail .ambient img.in{opacity:.38}
+:root[data-theme=light] #detail .ambient img.in{opacity:.22}
+.dhero{position:relative;margin-top:16px;border-radius:14px;overflow:hidden;min-height:320px;display:flex;align-items:flex-end;isolation:isolate;background:#141418;color:#fff;
+  box-shadow:0 30px 60px -30px rgba(0,0,0,.6)}
+.dhero img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;opacity:0;transition:opacity .9s,transform 9s linear}
+.dhero img.bg.in{opacity:1}.dhero:hover img.bg{transform:scale(1.03)}
+.dhero::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(9,9,11,.95) 0%,rgba(9,9,11,.78) 38%,rgba(9,9,11,.18) 75%),
+  linear-gradient(0deg,rgba(9,9,11,.92),rgba(9,9,11,0) 60%)}
+[dir=rtl] .dhero::after{background:linear-gradient(270deg,rgba(9,9,11,.95) 0%,rgba(9,9,11,.78) 38%,rgba(9,9,11,.18) 75%),linear-gradient(0deg,rgba(9,9,11,.92),rgba(9,9,11,0) 60%)}
+.dhero-body{display:grid;grid-template-columns:150px minmax(0,1fr);gap:28px;align-items:end;padding:30px 34px;max-width:900px}
+.dposter{aspect-ratio:2/3;border-radius:9px;overflow:hidden;background:#1d1d23;box-shadow:0 22px 44px -12px rgba(0,0,0,.9)}
+.dposter img{width:100%;height:100%;object-fit:cover}
+.dmeta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;color:rgba(255,255,255,.72)}
+.dmeta .star{color:#f5c451}
+.dhero #title{font:650 34px/1.12 var(--k-font-display);letter-spacing:-.015em;margin:10px 0 10px;color:#fff;text-wrap:balance}
+.dhero #description{margin:0;color:rgba(255,255,255,.8);font-size:14px;line-height:1.65;max-width:68ch;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+@media (max-width:700px){.dhero-body{grid-template-columns:1fr;padding:22px}.dposter{display:none}.dhero #title{font-size:25px}.dhero{min-height:280px}}
 .back{margin-bottom:22px}
 #title{font:600 28px/1.2 var(--k-font-display);letter-spacing:-.01em;margin:0}
 #description{color:var(--k-text-2);max-width:72ch;margin:10px 0 0;line-height:1.6}
@@ -163,7 +184,9 @@ section,#results,#message,#subtitle{scroll-margin-top:76px}
 <div id="message" role="status" aria-live="polite"></div><div id="results"></div>
 <section id="hero" class="hero" hidden role="region" aria-roledescription="carousel" aria-label="Airing now"></section>
 <section id="landing" class="k-section" style="margin-top:36px" aria-labelledby="hLanding" hidden><div class="k-section-head"><h2 class="k-h" id="hLanding">Airing this season</h2><span class="k-meta">Pick one to find its releases · <a href="/weekly">follow weekly →</a></span></div><div class="k-shelf" id="landingShelf"></div></section>
-<section id="detail" class="section" hidden><button id="back" class="back">← Back to results</button><h2 id="title" dir="auto"></h2><p id="description" class="muted" dir="auto"></p>
+<section id="detail" class="section" hidden><button id="back" class="back">← Back to results</button><div class="ambient" aria-hidden="true"><img id="damb" alt="" referrerpolicy="no-referrer"></div>
+<div class="dhero"><img class="bg" id="dbg" alt="" referrerpolicy="no-referrer"><div class="dhero-body"><div class="dposter" id="dposter"></div>
+ <div class="dtext"><div class="dmeta" id="dmeta"></div><h2 id="title" dir="auto"></h2><p id="description" class="muted" dir="auto"></p></div></div></div>
 <div id="detailLoading" class="loading-detail" hidden aria-label="Loading title" aria-busy="true"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div></div>
 <div id="episodes" class="toolbar" hidden><label>Season<select id="season"></select></label><label>Episode<select id="episode"></select></label><button id="findSources" class="primary">Find releases</button></div>
 <section id="bulkControls" class="selection" hidden><h2>Download the whole show</h2><p id="bulkHelp" class="subtle">Pick an episode, find a release and check its tracks. The audio and subtitles you choose then apply to every episode.</p><div class="toolbar"><button id="downloadShow" aria-describedby="bulkHelp" disabled>Download whole show</button></div></section>
@@ -232,16 +255,28 @@ $('searchForm').onsubmit=async e=>{
  try{const d=await api('search?'+new URLSearchParams({q:$('query').value,type:'all'}));if(version!==searchVersion)return;titles=d.results;renderTitles();message(titles.length?`${titles.length} titles found${d.failed_addons?' · Some catalogs are still loading or unavailable; search again for late results.':''}`:(d.failed_addons?'Catalogs are still loading or unavailable. Search again to include late results.':'No matching titles returned. Try another title.'));moveTo(titles.length?'results':'message')}
  catch(e){if(version===searchVersion){$('results').replaceChildren();message(e.message,true)}}finally{if(version===searchVersion)$('results').setAttribute('aria-busy','false');$('searchButton').disabled=false}
 };
+// the title's art: wide background in the banner (poster if there is none) and a soft blur of it behind the page
+function showArt(poster,bg,d){const E=Kizuna.esc,wide=bg||poster||'';
+ for(const [id,src] of [['dbg',wide],['damb',wide]]){const img=$(id);if((img.getAttribute('src')||'')!==src){img.classList.remove('in');if(src)img.src=src;else img.removeAttribute('src')}}
+ $('dposter').innerHTML=poster?`<img src="${E(poster)}" alt="" referrerpolicy="no-referrer">`:'';$('dposter').hidden=!poster;
+ const bits=[d.year&&`<span>${E(d.year)}</span>`,...(d.genres||[]).map(g=>`<span>${E(g)}</span>`),d.rating&&`<span><span class="star">★</span> ${E(d.rating)}</span>`,d.runtime&&`<span>${E(d.runtime)}</span>`].filter(Boolean);
+ $('dmeta').innerHTML=bits.join('<span aria-hidden="true">·</span>')}
+// a season card or banner opens that show directly (by its AniList id); only if the catalog doesn't know it, search by name
+async function openShow(c,b){b.disabled=true;$('landing').hidden=true;$('hero').hidden=true;
+ try{const t=await api('open-anilist?'+new URLSearchParams({id:c.anilist}));if(!t.poster&&c.poster)t.poster=c.poster;b.disabled=false;await openTitle(t,b)}
+ catch(e){b.disabled=false;$('query').value=c.romaji||c.title;hideSuggestions();$('searchForm').requestSubmit()}}
 function renderTitles(){$('results').replaceChildren();for(const [type,label] of [['movie','Movies'],['series','Series'],['anime','Anime']]){const matching=titles.filter(t=>t.type===type);if(!matching.length)continue;const section=el('section',undefined,'result-group'),grid=el('div',undefined,'grid');section.append(el('h2',label),grid);for(const t of matching){const b=el('button',undefined,'poster');b.type='button';if(t.poster){const img=el('img');img.src=t.poster;img.alt='';img.loading='lazy';img.referrerPolicy='no-referrer';b.append(img)}else b.append(el('span','', 'placeholder'));b.append(el('strong',t.name),el('small',t.year||t.type));b.onclick=()=>openTitle(t,b);grid.append(b)}$('results').append(section)}}
 async function openTitle(t,b){
- messageHost=$('detail');const version=++searchVersion;++inspectVersion;++fillerVersion;fillerLabels={};episodeChoices.clear();$('fillerSource').hidden=true;selected=null;currentType=t.type;videos=[];updateDownloadButtons();b.disabled=true;$('results').hidden=true;$('detail').hidden=false;$('title').textContent=t.name;$('description').textContent='';$('episodes').hidden=true;$('bulkControls').hidden=true;$('sourcesSection').hidden=true;$('selection').hidden=true;$('selectionLoading').hidden=true;$('detailLoading').hidden=false;message('Loading title and episodes…');
- try{const d=await api('details?'+new URLSearchParams({key:t.key}));if(version!==searchVersion)return;currentType=t.type;videos=d.videos;$('title').textContent=d.name;$('description').textContent=d.description;$('detailLoading').hidden=true;$('episodes').hidden=t.type==='movie';if(t.type==='movie'&&videos.length){await loadSources(videos[0].key)}else{const seasons=[...new Set(videos.map(v=>v.season))].sort((a,b)=>a-b);$('season').replaceChildren();seasons.forEach(s=>option($('season'),s,s===0?'Specials':'Season '+s));const regular=seasons.find(s=>s>0);if(regular!==undefined)$('season').value=String(regular);renderEpisodes();loadFillers(t.key);moveTo('episodes');message(videos.length?'Choose a season and episode.':'This catalog did not return an episode list. Try another result.')}}
+ messageHost=$('detail');const version=++searchVersion;++inspectVersion;++fillerVersion;fillerLabels={};episodeChoices.clear();$('fillerSource').hidden=true;selected=null;currentType=t.type;videos=[];updateDownloadButtons();b.disabled=true;$('results').hidden=true;$('detail').hidden=false;$('title').textContent=t.name;$('description').textContent='';showArt(t.poster,'',{});$('episodes').hidden=true;$('bulkControls').hidden=true;$('sourcesSection').hidden=true;$('selection').hidden=true;$('selectionLoading').hidden=true;$('detailLoading').hidden=false;message('Loading title and episodes…');
+ try{const d=await api('details?'+new URLSearchParams({key:t.key}));if(version!==searchVersion)return;currentType=t.type;videos=d.videos;$('title').textContent=d.name;$('description').textContent=d.description;showArt(d.poster||t.poster,d.background,d);$('detailLoading').hidden=true;$('episodes').hidden=t.type==='movie';if(t.type==='movie'&&videos.length){await loadSources(videos[0].key)}else{const seasons=[...new Set(videos.map(v=>v.season))].sort((a,b)=>a-b);$('season').replaceChildren();seasons.forEach(s=>option($('season'),s,s===0?'Specials':'Season '+s));const regular=seasons.includes(t.season)?t.season:seasons.find(s=>s>0);if(regular!==undefined)$('season').value=String(regular);renderEpisodes();loadFillers(t.key);moveTo('episodes');message(videos.length?'Choose a season and episode.':'This catalog did not return an episode list. Try another result.')}}
  catch(e){if(version===searchVersion)message(e.message,true)}finally{if(version===searchVersion){$('detailLoading').hidden=true;$('bulkControls').hidden=currentType==='movie'||!videos.length;updateDownloadButtons()}b.disabled=false}
 }
 function renderEpisodes(){episodeChoices.clear();renderEpisodeChecks();$('episode').replaceChildren();videos.filter(v=>String(v.season)===$('season').value).sort((a,b)=>a.episode-b.episode).forEach(v=>option($('episode'),v.key,`${v.episode}. ${v.name}`))}
 function resetEpisodeSelection(){selected=null;updateDownloadButtons();$('sourcesSection').hidden=true;$('selection').hidden=true;$('selectionLoading').hidden=true;++inspectVersion}
 $('season').onchange=()=>{renderEpisodes();resetEpisodeSelection()};$('episode').onchange=resetEpisodeSelection;
-$('back').onclick=()=>{++searchVersion;++inspectVersion;$('detail').hidden=true;$('results').hidden=false;message('Choose another title.');moveTo(titles.length?'results':'query')};
+$('back').onclick=()=>{++searchVersion;++inspectVersion;$('detail').hidden=true;$('results').hidden=false;
+ if(!titles.length&&$('landingShelf').children.length){$('landing').hidden=false;$('hero').hidden=!$('hero').querySelector('.slide');message('');scrollTo({top:0,behavior:'smooth'});return}   // opened from a card: back to Discover
+ message('Choose another title.');moveTo(titles.length?'results':'query')};
 $('findSources').onclick=()=>loadSources($('episode').value);$('refreshSources').onclick=()=>loadSources(videoKey);
 async function loadSources(key){
  if(!key)return;messageHost=$('sourcesSection');$('detail').append($('selection'),$('selectionLoading'));videoKey=key;const version=++inspectVersion;selected=null;updateDownloadButtons();$('selection').hidden=true;$('selectionLoading').hidden=true;$('sourcesSection').hidden=false;$('findSources').disabled=true;showSkeletons($('releases'));for(const id of ['refreshSources','audioFilter','resolution','hdr'])$(id).disabled=true;message('Checking your stream add-ons for available releases…');
@@ -277,7 +312,7 @@ Kizuna.shell('discover');
  try{const d=await K.api('shows-recommend');if(K.lang==='ar')d.shows.forEach(c=>{if(c.local_poster)c.poster=c.local_poster;if(c.local_about)c.about=c.local_about});if(searched||$('results').children.length||!$('detail').hidden)return;
   const list=d.shows.slice(0,18);
   shelf.innerHTML=list.map((c,i)=>(c.title=c.title||c.romaji||'Untitled',0)||`<button type="button" class="k-card" data-i="${i}" data-title="${K.esc(c.title)}"><div class="k-art">${c.poster?`<img src="${K.esc(c.poster)}" alt="" loading="lazy">`:`<span class="k-fallback" aria-hidden="true">${K.esc(c.title[0]||'?')}</span>`}${c.followed?`<span class="k-badge"><span class="k-tag on">${K.lang==='ar'?'Followed':'Following'}</span></span>`:''}</div><div class="k-card-title"><bdi>${K.esc(c.title)}</bdi></div><div class="k-card-meta">${c.next?`Episode ${K.esc(c.next-1>0?c.next-1:c.next)} out`:K.esc(c.year||'')}</div></button>`).join('');
-  shelf.onclick=e=>{const b=e.target.closest('[data-i]');if(!b)return;$('query').value=list[+b.dataset.i].romaji||list[+b.dataset.i].title;hideSuggestions();$('searchForm').requestSubmit()};
+  shelf.onclick=e=>{const b=e.target.closest('[data-i]');if(b)openShow(list[+b.dataset.i],b)};
   land.hidden=false;
   // hero: the most popular airing shows that have wide artwork, rotating every 7 seconds
   const picks=list.filter(c=>c.banner).slice(0,6),hero=$('hero');
@@ -307,7 +342,7 @@ Kizuna.shell('discover');
      hero.querySelectorAll('.dots button').forEach((b,j)=>b.setAttribute('aria-current',String(j===at)))};
    const play=()=>{clearInterval(timer);if(picks.length>1)timer=setInterval(()=>{if(!document.hidden&&!hero.hidden&&!hero.matches(':hover,:focus-within'))go(at+1,1)},7000)};
    hero.onclick=e=>{const f=e.target.closest('[data-find]');
-     if(f){const h=picks[+f.dataset.find];$('query').value=h.romaji||h.title;hideSuggestions();$('searchForm').requestSubmit();return}
+     if(f){openShow(picks[+f.dataset.find],f);return}
      if(e.target.closest('.prev')){go(at-1,-1);play()}else if(e.target.closest('.next')){go(at+1,1);play()}
      else{const d=e.target.closest('.dots button');if(d){go([...hero.querySelectorAll('.dots button')].indexOf(d));play()}}};
    go(0);play();
