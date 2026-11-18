@@ -1,0 +1,12 @@
+# Sections of the "Generate release notes" button on a GitHub release, by pull-request label.
+# Label a pull request "feature", "bug" or "docs" before merging to place it; anything else lands in "Other changes".
+changelog:
+  categories:
+    - title: New features
+      labels: [feature, enhancement]
+    - title: Bug fixes
+      labels: [bug, fix]
+    - title: Documentation
+      labels: [docs, documentation]
+    - title: Other changes
+      labels: ["*"]
