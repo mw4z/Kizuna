@@ -55,6 +55,7 @@ def line(l, rtl=True):
 
 
 def convert(src, dst, title, offset=0.0, style=None, lang=None):
+    """offset: seconds to add, or (split, before, after): lines starting before `split` get `before`, the rest `after`."""
     import language
     lang = lang or language.code()
     rtl, credit = language.TABLE[lang]["rtl"], language.credits(lang)
@@ -78,7 +79,8 @@ def convert(src, dst, title, offset=0.0, style=None, lang=None):
         tag = "".join(re.findall(r"^(?:\{[^}]*\})+", txt))   # keep tag once, at the very start
         if tag:
             txt = tag + txt.replace(tag, "")
-        ev.append(f"Dialogue: 0,{ts(a + offset)},{ts(e + offset)},Default,,0,0,0,,{txt}")
+        o = offset if not isinstance(offset, tuple) else (offset[1] if a < offset[0] else offset[2])
+        ev.append(f"Dialogue: 0,{ts(a + o)},{ts(e + o)},Default,,0,0,0,,{txt}")
     open(dst, "w", encoding="utf-8-sig", newline="\n").write(head(title, style) + "\n".join(ev) + "\n")
     return len(ev)
 

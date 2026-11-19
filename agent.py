@@ -344,8 +344,35 @@ def addon_subtitle(fn, video, out):
         return False
 
 
+def two_part(r, g, ass):
+    """Blu-ray subtitles on a TV cut (Bleach S14 Kurai Mangetsu, 2026-11-19): the windows before and after the
+    mid-episode break each agree on their own offset, half a second apart. -> (split time, before, after) or None.
+    The split is the largest dialogue gap between the two groups (the eyecatch)."""
+    ws = [(float(x.get("from", 0)), float(x.get("to", 0)), float(x["offset"]), float(x.get("strength", 0))) for x in r["windows"]]
+
+    def group(part):                                   # biggest agreeing group, with 2+ confidently measured windows
+        best = max(([x for x in part if abs(x[2] - c[2]) <= 0.3] for c in part), key=len, default=[])
+        return best if len(best) >= 2 and sum(1 for x in best if x[3] >= 3) >= 2 else None
+    for s in range(2, len(ws) - 1):
+        a, b = group(ws[:s]), group(ws[s:])
+        if not a or not b:
+            continue
+        oa, ob = statistics.median(x[2] for x in a), statistics.median(x[2] for x in b)
+        if not 0.3 < abs(oa - ob) <= 1.5 or not min(oa, ob) - 0.3 <= g <= max(oa, ob) + 0.3:
+            continue
+        lo, hi = a[-1][1], b[0][0]
+        starts = [int(h) * 3600 + int(m) * 60 + float(sec) for h, m, sec in
+                  re.findall(r"^Dialogue: \d+,(\d+):(\d+):([\d.]+),", open(ass, encoding="utf-8-sig").read(), re.M)]
+        inside = sorted(t for t in starts if lo <= t <= hi)
+        gaps = [(y - x, (x + y) / 2) for x, y in zip(inside, inside[1:])]
+        split = max(gaps)[1] if gaps else hi
+        return round(split, 2), round(oa, 2), round(ob, 2)
+    return None
+
+
 def timing(video, ass):
-    """-> (offset to apply, ok). Song-only windows give junk, so trust the consensus of windows."""
+    """-> (offset to apply, ok). The offset is seconds, or (split, before, after) when the two halves of the episode
+    need their own shift (two_part). Song-only windows give junk, so trust the consensus of windows."""
     r = audio_fit.fit(video, ass)
     windows = [(float(x["offset"]), float(x.get("strength", 0))) for x in r["windows"]]
     w = [o for o, _ in windows]
@@ -360,7 +387,8 @@ def timing(video, ass):
     good = max(([o for o in w if abs(o - c) <= 0.3] for c in w), key=len, default=[])
     off = statistics.median(good) if good else 0.0   # measured lag is what must be added (No Escape: +2.4 -> +2.35)
     if len(good) < 3 or abs(g - off) > 0.3:          # the fit over all dialogue must confirm the group
-        return 0.0, False
+        parts = two_part(r, g, ass)
+        return (parts, True) if parts else (0.0, False)
     if abs(off) <= 0.25:
         return 0.0, True                             # already in sync: nothing to change
     # Shifting subtitles needs strong evidence: at least 3 confidently measured windows agreeing on it.
@@ -522,7 +550,7 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
         return
     if off:
         srt2ass.convert(srt, ass, title, off)
-        log(f"applied offset {off:+.2f}s")
+        log(f"applied offset {off if isinstance(off, tuple) else f'{off:+.2f}s'}")
     length = (mux.info(video).get("container", {}).get("properties", {}).get("duration") or 0) / 1e9
     if length > 60:
         cut = clamp_to(ass, length - 0.05)

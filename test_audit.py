@@ -338,6 +338,33 @@ class Timing(Sandbox):
         self.assertTrue(ok)
         self.assertAlmostEqual(off, 2.375, places=2)
 
+    def test_blu_ray_subs_on_a_tv_cut_get_a_two_part_offset(self):
+        # Bleach S14E23 real numbers 2026-11-19: +10.55 before the mid-episode break, +11.1 after it
+        bleach = [(0, 242, -83.7, 0.9), (242, 485, 10.5, 5.1), (485, 728, 10.6, 5.1), (728, 971, -77.85, 2.2),
+                  (971, 1214, 11.05, 6.8), (1214, 1457, 11.1, 3.9)]
+
+        def fit(ws, g, strength):
+            return mock.patch.object(agent.audio_fit, "fit", lambda v, a: {
+                "windows": [{"from": f, "to": t, "offset": o, "strength": s} for f, t, o, s in ws], "global": g, "strength": strength})
+        ass = os.path.join(self.tmp, "a.ass")
+        cues = "".join(f"Dialogue: 0,0:{t // 60:02d}:{t % 60:02d}.00,0:{t // 60:02d}:{t % 60 + 2:02d}.00,Default,,0,0,0,,x\n"
+                       for t in (100, 735, 740, 800, 860, 900, 1300))
+        open(ass, "w", encoding="utf-8-sig").write("[Events]\n" + cues)
+        with fit(bleach, 10.6, 12.9):
+            off, ok = agent.timing("v", ass)
+        self.assertTrue(ok)
+        self.assertEqual(off, (830.0, 10.55, 11.07))                        # split in the 800-860 gap
+        with fit([(f, t, o + (3 if i > 3 else 0), s) for i, (f, t, o, s) in enumerate(bleach)], 12.0, 12.9):
+            self.assertEqual(agent.timing("v", ass), (0.0, False))          # 3 s apart: not a cut, a mismatch
+        with fit([(f, t, o, min(s, 2.5)) for f, t, o, s in bleach], 10.6, 12.9):
+            self.assertEqual(agent.timing("v", ass), (0.0, False))          # weak windows never shift subtitles
+        srt = os.path.join(self.tmp, "a.srt")
+        open(srt, "w", encoding="utf-8").write("1\n00:00:10,000 --> 00:00:12,000\nأهلا\n\n2\n00:15:00,000 --> 00:15:02,000\nوسهلا\n")
+        import srt2ass
+        srt2ass.convert(srt, ass, "t", (830.0, 10.55, 11.1), lang="ar")
+        times = agent.re.findall(r"^Dialogue: 0,([\d:.]+),", open(ass, encoding="utf-8-sig").read(), agent.re.M)
+        self.assertEqual(times, ["0:00:20.55", "0:15:11.10"])
+
     def test_inconsistent_timing_blocks_the_mux(self):
         with self.fit([0.0, 5.0, 11.0, 30.0], 0.0):
             self.assertEqual(agent.timing("v", "a"), (0.0, False))
