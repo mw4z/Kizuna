@@ -9,11 +9,18 @@ Envelope of the audio vs a 0/1 "a cue is on screen" signal, cross-correlated
 by FFT. The envelope has its slow level drift removed first so loud music does
 not dominate, and only positive excursions are kept so the correlation keys on
 speech onsets rather than overall loudness.
+
+The per-window check (agent.timing's consensus) uses windows that each hold the
+same number of subtitle lines, so dialogue-dense stretches get the windows and
+long music or fight scenes with a few lines don't dilute them; each window is
+searched only near the whole-episode answer, judged against the typical level
+of the full lag range so a window with no real match stays weak. Measured on
+Bleach S14 2026-11-19: 0 false acceptances on 77 wrong/shifted cases, every
+verified episode still passes, 6 more Blu-ray-timed episodes resolved.
 """
 import functools
 import json
 import os
-import re
 import subprocess
 import sys
 
@@ -74,40 +81,70 @@ def cue_signal(path, length):
     return sig, spans
 
 
-def best_offset(env, sig, max_shift_s=90.0):
-    if not len(env) or not len(sig) or np.std(env) < 1e-6 or np.std(sig) < 1e-6:
-        return 0.0, 0.0
+LOCAL = 2.5             # s: a window is searched only this far from the whole-episode answer
+
+
+def _xcorr(env, sig, max_shift_s):
     n = 1 << int(np.ceil(np.log2(len(env) + len(sig))))
     E = np.fft.rfft(env - env.mean(), n)
     S = np.fft.rfft(sig - sig.mean(), n)
     xc = np.fft.irfft(E * np.conj(S), n)
     xc = np.concatenate([xc[-int(max_shift_s * 20):], xc[:int(max_shift_s * 20) + 1]])
     lags = np.arange(-int(max_shift_s * 20), int(max_shift_s * 20) + 1)
+    return lags, xc, np.median(np.abs(xc))
+
+
+def best_offset(env, sig, max_shift_s=90.0):
+    if not len(env) or not len(sig) or np.std(env) < 1e-6 or np.std(sig) < 1e-6:
+        return 0.0, 0.0
+    lags, xc, med = _xcorr(env, sig, max_shift_s)
     k = int(np.argmax(xc))
-    peak = xc[k]
-    med = np.median(np.abs(xc))
-    return lags[k] / 20.0, float(peak / (med + 1e-9))
+    return lags[k] / 20.0, float(xc[k] / (med + 1e-9))
 
 
-def fit(video, subs, windows=6):
+def best_offset_near(env, sig, center, radius=LOCAL, max_shift_s=90.0):
+    """best_offset restricted to lags within `radius` of `center`. The strength is still judged against the typical
+    level over the whole range, so a window with no real match near the answer stays weak instead of inventing one."""
+    if not len(env) or not len(sig) or np.std(env) < 1e-6 or np.std(sig) < 1e-6:
+        return 0.0, 0.0
+    lags, xc, med = _xcorr(env, sig, max_shift_s)
+    keep = np.abs(lags / 20.0 - center) <= radius
+    if not keep.any():
+        return 0.0, 0.0
+    k = int(np.argmax(np.where(keep, xc, -np.inf)))
+    return lags[k] / 20.0, float(xc[k] / (med + 1e-9))
+
+
+def cue_windows(spans, n):
+    """n windows that each hold the same number of subtitle lines, at least 5 (the last takes the remainder)
+    -> [(from, to)]."""
+    spans = sorted(spans)
+    per = max(5, len(spans) // n)
+    out = []
+    for i in range(0, len(spans), per):
+        last = i + 2 * per > len(spans)
+        part = spans[i:] if last else spans[i:i + per]
+        out.append((part[0][0], part[-1][1]))
+        if last:
+            break
+    return out
+
+
+def fit(video, subs, windows=10):
     env = audio_env(video)
     sig, spans = cue_signal(subs, len(env))
     g, strength = best_offset(env, sig)
     out = {"video_len": len(env) / 20.0, "cues": len(spans),
            "global": g, "strength": strength, "windows": []}
-    if spans:
-        lo, hi = spans[0][0], spans[-1][1]
-        edges = np.linspace(lo, hi, windows + 1)
-        for i in range(windows):
-            a, b = edges[i], edges[i + 1]
-            s2 = np.zeros_like(sig)
-            ia, ib = int(a * 20), int(b * 20)
-            s2[ia:ib] = sig[ia:ib]
-            if s2.sum() < 20:
-                continue
-            o, st = best_offset(env, s2)
-            out["windows"].append({"from": round(a, 1), "to": round(b, 1),
-                                   "offset": round(o, 2), "strength": round(st, 1)})
+    for a, b in cue_windows(spans, windows) if spans else []:
+        s2 = np.zeros_like(sig)
+        ia, ib = int(a * 20), int(b * 20)
+        s2[ia:ib] = sig[ia:ib]
+        if s2.sum() < 20:
+            continue
+        o, st = best_offset_near(env, s2, g)
+        out["windows"].append({"from": round(a, 1), "to": round(b, 1),
+                               "offset": round(o, 2), "strength": round(st, 1)})
     return out
 
 

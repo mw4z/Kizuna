@@ -99,6 +99,21 @@ class Timing(unittest.TestCase):
         self.assertEqual(offset, 2.0)
         self.assertGreater(strength, 3)
 
+    def test_windows_follow_the_dialogue_and_search_near_the_answer(self):
+        # 100 lines: 10 windows of 10 lines each, however unevenly they sit in time
+        spans = [(t, t + 1) for t in list(range(0, 50)) + list(range(600, 650))]
+        ws = audio_fit.cue_windows(spans, 10)
+        self.assertEqual(len(ws), 10)
+        self.assertEqual((ws[0], ws[4], ws[5], ws[9]), ((0, 10), (40, 50), (600, 610), (640, 650)))
+        self.assertEqual(audio_fit.cue_windows(spans[:7], 10), [(0, 7)])    # fewer lines than windows: one window
+        rng = np.random.default_rng(2)
+        sig = np.repeat(rng.integers(0, 2, 1000), 20).astype(float)
+        env = np.roll(sig, 40)                                               # the audio runs 2 s late
+        self.assertEqual(audio_fit.best_offset_near(env, sig, 1.5)[0], 2.0)  # found inside the ±2.5 s range
+        far, strength = audio_fit.best_offset_near(env, sig, -30.0)          # wrong neighbourhood: a weak answer, not 2.0
+        self.assertLessEqual(abs(far + 30.0), 2.5)
+        self.assertLess(strength, audio_fit.best_offset_near(env, sig, 1.5)[1] / 2)
+
     def test_silence_and_weak_fit_never_change_timing(self):
         sig = np.tile(np.r_[np.ones(40), np.zeros(60)], 120)
         spans = [(i / 20, (i + 40) / 20) for i in range(0, len(sig), 100)]

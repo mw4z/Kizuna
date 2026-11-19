@@ -352,7 +352,7 @@ def two_part(r, g, ass):
 
     def group(part):                                   # biggest agreeing group, with 2+ confidently measured windows
         best = max(([x for x in part if abs(x[2] - c[2]) <= 0.3] for c in part), key=len, default=[])
-        return best if len(best) >= 2 and sum(1 for x in best if x[3] >= 3) >= 2 else None
+        return best if len(best) >= 2 and sum(1 for x in best if x[3] >= 2) >= 2 else None
     for s in range(2, len(ws) - 1):
         a, b = group(ws[:s]), group(ws[s:])
         if not a or not b:
@@ -379,10 +379,12 @@ def timing(video, ass):
     """-> (offset to apply, ok). The offset is seconds, or (split, before, after) when the two halves of the episode
     need their own shift (two_part). Song-only windows give junk, so trust the consensus of windows."""
     r = audio_fit.fit(video, ass)
-    windows = [(float(x["offset"]), float(x.get("strength", 0))) for x in r["windows"]]
+    log(f"timing windows {[(float(x['offset']), float(x.get('strength', 0))) for x in r['windows']]} "
+        f"global {float(r['global'])} strength {float(r.get('strength', 0)):.1f}")
+    # a window with no real match near the answer (strength < 2) never counts as agreeing
+    windows = [(float(x["offset"]), float(x.get("strength", 0))) for x in r["windows"] if float(x.get("strength", 0)) >= 2]
     w = [o for o, _ in windows]
     g = float(r["global"])
-    log(f"timing windows {w} global {g} strength {float(r.get('strength', 0)):.1f}")
     # Silence / undecodable audio / weak overall fit: never confirm or change timing.
     if float(r.get("strength", 0)) < 3:
         return 0.0, False
