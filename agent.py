@@ -370,6 +370,11 @@ def two_part(r, g, ass):
     return None
 
 
+def offset_text(off):
+    """For logs: '+2.35s', or the (split, before, after) triple of a two-part offset."""
+    return str(off) if isinstance(off, tuple) else f"{off:+.2f}s"
+
+
 def timing(video, ass):
     """-> (offset to apply, ok). The offset is seconds, or (split, before, after) when the two halves of the episode
     need their own shift (two_part). Song-only windows give junk, so trust the consensus of windows."""
@@ -550,7 +555,7 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
         return
     if off:
         srt2ass.convert(srt, ass, title, off)
-        log(f"applied offset {off if isinstance(off, tuple) else f'{off:+.2f}s'}")
+        log(f"applied offset {offset_text(off)}")
     length = (mux.info(video).get("container", {}).get("properties", {}).get("duration") or 0) / 1e9
     if length > 60:
         cut = clamp_to(ass, length - 0.05)
@@ -617,7 +622,7 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
         return
     n = len(dl(ass))
     state["errors"].pop(key, None)
-    log(f"DONE {fn}: {res}; {n} lines; offset {off:+.2f}s")
+    log(f"DONE {fn}: {res}; {n} lines; offset {offset_text(off)}")
     if not publish:
         state["delivery"].pop(key, None)
         show(LABEL, f"Subtitles verified ({n} lines), ready for library delivery", 100, "done")

@@ -364,6 +364,8 @@ class Timing(Sandbox):
         srt2ass.convert(srt, ass, "t", (830.0, 10.55, 11.1), lang="ar")
         times = agent.re.findall(r"^Dialogue: 0,([\d:.]+),", open(ass, encoding="utf-8-sig").read(), agent.re.M)
         self.assertEqual(times, ["0:00:20.55", "0:15:11.10"])
+        # the DONE log line formatted the offset as a number and crashed a finished two-part episode (S14E23)
+        self.assertEqual((agent.offset_text(2.345), agent.offset_text((830.0, 10.55, 11.07))), ("+2.35s", "(830.0, 10.55, 11.07)"))
 
     def test_inconsistent_timing_blocks_the_mux(self):
         with self.fit([0.0, 5.0, 11.0, 30.0], 0.0):

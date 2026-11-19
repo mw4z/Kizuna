@@ -76,7 +76,8 @@ exact: {
   // cancel waiting episodes, recent searches
   "Cancel": "إلغاء", "Cancelled": "أُلغيت",
   "Remove?": "إزالة؟", "Check now": "افحص الآن", "That episode is not waiting for a check.": "هذه الحلقة ليست بانتظار فحص.",
-  "That episode is no longer waiting.": "هذه الحلقة لم تعد في الانتظار.", "Cancel all": "إلغاء الكل",
+  "That episode is no longer waiting.": "هذه الحلقة لم تعد في الانتظار.",
+  "The request could not be completed. Try another source or sync your Stremio add-ons.": "تعذّر إكمال الطلب. جرّب مصدرًا آخر أو زامن إضافات Stremio.", "Cancel all": "إلغاء الكل",
   "That show could not be opened.": "تعذّر فتح هذا العمل.",
   "That show isn't in the anime catalog yet. Search for it by name instead.": "هذا العمل غير موجود في كتالوج الأنمي بعد. ابحث عنه بالاسم بدلًا من ذلك.",
   "It is being prepared right now. Try again when it finishes.": "يجري تجهيزها الآن. حاول مجددًا عند انتهائها.",
