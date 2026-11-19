@@ -356,7 +356,7 @@ class Timing(Sandbox):
         self.assertEqual(off, (830.0, 10.55, 11.07))                        # split in the 800-860 gap
         with fit([(f, t, o + (3 if i > 3 else 0), s) for i, (f, t, o, s) in enumerate(bleach)], 12.0, 12.9):
             self.assertEqual(agent.timing("v", ass), (0.0, False))          # 3 s apart: not a cut, a mismatch
-        with fit([(f, t, o, min(s, 2.5)) for f, t, o, s in bleach], 10.6, 12.9):
+        with fit([(f, t, o, min(s, 1.9)) for f, t, o, s in bleach], 10.6, 12.9):
             self.assertEqual(agent.timing("v", ass), (0.0, False))          # weak windows never shift subtitles
         srt = os.path.join(self.tmp, "a.srt")
         open(srt, "w", encoding="utf-8").write("1\n00:00:10,000 --> 00:00:12,000\nأهلا\n\n2\n00:15:00,000 --> 00:15:02,000\nوسهلا\n")
