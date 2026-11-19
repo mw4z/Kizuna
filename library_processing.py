@@ -29,8 +29,11 @@ def read():
 def save_record(key, record):
     with _guard:
         data = read()
-        if data.get(key, {}).get("status") == "cancelled" and record.get("status") != "cancelled":
+        old = data.get(key, {})
+        if old.get("status") == "cancelled" and record.get("status") != "cancelled" \
+                and record.get("input_signature") == old.get("input_signature"):
             return                                   # cancelled by the user: a worker finishing late can't revive it
+                                                     # (a new download of the episode has a new signature and may)
         record["updated"] = time.time()
         data[key] = record
         agent.write_atomic(FILE, json.dumps(data, ensure_ascii=False))
@@ -153,7 +156,7 @@ def submit(path, destination, metadata=None, progress=None, manual=False):
         reason = manual and path == destination and unchanged_reason(path)
         if reason:
             return leave_unchanged(key, path, destination, record, reason)
-        if not record or record.get("status") == "done" or (manual and record.get("input_signature") != signature(path)):
+        if not record or record.get("status") in ("done", "cancelled") or (manual and record.get("input_signature") != signature(path)):
             folder = ROOT / key
             folder.mkdir(parents=True, exist_ok=True)
             for name in ("raw.media", "media.mkv", "arabic.srt", "ar.srt", "ar.ass", "state.json", "result.json", "progress.json"):
