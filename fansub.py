@@ -256,7 +256,7 @@ def pick(video, meta_id, season, episode, destination, mode, kind="series"):
             continue
         shutil.copy2(cand, destination)
         agent.log(f"fansub: chose {name} ({'fansub' if level == 1 else 'level 2 official'}, rank {score}, "
-                  f"offset {off if isinstance(off, tuple) else f'{off:+.2f}s'}) for {label}")
+                  f"offset {agent.offset_text(off)}) for {label}")
         shutil.rmtree(work, ignore_errors=True)
         return name
     shutil.rmtree(work, ignore_errors=True)
