@@ -447,6 +447,9 @@ def make_handler(pending=None):
                 elif post and action == "settings":
                     import settings
                     data = settings.update(params)
+                elif post and action == "queue-retry":
+                    import library_processing
+                    data = library_processing.retry(params.get("key", ""))
                 elif post and action == "queue-cancel":
                     import library_processing
                     data = library_processing.cancel(params.get("key", ""))

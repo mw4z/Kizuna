@@ -75,7 +75,7 @@ exact: {
   "AnimeFillerList · unique air-date matches (±1 broadcast day). Unmatched episodes are unclassified.": "AnimeFillerList · مطابقة حسب تاريخ العرض (±يوم واحد). الحلقات غير المطابقة دون تصنيف.",
   // cancel waiting episodes, recent searches
   "Cancel": "إلغاء", "Cancelled": "أُلغيت",
-  "Remove?": "إزالة؟",
+  "Remove?": "إزالة؟", "Check now": "افحص الآن", "That episode is not waiting for a check.": "هذه الحلقة ليست بانتظار فحص.",
   "That episode is no longer waiting.": "هذه الحلقة لم تعد في الانتظار.", "Cancel all": "إلغاء الكل",
   "That show could not be opened.": "تعذّر فتح هذا العمل.",
   "That show isn't in the anime catalog yet. Search for it by name instead.": "هذا العمل غير موجود في كتالوج الأنمي بعد. ابحث عنه بالاسم بدلًا من ذلك.",
