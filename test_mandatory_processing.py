@@ -284,6 +284,16 @@ class Cancel(Sandbox):
         proc.assert_not_called()
         lp.save_record(key, dict(lp.read()[key], status="done"))         # a worker finishing late
         self.assertEqual(lp.read()[key]["status"], "cancelled")
+        # the user downloads the episode again (a misclicked Cancel, Bleach S14E13 2026-11-18): a new file is queued
+        record = lp.read()[key]
+        again = Path(record["destination"]).with_name("again.part")
+        again.parent.mkdir(parents=True, exist_ok=True)
+        again.write_bytes(b"a new download")
+        with patch.object(lp, "process_record", side_effect=lambda k, r, p=None: r) as proc, patch.object(lp.agent, "log"):
+            lp.submit(again, Path(record["destination"]))
+        proc.assert_called_once()
+        self.assertEqual(lp.read()[key]["status"], "pending")
+        self.assertEqual(lp.read()[key]["input_signature"], list(lp.signature(lp.ROOT / key / "raw.media")))
 
     def test_own_library_file_is_untouched_and_not_queued_again(self):
         key, source = self.waiting(manual=True)

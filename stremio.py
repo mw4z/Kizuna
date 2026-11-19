@@ -828,7 +828,7 @@ def start_download(key, audio, subtitle, library_id, _batch=False):
     import library_processing
     with library_processing._guard:
         pending = library_processing.read().get(library_processing.key_for(destination))
-    if pending and pending["status"] != "done":
+    if pending and pending["status"] not in ("done", "cancelled"):     # cancelled by the user: may be downloaded again
         raise UserError("This item is already downloaded and waiting for subtitle preparation. Check the processing status; it will retry automatically.")
     size = source["stream"].get("behaviorHints", {}).get("videoSize") or source["probe"].get("format", {}).get("size")
     required = max(float(size or 0) * 1.1, 2e9)

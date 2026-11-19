@@ -285,7 +285,7 @@ def worker(data):
             import library_processing
             with library_processing._guard:
                 processing = library_processing.read().get(library_processing.key_for(s.target(video, library)))
-            if processing and processing["status"] != "done":
+            if processing and processing["status"] not in ("done", "cancelled"):
                 episode.update(status="waiting", reason=processing["stage"])
                 save(data)
                 continue
