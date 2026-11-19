@@ -46,7 +46,7 @@
 .pgroup .eps{color:var(--k-text-3);font-variant-numeric:tabular-nums}
 .pgroup .k-rows{margin:0 0 10px;padding-inline-start:34px;border-top:1px solid var(--k-line)}
 .pgroup .k-rows .k-row{padding:9px 0}
-.k-row .cancel{height:28px;padding:0 12px;font-size:12px;flex:none}
+.k-row .cancel,.k-row .check{height:28px;padding:0 12px;font-size:12px;flex:none}
 .k-row .cancel.armed{border-color:var(--k-accent);color:var(--k-accent-ink);background:var(--k-accent)}
 .k-row .k-state{justify-self:end}
 .why{color:var(--k-text-2);font-size:12.5px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -161,16 +161,17 @@ async function tick(){
     att.unshift({name:job.name+(job.season!=null?` · S${String(job.season).padStart(2,'0')}E${String(job.episode).padStart(2,'0')}`:''),
       reason:/source again/i.test(job.stage||'')?job.stage:(job.stage||'Download stopped.')+' Choose a source again in Discover.',kind:job.status});
   $('attention').hidden=!att.length;$('attentionCount').textContent=att.length||'';
-  put('attentionList',att.map(x=>{const [st,label]=KIND[x.kind]||KIND.failed;return `<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.reason)}</div></div><span class="k-state" data-state="${st}">${label}</span></li>`}).join(''));
-  $('pending').hidden=!pend.length;$('pendingCount').textContent=pend.length||'';
   const next=x=>x.retry_at?'Next check '+esc(K.time(x.retry_at)):'Checking hourly',
+    check=keys=>keys.length?`<button type="button" class="k-btn k-btn-ghost check" data-key="${esc(keys.join(' '))}">Check now</button>`:'',
     cancel=keys=>keys.length?`<button type="button" class="k-btn k-btn-ghost cancel" data-key="${esc(keys.join(' '))}">${keys.length>1?'Cancel all':'Cancel'}</button>`:'',
-    row=x=>`<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.reason)}</div></div><div class="pend-side"><span class="k-row-aside">${next(x)}</span>${cancel(x.key?[x.key]:[])}</div></li>`;
+    row=x=>`<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.reason)}</div></div><div class="pend-side"><span class="k-row-aside">${next(x)}</span>${check(x.key?[x.key]:[])}${cancel(x.key?[x.key]:[])}</div></li>`;
+  put('attentionList',att.map(x=>{const [st,label]=KIND[x.kind]||KIND.failed;return `<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.reason)}</div></div><div class="pend-side"><span class="k-state" data-state="${st}">${label}</span>${x.key?check([x.key]):''}</div></li>`}).join(''));
+  $('pending').hidden=!pend.length;$('pendingCount').textContent=pend.length||'';
   put('pendingList',groupPending(pend).map(g=>g.items.length<2?row(g.items[0]):`<li class="k-row pgroup"><details data-g="${esc(g.id)}"${openGroups.has(g.id)?' open':''}><summary>
     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
     <div class="k-row-main"><div class="k-row-title"><bdi>${esc(g.show)}</bdi> · <span>Season ${g.season}</span></div>
     <div class="why"><span>${g.items.length} episodes</span> · <bdi class="eps">${esc(g.range)}</bdi> · <span>${esc(g.items[0].reason)}</span></div></div>
-    <div class="pend-side"><span class="k-row-aside">${next(g.items[0])}</span>${cancel(g.items.filter(x=>x.key).map(x=>x.key))}</div></summary>
+    <div class="pend-side"><span class="k-row-aside">${next(g.items[0])}</span>${check(g.items.filter(x=>x.key).map(x=>x.key))}${cancel(g.items.filter(x=>x.key).map(x=>x.key))}</div></summary>
     <ul class="k-rows">${g.items.map(row).join('')}</ul></details></li>`).join(''));
   // weekly shows
   $('showCount').textContent=d.shows.length||'';
@@ -218,6 +219,11 @@ function balance(){const shelf=$('shows'),n=shelf.querySelectorAll('.k-card').le
 new ResizeObserver(balance).observe($('shows'));new MutationObserver(balance).observe($('shows'),{childList:true});
 tick();setInterval(tick,3000);
 // cancel a waiting episode: first click asks "Remove?", a second click within 4 s confirms
+// check now: the entry's next try is moved to now (the queue picks it up within a minute)
+document.addEventListener('click',async e=>{const b=e.target.closest('button.check[data-key]');if(!b)return;
+  e.preventDefault();b.disabled=true;let failed='';
+  for(const key of b.dataset.key.split(' ')){try{await K.api('queue-retry',{key})}catch(err){failed=err.message}}
+  delete $('pendingList').dataset.h;tick();if(failed&&b.isConnected){b.disabled=false;b.textContent=failed}});
 document.addEventListener('click',async e=>{const b=e.target.closest('button.cancel[data-key]');if(!b)return;
   if(!b.dataset.armed){b.dataset.armed='1';b.textContent=K.t('Remove?');b.classList.add('armed');setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent=K.t('Cancel');b.classList.remove('armed')}},4000);return}
   e.preventDefault();b.disabled=true;let failed='';

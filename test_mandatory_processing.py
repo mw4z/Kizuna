@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import time
 import types
 import unittest
 from unittest.mock import patch
@@ -294,6 +295,22 @@ class Cancel(Sandbox):
             observed = lp.poll({})
             lp.poll({k: (v[0], 0) for k, v in observed.items()})       # seen long enough to be queued
         submit.assert_not_called()
+
+    def test_check_now_moves_the_retry_to_now_and_keeps_the_attempt_count(self):
+        key, _ = self.waiting(manual=False)
+        lp.save_record(key, dict(lp.read()[key], retry_at=time.time() + 50000, attempts=5))
+        with patch.object(lp.agent, "log"):
+            lp.retry(key)
+        self.assertEqual((lp.read()[key]["retry_at"], lp.read()[key]["attempts"]), (0, 5))
+        with patch.object(lp, "process_record", return_value=dict(lp.read()[key])) as proc, \
+                patch.object(s, "libraries", return_value=[]):
+            lp.poll({})
+        proc.assert_called_once()                                         # picked up by the next poll
+        lp.save_record(key, dict(lp.read()[key], status="running"))
+        with self.assertRaises(s.UserError):
+            lp.retry(key)
+        with self.assertRaises(s.UserError):
+            lp.retry("nope")
 
     def test_running_or_unknown_entries_cannot_be_cancelled(self):
         key, _ = self.waiting(manual=False)

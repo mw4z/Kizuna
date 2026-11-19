@@ -357,6 +357,20 @@ def cancel(key):
     return {"cancelled": key}
 
 
+def retry(key):
+    """The user asks for a waiting entry to be checked now instead of at its backed-off time (the attempt count,
+    and so the next backoff, is kept)."""
+    import stremio
+    with _guard:
+        record = read().get(key)
+        if not record or record["status"] not in ("waiting", "pending"):
+            raise stremio.UserError("That episode is not waiting for a check.")
+        record["retry_at"] = 0
+        save_record(key, record)
+    agent.log(f"library: check now {Path(record['destination']).name}")
+    return {"retried": key}
+
+
 def poll(observed):
     import stremio
     with _guard:
