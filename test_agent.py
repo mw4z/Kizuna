@@ -79,6 +79,19 @@ class Tests(unittest.TestCase):
             Path(folder, "library.mkv").write_bytes(b"test")
             self.assertFalse(namespace["needs_work"]("Detective Conan - S01E01.mkv"))
 
+    def test_subtitle_lines_past_the_video_end_are_cut(self):
+        # Blu-ray subs on a shorter TV file (Bleach S14 KM): the mux length check failed on 12 s of extra lines
+        with tempfile.TemporaryDirectory() as folder:
+            ass = Path(folder, "ar.ass")
+            ass.write_text("[Events]\nDialogue: 0,0:23:59.00,0:24:01.00,Default,,0,0,0,,a\n"
+                           "Dialogue: 0,0:24:03.00,0:24:14.37,Default,,0,0,0,,b\n"
+                           "Dialogue: 0,0:24:14.37,0:24:16.37,Default,,0,0,0,,c\n", encoding="utf-8-sig")
+            self.assertEqual(agent.clamp_to(str(ass), 1444.44), 2)
+            lines = [l for l in ass.read_text(encoding="utf-8-sig").splitlines() if l.startswith("Dialogue")]
+            self.assertEqual(lines, ["Dialogue: 0,0:23:59.00,0:24:01.00,Default,,0,0,0,,a",
+                                     "Dialogue: 0,0:24:03.00,0:24:04.44,Default,,0,0,0,,b"])
+            self.assertEqual(agent.clamp_to(str(ass), 1444.44), 0)              # already inside: untouched
+
 
 if __name__ == "__main__":
     unittest.main()

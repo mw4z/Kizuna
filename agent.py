@@ -420,6 +420,26 @@ def reference_offset(video, srt):
     return None
 
 
+def clamp_to(ass, seconds):
+    """Cut subtitle lines at the video's end: a longer release's lines (Blu-ray subs on a TV-length file, Bleach
+    S14 KM 2026-11-19) would otherwise stretch the muxed file and fail its length check. -> lines dropped/cut."""
+    t = lambda h, m, s: int(h) * 3600 + int(m) * 60 + float(s)                     # noqa: E731
+    stamp = lambda x: f"{int(x // 3600)}:{int(x % 3600 // 60):02d}:{x % 60:05.2f}"  # noqa: E731
+    pat = re.compile(r"^(Dialogue:[^,]*,)(\d+):(\d+):([\d.]+),(\d+):(\d+):([\d.]+)(,.*)$")
+    out, changed = [], 0
+    for line in open(ass, encoding="utf-8-sig").read().splitlines():
+        m = pat.match(line)
+        if m and t(*m.group(2, 3, 4)) >= seconds:
+            changed += 1
+            continue
+        if m and t(*m.group(5, 6, 7)) > seconds:
+            line, changed = f"{m.group(1)}{m.group(2)}:{m.group(3)}:{m.group(4)},{stamp(seconds)}{m.group(8)}", changed + 1
+        out.append(line)
+    if changed:
+        open(ass, "w", encoding="utf-8-sig").write("\n".join(out) + "\n")
+    return changed
+
+
 def qc(ass):
     t = open(ass, encoding="utf-8-sig").read()
     n = t.count("\nDialogue:")
@@ -503,6 +523,11 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
     if off:
         srt2ass.convert(srt, ass, title, off)
         log(f"applied offset {off:+.2f}s")
+    length = (mux.info(video).get("container", {}).get("properties", {}).get("duration") or 0) / 1e9
+    if length > 60:
+        cut = clamp_to(ass, length - 0.05)
+        if cut:
+            log(f"{cut} subtitle line(s) past the video's end ({length:.1f}s) trimmed")
     bad = qc(ass)
     if bad:
         show(LABEL, "Quality check failed. Not muxed, needs a look", 100, "fail")
