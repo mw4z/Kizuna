@@ -222,6 +222,16 @@ class Tests(unittest.TestCase):
                 job = s.start_download("source", "none", "none", "test", _batch=True)
             self.assertEqual((job["name"], job["season"], job["episode"]), ("Show", 1, 13))
 
+    def test_cancelled_preparation_hides_the_download_card(self):
+        # Detective Conan S34E35 2026-11-23: cancelled in the queue, but the Now page kept "90% · Cancelled"
+        job = {"name": "Detective Conan", "status": "waiting", "processing_key": "k", "started": 100}
+        import library_processing
+        for status, shown in (("waiting", True), ("cancelled", False)):
+            with patch.object(s, "read_job", return_value=dict(job)), \
+                    patch.object(library_processing, "read", return_value={"k": {"status": status, "stage": "x", "updated": 200,
+                                                                                    "destination": "d", "pct": 0}}):
+                self.assertEqual(s.job_status() is not None, shown, status)
+
     def test_known_error_video_urls_are_rejected(self):
         for url in ("https://cdn.example/static/unavailable_for_legal_reasons.mp4",
                     "https://cdn.example/static/403.mp4", "https://cdn.example/download_failed.mp4",

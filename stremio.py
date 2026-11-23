@@ -770,6 +770,8 @@ def job_status():
             with library_processing._guard:
                 record = library_processing.read().get(data["processing_key"])
             if record and record.get("updated", 0) >= data.get("started", 0):   # not a record from an earlier download
+                if record["status"] == "cancelled":            # the user cancelled its subtitle preparation
+                    return None
                 busy = (record["status"] == "running" and library_processing._processor.locked()) or _job_lock.locked()
                 data.update(status="done" if record["status"] == "done" else "running" if busy else "waiting",
                             stage=record["stage"], pct=100 if record["status"] == "done" else min(99, 90 + record.get("pct", 0) * .09),
