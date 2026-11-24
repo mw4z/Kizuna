@@ -521,11 +521,16 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
         show(LABEL, "Waiting for the official subtitle; checking again within the hour", 100, "wait")
         return
     show(LABEL, "Looking for the official subtitle", 5)
+    layout = None                                       # the styled original, when the subtitle comes from an ASS track
     if subtitle_path:
         pass
     elif tid is not None:
         if not extract_srt(video, tid, srt):
             raise RuntimeError("could not extract the subtitle track")
+        if next((t["codec"] for t in tracks(video) if t["id"] == tid), "") == "SubStationAlpha":
+            layout = os.path.join(WORK, "layout.ass")      # the styled original: notes and signs keep size and place
+            if run(MKV + r"\mkvextract.exe", video, "tracks", f"{tid}:{layout}").returncode not in (0, 1):
+                layout = None
     else:
         state["nyaa_tries"][key] = time.time()
         if not nyaa_subtitle(search_name or fn, srt) and not (addons and addon_subtitle(search_name or fn, video, srt)):
@@ -536,7 +541,7 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
             return
     title = f"{show_} {ep_} - {language.name()}" if show_ else fn
     show(LABEL, "Converting to your subtitle style, removing credits", 55)
-    srt2ass.convert(srt, ass, title)
+    srt2ass.convert(srt, ass, title, layout=layout)
     show(LABEL, "Checking timing against the episode audio", 62)
     off, ok = timing(video, ass)
     if not ok:
@@ -544,7 +549,7 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
         # own subtitle track, line up against it, then let the audio check confirm the result is in sync.
         ref = reference_offset(video, srt)
         if ref is not None:
-            srt2ass.convert(srt, ass, title, ref)
+            srt2ass.convert(srt, ass, title, ref, layout=layout)
             off2, ok2 = timing(video, ass)
             log(f"reference-track offset {ref:+.2f}s; audio re-check {'confirms' if ok2 and not off2 else 'rejects'} it")
             if ok2 and not off2:
@@ -556,7 +561,7 @@ def process(video, state, *, publish=True, subtitle_path=None, search_name=None,
         state["failed"][key] = os.path.getsize(video)
         return
     if off:
-        srt2ass.convert(srt, ass, title, off)
+        srt2ass.convert(srt, ass, title, off, layout=layout)
         log(f"applied offset {offset_text(off)}")
     length = (mux.info(video).get("container", {}).get("properties", {}).get("duration") or 0) / 1e9
     if length > 60:

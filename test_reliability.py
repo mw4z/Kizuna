@@ -330,7 +330,7 @@ class MuxSafety(Sandbox):
 
     def real_process(self):
         """agent.process with the real mux/mkvmerge/mkvextract; subtitle search and timing stubbed."""
-        def convert(srt, ass, title, off=0):
+        def convert(srt, ass, title, off=0, layout=None):
             Path(ass).write_text(ASS, encoding="utf-8-sig")
         with ExitStack() as st:
             for name, value in (("target_track", lambda v: 2), ("timing", lambda v, a: (0.0, True)), ("qc", lambda a: []),
