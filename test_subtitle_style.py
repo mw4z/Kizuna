@@ -54,6 +54,25 @@ class Style(unittest.TestCase):
         finally:
             shutil.rmtree(d, ignore_errors=True)
 
+    def test_visual_order_punctuation_goes_back_to_the_end(self):
+        # The Apothecary Diaries S03E08 (Crunchyroll Arabic, 2026-11-24): the closing comma and "..." were stored at
+        # the start of the line, so under the RLM wrap they showed on the right
+        # real pattern: commas, full stops and "..." moved to the start, the Arabic question mark (a right-to-left
+        # letter) already at the end; <s> strikeout tags left by the conversion are removed
+        visual = ["،هي أيضاً، في طريقها إلى العاصمة الغربيّة", "...وباء الجراد", "!انتظري", "ماذا قلت؟",
+                  ".هذا صحيح", "هل هذا الرّجل بخير حقّاً؟", "<s>إي</s>", "مصدر أوبئة الجراد هو الغرب عادةً"]
+        normal = ["هي أيضاً، في طريقها إلى العاصمة الغربيّة،", "وباء الجراد...", "انتظري!", "ماذا قلت؟",
+                  "هذا صحيح.", "هل هذا الرّجل بخير حقّاً؟", "إي", "مصدر أوبئة الجراد هو الغرب عادةً"]
+        with tempfile.TemporaryDirectory() as folder:
+            d = Path(folder)
+            for name, texts in (("visual", visual * 2), ("normal", normal * 2)):     # a track, not 8 lines: the rule needs 5+
+                (d / f"{name}.srt").write_text("".join(f"{i + 1}\n00:00:{i:02d},000 --> 00:00:{i:02d},900\n{x}\n\n"
+                                                       for i, x in enumerate(texts)), encoding="utf-8")
+                srt2ass.convert(str(d / f"{name}.srt"), str(d / f"{name}.ass"), "T", lang="ar")
+                got = [l.split(",", 9)[9].strip("‏") for l in (d / f"{name}.ass").read_text(encoding="utf-8-sig").splitlines()
+                       if l.startswith("Dialogue")]
+                self.assertEqual(got, normal * 2, name)             # both end up with the punctuation at the end
+
     def test_every_listed_font_file_is_shipped(self):
         for family, files in st.FONTS.items():
             for f in files:

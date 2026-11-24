@@ -3,12 +3,30 @@
 Right-to-left languages (Arabic, Persian, Hebrew): every visual line is wrapped in RLM so edge punctuation and
 dialogue dashes resolve right-to-left under libass; leading override tags such as {\\an8} (sign translations) are
 kept outside the wrap. Translator credit cues and subtitle-site adverts are dropped. A timing offset is applied if given.
+
+Some right-to-left tracks are stored in visual order: the closing comma or "..." is moved to the START of the line so
+that left-to-right players show it on the left (Crunchyroll's Arabic for The Apothecary Diaries, Kurai Mangetsu's
+Bleach). Under the RLM wrap that punctuation would land on the right. When most lines of a track start with
+punctuation and few end with it, it is moved back to the end of every line.
 """
 import re
 import sys
 
 RLM = "‏"
 CTRL = re.compile("[‎‏‪-‮⁦-⁩]")
+# direction-neutral sentence punctuation, the marks visual-order tracks move to the start; the Arabic ؟ and ؛ are
+# right-to-left letters themselves, already in place (Crunchyroll keeps them at the end)
+EDGE = r"(?:\.\.\.|[.…،,!?:;])+"
+LEADING = re.compile(rf"^({EDGE})\s*(.*\S)$")
+TRAILING = re.compile(rf"{EDGE}$")
+
+
+def visual_order(texts):
+    """True when the lines carry their closing punctuation at the start (stored for left-to-right display)."""
+    bodies = [re.sub(r"^(?:\{[^}]*\})+", "", CTRL.sub("", t)).strip() for t in texts]
+    starts = sum(1 for b in bodies if LEADING.match(b))
+    ends = sum(1 for b in bodies if TRAILING.search(b))
+    return starts >= 5 and starts > 2 * ends
 # Subtitle-site adverts and release-name lines (Collateral 2026-11-17: ">>OpenSubtitles v3+ v0.0.4<<" + the .srt name)
 AD = re.compile(r"opensubtitles|subscene|subdl\.|addic7ed|podnapisi|www\.|https?://|>>.*<<|\.(srt|ass)\b", re.I)
 HEAD = """[Script Info]
@@ -41,13 +59,17 @@ def ts(s):
     return f"{h}:{m:02d}:{cs // 100:02d}.{cs % 100:02d}"
 
 
-def line(l, rtl=True):
+def line(l, rtl=True, flip=False):
     l = CTRL.sub("", l).strip()
-    l = re.sub(r"</?(?:i|b|u|font)\b[^>]*>", "", l)      # ASS->SRT conversion leaves <font face=...>
+    l = re.sub(r"</?(?:i|b|u|s|font)\b[^>]*>", "", l)    # ASS->SRT conversion leaves <font face=...> and <s> (strikeout)
     l = re.sub(r"\{\\(?!an\d)[^}]*\}", "", l)              # stray ASS overrides, except {\an8}
     l = re.sub(r"\s+", " ", l)
     tags = "".join(re.findall(r"^(?:\{[^}]*\})+", l))
     body = l[len(tags):].strip()
+    if flip:                                            # visual-order track: closing punctuation back to the end
+        m = LEADING.match(body)
+        if m:
+            body = m.group(2) + m.group(1)
     body = re.sub(r"^-(?=[^\s-])", "- ", body)          # speaker dash: always "- "
     l = tags + body
     body = l[len(tags):].strip()
@@ -61,7 +83,9 @@ def convert(src, dst, title, offset=0.0, style=None, lang=None):
     rtl, credit = language.TABLE[lang]["rtl"], language.credits(lang)
     t = open(src, encoding="utf-8-sig").read()
     ev = []
-    for b in re.split(r"\r?\n[ \t\r]*\n", t.strip()):     # "blank" lines may hold stray spaces
+    blocks = re.split(r"\r?\n[ \t\r]*\n", t.strip())      # "blank" lines may hold stray spaces
+    flip = rtl and visual_order([x for b in blocks for x in b.splitlines()[2:] if x.strip()])
+    for b in blocks:
         m = re.search(r"(\d+):(\d+):(\d+)[,.](\d+) --> (\d+):(\d+):(\d+)[,.](\d+)", b)
         if not m:
             continue
@@ -75,7 +99,7 @@ def convert(src, dst, title, offset=0.0, style=None, lang=None):
             continue                                    # translator credit: user wants none
         if AD.search(" ".join(lines)):
             continue                                    # site advert / release-name line (OpenSubtitles etc.)
-        txt = "\\N".join(line(x, rtl) for x in lines)
+        txt = "\\N".join(line(x, rtl, flip) for x in lines)
         tag = "".join(re.findall(r"^(?:\{[^}]*\})+", txt))   # keep tag once, at the very start
         if tag:
             txt = tag + txt.replace(tag, "")
