@@ -71,7 +71,7 @@ class TimingFallback(Sandbox):
         with mock.patch.object(agent, "tracks", return_value=[]), mock.patch.object(agent, "target_track", return_value=None), \
                 mock.patch.object(agent, "timing", side_effect=[(0.0, False), recheck]), \
                 mock.patch.object(agent, "reference_offset", return_value=ref), \
-                mock.patch.object(agent.srt2ass, "convert", side_effect=lambda *a: calls.append(a)), \
+                mock.patch.object(agent.srt2ass, "convert", side_effect=lambda *a, **k: calls.append(a)), \
                 mock.patch.object(agent, "qc", return_value=["stop here"]):
             agent.process(self.episode("Movie.mkv"), agent.load_state(), publish=False, subtitle_path=str(srt))
         return calls

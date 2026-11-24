@@ -129,7 +129,7 @@ class AgentFailures(Sandbox):
         lines = "".join(f"Dialogue: 0,0:00:{i:02d}.00,0:00:{i:02d}.50,Default,,0,0,0,,line {i}\n" for i in range(50))
         ass_text = "[Events]\n" + lines
 
-        def convert(srt, ass, title, off=0):
+        def convert(srt, ass, title, off=0, layout=None):
             open(ass, "w", encoding="utf-8").write(ass_text)
 
         def run(*a, **k):

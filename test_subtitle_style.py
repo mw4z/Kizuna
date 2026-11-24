@@ -73,6 +73,30 @@ class Style(unittest.TestCase):
                        if l.startswith("Dialogue")]
                 self.assertEqual(got, normal * 2, name)             # both end up with the punctuation at the end
 
+    def test_small_official_lines_keep_their_size_and_place(self):
+        # The Apothecary Diaries S03E08: the "this story is fiction" note (Fiction_Disclaimer, size 10 next to the
+        # dialogue's 26, bottom-left) came out in full dialogue size over the Japanese caption
+        layout = ("[Script Info]\nPlayResX: 640\nPlayResY: 360\n\n[V4+ Styles]\n"
+                  "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
+                  "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, "
+                  "MarginR, MarginV, Encoding\n"
+                  "Style: Default,Adobe Arabic,26,&H00FFFFFF,&H000000FF,&H0,&H0,-1,0,0,0,100,100,0,0,1,1,0,2,10,10,20,0\n"
+                  "Style: Fiction_Disclaimer,Adobe Arabic,10,&H00FFFFFF,&H000000FF,&H0,&H0,-1,0,0,0,100,100,0,0,1,1,0,1,143,18,49,0\n"
+                  "\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+                  + "".join(f"Dialogue: 0,0:00:{i:02d}.00,0:00:{i:02d}.90,Default,,0,0,0,,سطر {i}\n" for i in range(1, 9))
+                  + "Dialogue: 0,0:01:30.99,0:01:33.99,Fiction_Disclaimer,Text,0000,0000,0000,,{\\fad(277,260)}هذه القصّة من نسج الخيال\n")
+        srt = "".join(f"{i}\n00:00:{i:02d},000 --> 00:00:{i:02d},900\nسطر {i}\n\n" for i in range(1, 9)) + \
+            "9\n00:01:30,990 --> 00:01:33,990\nهذه القصّة من نسج الخيال\n"
+        with tempfile.TemporaryDirectory() as folder:
+            d = Path(folder)
+            (d / "o.ass").write_text(layout, encoding="utf-8")
+            (d / "a.srt").write_text(srt, encoding="utf-8")
+            srt2ass.convert(str(d / "a.srt"), str(d / "a.ass"), "T", style=dict(st.DEFAULT, size=78), lang="ar",
+                            layout=str(d / "o.ass"))
+            lines = [l.split(",", 9)[9] for l in (d / "a.ass").read_text(encoding="utf-8-sig").splitlines() if l.startswith("Dialogue")]
+        self.assertTrue(lines[-1].startswith("{\\an1\\pos(429,933)\\fs30}"), lines[-1])     # 10/26 of 78, same place
+        self.assertTrue(all(not l.startswith("{") for l in lines[:-1]))                    # dialogue: the user's style
+
     def test_every_listed_font_file_is_shipped(self):
         for family, files in st.FONTS.items():
             for f in files:
