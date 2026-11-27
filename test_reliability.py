@@ -900,7 +900,7 @@ class LibraryIds(unittest.TestCase):
 # ---------------------------------------------------------------- 20. dependencies
 class Requirements(unittest.TestCase):
     PACKAGES = {"cv2": "opencv-python", "winrt": "winrt-runtime", "PIL": "pillow", "numpy": "numpy", "psutil": "psutil",
-                "watchdog": "watchdog", "libtorrent": "libtorrent"}
+                "watchdog": "watchdog", "libtorrent": "libtorrent", "open_clip": "open_clip_torch", "torch": "torch"}
 
     def test_every_third_party_import_is_listed(self):
         import ast

@@ -14,7 +14,7 @@ const KEEP = new Set(['Kizuna', 'KIZUNA', 'Jellyfin', 'HDR', 'English', 'Weekly 
 const missing = new Set();
 const check = s => { s = s.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim(); if (/[A-Za-z]{2}/.test(s) && !KEEP.has(s) && t(s) === s) missing.add(s); };
 
-for (const page of ['dashboard.html', 'stremio.html', 'weekly.html', 'settings.html', 'news.html', 'setup.html']) {
+for (const page of ['dashboard.html', 'stremio.html', 'weekly.html', 'settings.html', 'news.html', 'setup.html', 'family.html']) {
   const html = fs.readFileSync(__dirname + '/' + page, 'utf8').replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, '');
   for (const m of html.matchAll(/>([^<>]+)</g)) check(m[1]);
   for (const m of html.matchAll(/\b(?:placeholder|aria-label|title)="([^"]+)"/g)) check(m[1]);

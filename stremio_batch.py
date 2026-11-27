@@ -128,7 +128,7 @@ def preferences(source, audio, subtitle):
             "hdr": s.verified_range(video), "provider": source.get("provider", "")}
 
 
-def start(key, audio, subtitle, library_id, scope, selected_episodes=""):
+def start(key, audio, subtitle, library_id, scope, selected_episodes="", family=False):
     source = s.item(key, "source")
     video = source["video"]
     if video["type"] == "movie":
@@ -152,7 +152,7 @@ def start(key, audio, subtitle, library_id, scope, selected_episodes=""):
         raise s.UserError("No released episodes were returned for this season/show.")
     meta = {k: video["meta"].get(k) for k in ("id", "name", "releaseInfo", "runtime")}
     data = {"name": meta["name"], "meta": meta, "type": video["type"], "scope": scope,
-            "library": library["name"], "library_id": library_id, "preferences": profile,
+            "library": library["name"], "library_id": library_id, "preferences": profile, "family": bool(family),
             "episodes": episodes, "status": "running", "stage": "Finding matching releases", "created": time.time()}
     launch(data)
     return status()
@@ -309,7 +309,7 @@ def worker(data):
                     save(data)
                     while chosen:
                         identity = source_identity(chosen[0])
-                        job = s.start_download(*chosen, data["library_id"], _batch=True)
+                        job = s.start_download(*chosen, data["library_id"], _batch=True, family=data.get("family", False))
                         if job["status"] == "done" or not job.get("retryable") or _cancel.is_set():
                             break
                         rejected.add(identity)

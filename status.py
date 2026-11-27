@@ -287,6 +287,7 @@ def collect(pending=None, light=False):
         problems.append(f"{job['name']} — no progress for over 10 minutes")
         attention.append({"name": job["name"], "reason": "No progress for over 10 minutes", "kind": "stalled"})
     import library_processing
+    family_items = []
     try:
         library_jobs = library_processing.status()
         for entry in library_jobs:
@@ -297,6 +298,9 @@ def collect(pending=None, light=False):
                 (attention if failed else pending_items).append(
                     {"name": nice(entry["destination"]), "reason": entry["stage"], "kind": "failed" if failed else "waiting",
                      "retry_at": entry.get("retry_at"), "key": entry["key"]})
+            elif entry["status"] == "family":            # held for the family audit (never published before review)
+                family_items.append({"name": nice(entry["destination"]), "key": entry["key"], "stage": entry["stage"],
+                                     "phase": entry["family"]["phase"]})
             elif entry["status"] == "running" and not job:
                 job = {"name": nice(entry["destination"]), "stage": entry["stage"], "pct": entry.get("pct", 0),
                        "stalled": now - entry["updated"] > 600, "age": now - entry["updated"]}
@@ -316,7 +320,7 @@ def collect(pending=None, light=False):
     return {
         "now": now, "headline": headline, "tone": tone, "job": job, "finished": finished,
         "waiting": waiting, "problems": problems, "deletions": [] if light else _deletions(), "shows": [] if light else _shows(lines),
-        "attention": attention, "pending": pending_items, "keep_hours": _keep_hours(),
+        "attention": attention, "pending": pending_items, "family": family_items, "keep_hours": _keep_hours(),
         "system": {
             "Watcher": "running" if procs["watcher"] else "not running",
             "Supervisor": "running" if procs["supervisor"] else "not running",
@@ -333,7 +337,7 @@ def collect(pending=None, light=False):
 
 
 PAGES = {"/": "dashboard.html", "/index.html": "dashboard.html", "/stremio": "stremio.html", "/weekly": "weekly.html",
-         "/settings": "settings.html", "/news": "news.html", "/setup": "setup.html"}
+         "/settings": "settings.html", "/news": "news.html", "/setup": "setup.html", "/family": "family.html"}
 ASSETS = {"/kizuna.css": ("kizuna.css", "text/css; charset=utf-8"), "/kizuna.js": ("kizuna.js", "text/javascript; charset=utf-8"),
           "/kizuna-ar.js": ("kizuna-ar.js", "text/javascript; charset=utf-8"),
           **{f"/fonts/{f}": (f"fonts/{f}", "font/ttf")                       # the subtitle fonts (Settings previews)
@@ -400,12 +404,13 @@ def make_handler(pending=None):
                     data = stremio.subtitle_options(params.get("key"))
                 elif post and action == "download":
                     data = stremio.start_download(params.get("key"), params.get("audio"),
-                                                 params.get("subtitle"), params.get("library"))
+                                                 params.get("subtitle"), params.get("library"), family=params.get("family") is True)
                 elif post and action == "download-cancel":
                     data = stremio.cancel_download()
                 elif post and action == "batch":
                     data = {"batch": stremio_batch.start(params.get("key"), params.get("audio"),
-                            params.get("subtitle"), params.get("library"), params.get("scope"), params.get("episodes", ""))}
+                            params.get("subtitle"), params.get("library"), params.get("scope"), params.get("episodes", ""),
+                            family=params.get("family") is True)}
                 elif post and action == "batch-stop":
                     data = {"batch": stremio_batch.stop()}
                 elif post and action == "batch-resume":
@@ -447,6 +452,18 @@ def make_handler(pending=None):
                 elif post and action == "settings":
                     import settings
                     data = settings.update(params)
+                elif not post and action == "family":
+                    import library_processing
+                    data = library_processing.family_review(params.get("key", ""))
+                elif post and action in ("family-decide", "family-add", "family-remove", "family-apply", "family-approve", "family-back"):
+                    import library_processing
+                    k = params.get("key", "")
+                    data = {"family-decide": lambda: library_processing.family_decide(k, params.get("scene"), params.get("decision")),
+                            "family-add": lambda: library_processing.family_add(k, params.get("start"), params.get("end")),
+                            "family-remove": lambda: library_processing.family_remove_added(k, params.get("index")),
+                            "family-apply": lambda: library_processing.family_apply(k),
+                            "family-approve": lambda: library_processing.family_approve(k),
+                            "family-back": lambda: library_processing.family_back(k)}[action]()
                 elif post and action == "queue-retry":
                     import library_processing
                     data = library_processing.retry(params.get("key", ""))
@@ -530,6 +547,16 @@ def make_handler(pending=None):
                                        "finished": [], "waiting": [], "problems": [], "deletions": [], "shows": [],
                                        "system": {}, "log": [], "job": None}).encode("utf-8")
                 ctype = "application/json; charset=utf-8"
+            elif route == "/family-image":
+                # a family-review frame strip or proof sheet: only these file names, only inside the queue folder
+                import library_processing
+                q = urllib.parse.parse_qs(self.path.split("?", 1)[-1])
+                key, name = (q.get("key") or [""])[0], (q.get("name") or [""])[0]
+                path = library_processing.ROOT / key / name
+                if not re.fullmatch(r"[0-9a-f]{64}", key) or not re.fullmatch(r"scene\d{1,4}\.jpg|proof\.jpg", name) or not path.is_file():
+                    self.send_error(404)
+                    return
+                body, ctype = path.read_bytes(), "image/jpeg"
             elif self.path in ("/app.png", "/favicon.ico"):
                 body, ctype = open(os.path.join(HERE, "app.png"), "rb").read(), "image/png"
             else:

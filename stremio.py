@@ -200,8 +200,9 @@ def parallel(tasks, timeout=8):
 def connection():
     import stremio_batch
     installed = addons()
+    import family
     return {"addons": [a.get("manifest", {}).get("name", "Add-on") for a in installed],
-            "libraries": libraries(), "job": job_status(), "batch": stremio_batch.status()}
+            "libraries": libraries(), "job": job_status(), "batch": stremio_batch.status(), "family": family.available()}
 
 
 def sync():
@@ -807,11 +808,15 @@ def cancel_download():
     return {"status": "cancelling", "stage": "Stopping download"}
 
 
-def start_download(key, audio, subtitle, library_id, _batch=False):
+def start_download(key, audio, subtitle, library_id, _batch=False, family=False):
     import stremio_batch
     if not _batch and stremio_batch.active():
         raise UserError("A season/show download is active. Stop its remaining episodes before starting another download.")
     source = item(key, "source")
+    if family:
+        import family as fam
+        if not fam.available():
+            raise UserError("The family audit needs its detection packages; see requirements.txt.")
     if "probe" not in source:
         raise UserError("Inspect this source before choosing its tracks.")
     tracks = source["probe"]["streams"]
@@ -839,7 +844,7 @@ def start_download(key, audio, subtitle, library_id, _batch=False):
     if not _job_lock.acquire(blocking=False):
         raise UserError("A download is already running. Wait for it to finish.")
     job = {"name": source["video"]["meta"]["name"], "status": "running", "stage": "Starting download",
-           "pct": 0, "library": library["name"], "started": time.time()}
+           "pct": 0, "library": library["name"], "started": time.time(), "family": bool(family)}
     _cancel_job.clear()
     if source["video"]["type"] != "movie":
         job.update(season=source["video"]["season"], episode=source["video"]["episode"])
@@ -1022,6 +1027,8 @@ def download(source, audio, subtitle, destination, job):
         video = source["video"]
         metadata = {k: video[k] for k in ("type", "id", "season", "episode") if k in video}
         metadata["meta"] = {k: video.get("meta", {}).get(k) for k in ("id", "name", "releaseInfo")}
+        if job.get("family"):                # held for the family review before it reaches the library
+            metadata["family"] = True
         with _lock:                         # atomic with cancel_download: either cancelled here, or refused there
             if _cancel_job.is_set():        # Cancel pressed during "Verifying download"
                 job.update(status="cancelled", retryable=False, stage="Download cancelled.")

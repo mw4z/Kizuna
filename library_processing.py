@@ -182,6 +182,8 @@ def submit(path, destination, metadata=None, progress=None, manual=False):
 def process_record(key, record, progress=None):
     folder = ROOT / key
     destination = Path(record["destination"])
+    if record["status"] == "family":                      # held for the family audit: driven by family_step
+        return family_step(key, record)
     import psutil
     try:
         pid = int((folder / "worker.pid").read_text(encoding="ascii"))
@@ -247,25 +249,178 @@ def process_record(key, record, progress=None):
             if process.returncode:
                 raise RuntimeError("Subtitle worker stopped unexpectedly")
         result = json.loads((folder / "result.json").read_text(encoding="utf-8"))
-        if result.get("leave_unchanged"):          # e.g. subtitles burned into the picture: nothing to add
-            if not record["manual"] and not destination.exists():   # Stremio download still in raw.media: deliver as is
-                # (a manual file the user deleted meanwhile must never come back)
-                deliver(key, record, folder / "raw.media", destination)
-            record.update(status="done", stage=result["stage"], pct=100, completed_signature=signature(destination))
-            record.pop("attempts", None)
-            for name in ("raw.media", "media.mkv"):
-                (folder / name).unlink(missing_ok=True)
-        elif not result.get("ready"):
-            record.update(status="waiting", stage=result["stage"], retry_at=backoff(record, 3600))
-        else:
-            publish(key, record, folder)
-            record.pop("attempts", None)
+        held = result.get("ready") or (result.get("leave_unchanged") and (folder / "raw.media").exists())
+        if held and record["metadata"].get("family") and not record.get("family_released"):
+            # family audit chosen at download: never published until the user has reviewed every scene
+            record.update(status="family", stage="Family audit: looking for scenes to review", pct=0, retry_at=0,
+                          family={"phase": "scan", "result": result, "source": "media.mkv" if result.get("ready") else "raw.media"})
+            save_record(key, record)
+            return family_step(key, record)
+        finish(key, record, folder, result)
     except Exception as error:
         record.update(status="waiting", stage="Subtitle preparation or delivery failed; original retained. Automatic retry scheduled.",
                       retry_at=backoff(record, 1200))
         agent.log(f"Library processing: {destination.name}: {type(error).__name__}")
     save_record(key, record)
     return record
+
+
+def finish(key, record, folder, result):
+    """Deliver a prepared title (after the family audit, when one was chosen)."""
+    destination = Path(record["destination"])
+    if result.get("leave_unchanged"):          # e.g. subtitles burned into the picture: nothing to add
+        if not record["manual"] and not destination.exists():   # Stremio download still in raw.media: deliver as is
+            # (a manual file the user deleted meanwhile must never come back)
+            deliver(key, record, folder / "raw.media", destination)
+        record.update(status="done", stage=result["stage"], pct=100, completed_signature=signature(destination))
+        record.pop("attempts", None)
+        for name in ("raw.media", "media.mkv"):
+            (folder / name).unlink(missing_ok=True)
+    elif not result.get("ready"):
+        record.update(status="waiting", stage=result["stage"], retry_at=backoff(record, 3600))
+    else:
+        publish(key, record, folder)
+        record.pop("attempts", None)
+
+
+# ---------------------------------------------------------------- family audit (family.py does the work)
+FAMILY_STAGE = {"scan": "Family audit: looking for scenes to review", "review": "Family audit: waiting for your review",
+                "render": "Family audit: blurring the scenes you chose", "proof": "Family audit: check the edited scenes",
+                "release": "Family audit approved: adding to the library"}
+
+
+def family_step(key, record):
+    """Run the next automatic step of a held title: scan, render (+proof), or release after approval."""
+    folder, fam = ROOT / key, record["family"]
+    phase = fam["phase"]
+    if phase in ("review", "proof"):                       # waiting for the user
+        return record
+    try:
+        if phase == "release":
+            edited = folder / "family-work" / "family.mkv"
+            if edited.exists():
+                os.replace(edited, folder / fam["source"])
+            shutil.rmtree(folder / "family-work", ignore_errors=True)
+            record["family_released"] = True
+            finish(key, record, folder, fam["result"])
+            save_record(key, record)
+            return record
+        record.update(stage=FAMILY_STAGE[phase], pct=0)
+        save_record(key, record)
+        r = subprocess.run([sys.executable, str(Path(agent.HERE) / "family_worker.py"), str(folder), phase, fam["source"]],
+                           capture_output=True, text=True, timeout=6 * 3600, creationflags=agent.NO_CF)
+        out = json.loads((folder / "family-result.json").read_text(encoding="utf-8")) if (folder / "family-result.json").exists() else {}
+        if r.returncode or not out.get("ok"):
+            raise RuntimeError(out.get("error") or r.stderr[-200:] or "family worker failed")
+        fam["phase"] = "review" if phase == "scan" else "proof"
+        record.update(stage=FAMILY_STAGE[fam["phase"]], pct=100, retry_at=None)
+        record.pop("attempts", None)
+    except Exception as error:
+        record.update(stage=f"Family audit failed ({type(error).__name__}); retrying automatically. Not added to the library.",
+                      retry_at=backoff(record, 1800))
+        agent.log(f"Family audit: {Path(record['destination']).name}: {type(error).__name__}: {str(error)[:160]}")
+    save_record(key, record)
+    return record
+
+
+def _family(key, phases):
+    with _guard:
+        record = read().get(key)
+    if not record or record["status"] != "family" or record["family"]["phase"] not in phases:
+        import stremio
+        raise stremio.UserError("This title is not waiting for a family review.")
+    return record
+
+
+def family_review(key):
+    record = _family(key, ("scan", "review", "render", "proof", "release"))
+    folder = ROOT / key
+    review = json.loads((folder / "review.json").read_text(encoding="utf-8")) if (folder / "review.json").exists() else {"scenes": [], "added": []}
+    return {"key": key, "name": Path(record["destination"]).stem, "phase": record["family"]["phase"], "stage": record["stage"],
+            "scenes": review["scenes"], "added": review["added"], "proof": (folder / "proof.jpg").exists()}
+
+
+def _save_review(key, change):
+    import stremio
+    with _guard:
+        _family(key, ("review",))
+        path = ROOT / key / "review.json"
+        review = json.loads(path.read_text(encoding="utf-8"))
+        change(review, stremio.UserError)
+        agent.write_atomic(path, json.dumps(review, ensure_ascii=False, indent=1))
+    return family_review(key)
+
+
+def family_decide(key, scene, decision):
+    if decision not in ("blur", "keep"):
+        import stremio
+        raise stremio.UserError("Choose Blur or Keep.")
+
+    def change(review, error):
+        hit = [s for s in review["scenes"] if str(s["id"]) == str(scene)]
+        if not hit:
+            raise error("That scene is no longer listed.")
+        hit[0]["decision"] = decision
+    return _save_review(key, change)
+
+
+def family_add(key, start, end):
+    """A scene the scan missed, by time (seconds); it is blurred from the cut before it to the cut after it."""
+    try:
+        a, b = float(start), float(end)
+    except (TypeError, ValueError):
+        a = b = -1
+
+    def change(review, error):
+        if not 0 <= a < b or b - a > 900:
+            raise error("Enter a start and end time inside the film (at most 15 minutes apart).")
+        review["added"].append({"from": round(a, 2), "to": round(b, 2)})
+    return _save_review(key, change)
+
+
+def family_remove_added(key, index):
+    def change(review, error):
+        try:
+            review["added"].pop(int(index))
+        except (ValueError, IndexError):
+            raise error("That added scene is no longer listed.")
+    return _save_review(key, change)
+
+
+def family_apply(key):
+    """All scenes decided -> blur them (or release unchanged when nothing is to be blurred)."""
+    import stremio
+    with _guard:
+        record = _family(key, ("review",))
+        review = json.loads((ROOT / key / "review.json").read_text(encoding="utf-8"))
+        if any(s["decision"] is None for s in review["scenes"]):
+            raise stremio.UserError("Decide Blur or Keep for every scene first.")
+        blur = [s for s in review["scenes"] if s["decision"] == "blur"] + review["added"]
+        record["family"]["phase"] = "render" if blur else "release"
+        record.update(stage=FAMILY_STAGE[record["family"]["phase"]], retry_at=0)
+        save_record(key, record)
+    return family_review(key)
+
+
+def family_approve(key):
+    with _guard:
+        record = _family(key, ("proof",))
+        record["family"]["phase"] = "release"
+        record.update(stage=FAMILY_STAGE["release"], retry_at=0)
+        save_record(key, record)
+    return family_review(key)
+
+
+def family_back(key):
+    """Reject the edit: back to the scene list; the edited file and its proof are discarded."""
+    with _guard:
+        record = _family(key, ("proof",))
+        shutil.rmtree(ROOT / key / "family-work", ignore_errors=True)
+        (ROOT / key / "proof.jpg").unlink(missing_ok=True)
+        record["family"]["phase"] = "review"
+        record.update(stage=FAMILY_STAGE["review"], retry_at=None)
+        save_record(key, record)
+    return family_review(key)
 
 
 def backoff(record, base):
@@ -387,7 +542,8 @@ def poll(observed):
                     original.unlink()
                 except PermissionError:
                     pass
-        if record["status"] not in ("done", "cancelled") and (record.get("retry_at") or 0) <= time.time():
+        held = record["status"] == "family" and record["family"]["phase"] in ("review", "proof")
+        if record["status"] not in ("done", "cancelled") and not held and (record.get("retry_at") or 0) <= time.time():
             if not _processor.acquire(blocking=False):
                 continue
             try:

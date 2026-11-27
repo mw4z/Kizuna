@@ -1,0 +1,88 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="k-token" content="__STREMIO_TOKEN__">
+<meta name="referrer" content="no-referrer">
+<title>Family review · Kizuna</title><link rel="icon" type="image/png" href="/app.png"><link rel="stylesheet" href="/kizuna.css">
+<style>
+.f-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+.f-stage{display:flex;align-items:center;gap:10px;margin-top:10px;color:var(--k-text-2);font-size:14px}
+.scene{border:1px solid var(--k-line);border-radius:var(--k-r-art);overflow:hidden;margin-top:16px;background:var(--k-surface)}
+.scene img{display:block;width:100%;aspect-ratio:32/3;object-fit:cover;background:#000}
+.scene-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 14px}
+.scene-bar .when{font:600 14px/1.3 var(--k-font-display);font-variant-numeric:tabular-nums}
+.scene-bar .what{color:var(--k-text-3);font-size:12.5px}
+.scene-bar .pick{margin-inline-start:auto;display:flex;gap:8px}
+.pick button[aria-pressed=true].blur{background:var(--k-fail);border-color:var(--k-fail);color:#fff}
+.pick button[aria-pressed=true].keep{background:var(--k-ok, #2e9b62);border-color:var(--k-ok, #2e9b62);color:#fff}
+.scene.undecided{border-color:var(--k-accent)}
+.add{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:12px}
+.add label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--k-text-2)}
+.add input{height:36px;width:120px;padding:0 10px;border:1px solid var(--k-line-strong);border-radius:var(--k-r);background:var(--k-raised);color:var(--k-text);font:500 14px var(--k-font);direction:ltr}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:26px;padding-top:18px;border-top:1px solid var(--k-line)}
+.proof{margin-top:16px;border:1px solid var(--k-line);border-radius:var(--k-r-art);overflow:auto;max-height:70vh;background:#000}
+.proof img{display:block;width:100%}
+.note{color:var(--k-text-2);font-size:14px;line-height:1.6;max-width:75ch}
+.err{color:var(--k-fail);font-size:13.5px;margin-top:10px}
+</style></head><body>
+<header class="k-top"></header>
+<main class="k-page">
+<div class="f-head"><div><h1 class="k-title">Family review</h1><p class="k-lede" id="name"></p></div><a class="k-btn" href="/">← Back to Now</a></div>
+<div class="f-stage"><span class="k-state live" data-state="processing" id="stageDot">Working</span><span id="stage"></span></div>
+<p class="err" id="error" role="alert" hidden></p>
+
+<section id="review" hidden>
+ <p class="note">Each scene below was found automatically and is shown from the cut before it to the cut after it, the part that would be blurred. Choose Blur or Keep for every scene. Nothing is changed until you apply, and the film is not in Jellyfin until you approve the result.</p>
+ <div id="scenes"></div>
+ <section class="k-section"><div class="k-section-head"><h2 class="k-h">Add a scene the scan missed</h2><span class="k-meta">Times as h:mm:ss; it is widened to the whole shot</span></div>
+  <div id="added"></div>
+  <div class="add"><label>From<input id="from" placeholder="0:49:44" inputmode="numeric"></label><label>To<input id="to" placeholder="0:49:53" inputmode="numeric"></label>
+   <button type="button" class="k-btn" id="addBtn">Add scene</button></div></section>
+ <div class="actions"><button type="button" class="k-btn k-btn-primary" id="apply" disabled>Apply</button><span class="k-meta" id="applyNote"></span></div>
+</section>
+
+<section id="proofSec" hidden>
+ <p class="note">This sheet is taken from the finished film, four frames a second, from 10 seconds before each blurred scene to 10 seconds after it. Frames with a red border are blurred. Check that every one of them is blurred and that nothing else is.</p>
+ <div class="proof"><img id="proofImg" alt="Frames from the edited film"></div>
+ <div class="actions"><button type="button" class="k-btn k-btn-primary" id="approve">Approve and add to Jellyfin</button><button type="button" class="k-btn" id="back">Back to the scenes</button></div>
+</section>
+</main>
+<script src="/kizuna-ar.js"></script><script src="/kizuna.js"></script>
+<script>
+const $=id=>document.getElementById(id),K=Kizuna,esc=K.esc;
+K.shell('now');
+const key=new URLSearchParams(location.search).get('key')||'';
+const KIND={kiss:'Kissing',nudity:'Nudity',revealing:'Revealing clothing'};
+const hms=s=>{s=Math.max(0,s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=(s%60).toFixed(1).padStart(4,'0');return `${h}:${String(m).padStart(2,'0')}:${x}`};
+const secs=v=>{v=String(v).trim();if(!v)return NaN;const p=v.split(':').map(Number);if(p.some(isNaN))return NaN;return p.reduce((a,x)=>a*60+x,0)};
+let state=null,timer=null;
+function error(m){$('error').hidden=!m;$('error').textContent=m||''}
+async function call(action,data){error('');try{state=await K.api(action,Object.assign({key},data||{}));render()}catch(e){error(e.message)}}
+function render(){
+ const s=state;$('name').innerHTML=`<bdi>${esc(s.name)}</bdi>`;$('stage').textContent=s.stage;
+ const busy=['scan','render','release'].includes(s.phase);$('stageDot').hidden=!busy;
+ $('review').hidden=s.phase!=='review';$('proofSec').hidden=s.phase!=='proof';
+ if(s.phase==='review'){
+  $('scenes').innerHTML=s.scenes.length?s.scenes.map(c=>`<div class="scene${c.decision?'':' undecided'}"><img src="/family-image?key=${encodeURIComponent(key)}&name=${encodeURIComponent(c.image)}" alt="" loading="lazy">
+   <div class="scene-bar"><div><div class="when">${hms(c.from)} – ${hms(c.to)}</div><div class="what">${c.kinds.map(k=>`<span>${esc(KIND[k]||k)}</span>`).join(' · ')}</div></div>
+   <div class="pick"><button type="button" class="k-btn blur" data-scene="${c.id}" data-d="blur" aria-pressed="${c.decision==='blur'}">Blur</button><button type="button" class="k-btn keep" data-scene="${c.id}" data-d="keep" aria-pressed="${c.decision==='keep'}">Keep</button></div></div></div>`).join('')
+   :'<p class="note">The scan found no kissing or nudity. If you saw a scene it missed, add it below.</p>';
+  $('added').innerHTML=s.added.map((a,i)=>`<div class="k-row"><div class="k-row-main"><div class="k-row-title">${hms(a.from)} – ${hms(a.to)}</div></div><button type="button" class="k-btn k-btn-ghost" data-remove="${i}">Remove</button></div>`).join('');
+  const open=s.scenes.filter(c=>!c.decision).length,blur=s.scenes.filter(c=>c.decision==='blur').length+s.added.length;
+  $('apply').disabled=open>0;
+  $('apply').textContent=blur?'Blur and check the result':'Add to Jellyfin without changes';
+  $('applyNote').textContent=open?`${open} scenes still to decide`:blur?`${blur} scenes will be blurred`:'Nothing will be blurred';
+ }
+ if(s.phase==='proof'&&s.proof)$('proofImg').src=`/family-image?key=${encodeURIComponent(key)}&name=proof.jpg&t=${Date.now()}`;
+ clearTimeout(timer);if(busy)timer=setTimeout(load,5000)}
+async function load(){try{state=await K.api('family?key='+encodeURIComponent(key));error('');render()}
+ catch(e){if(state&&state.phase==='release'){location.href='/';return}            // approved and added: done here
+  error(e.message);$('review').hidden=$('proofSec').hidden=true;$('stageDot').hidden=true}}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-scene]');if(b){call('family-decide',{scene:b.dataset.scene,decision:b.dataset.d});return}
+ const r=e.target.closest('[data-remove]');if(r)call('family-remove',{index:r.dataset.remove})});
+$('addBtn').onclick=()=>{const a=secs($('from').value),b=secs($('to').value);
+ if(!(a>=0&&b>a)){error('Enter a start and an end time, like 0:49:44 and 0:49:53.');return}
+ call('family-add',{start:a,end:b}).then(()=>{$('from').value=$('to').value=''})};
+$('apply').onclick=()=>call('family-apply');
+$('approve').onclick=()=>call('family-approve');
+$('back').onclick=()=>call('family-back');
+load();
+</script></body></html>
