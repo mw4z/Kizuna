@@ -62,10 +62,10 @@ function render(){
  $('review').hidden=s.phase!=='review';$('proofSec').hidden=s.phase!=='proof';
  if(s.phase==='review'){
   $('scenes').innerHTML=s.scenes.length?s.scenes.map(c=>`<div class="scene${c.decision?'':' undecided'}"><img src="/family-image?key=${encodeURIComponent(key)}&name=${encodeURIComponent(c.image)}" alt="" loading="lazy">
-   <div class="scene-bar"><div><div class="when">${hms(c.from)} – ${hms(c.to)}</div><div class="what">${c.kinds.map(k=>`<span>${esc(KIND[k]||k)}</span>`).join(' · ')}</div></div>
+   <div class="scene-bar"><div><div class="when"><bdi dir="ltr">${hms(c.from)} – ${hms(c.to)}</bdi></div><div class="what">${c.kinds.map(k=>`<span>${esc(KIND[k]||k)}</span>`).join(' · ')}</div></div>
    <div class="pick"><button type="button" class="k-btn blur" data-scene="${c.id}" data-d="blur" aria-pressed="${c.decision==='blur'}">Blur</button><button type="button" class="k-btn keep" data-scene="${c.id}" data-d="keep" aria-pressed="${c.decision==='keep'}">Keep</button></div></div></div>`).join('')
    :'<p class="note">The scan found no kissing or nudity. If you saw a scene it missed, add it below.</p>';
-  $('added').innerHTML=s.added.map((a,i)=>`<div class="k-row"><div class="k-row-main"><div class="k-row-title">${hms(a.from)} – ${hms(a.to)}</div></div><button type="button" class="k-btn k-btn-ghost" data-remove="${i}">Remove</button></div>`).join('');
+  $('added').innerHTML=s.added.map((a,i)=>`<div class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi dir="ltr">${hms(a.from)} – ${hms(a.to)}</bdi></div></div><button type="button" class="k-btn k-btn-ghost" data-remove="${i}">Remove</button></div>`).join('');
   const open=s.scenes.filter(c=>!c.decision).length,blur=s.scenes.filter(c=>c.decision==='blur').length+s.added.length;
   $('apply').disabled=open>0;
   $('apply').textContent=blur?'Blur and check the result':'Add to Jellyfin without changes';

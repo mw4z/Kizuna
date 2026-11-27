@@ -277,7 +277,7 @@ def plan(video, ranges):
         k2 = min([k for k in keys if k >= b + 0.1], default=None)
         if k1 is None or k2 is None:
             raise RuntimeError(f"no clean keyframe around {a:.1f}-{b:.1f}")
-        if spans and k1 <= spans[-1]["k2"]:
+        if spans and k1 <= spans[-1]["k2"] + 2.0:             # close spans become one: no sliver between them
             spans[-1]["k2"] = max(spans[-1]["k2"], k2)
             spans[-1]["blur"].append([a, b])
         else:
@@ -307,7 +307,8 @@ def render(video, ranges, work, progress=None):
             pieces.append(("keep", cur, sp["k1"]))
         pieces.append(("mid", n))
         nxt = spans[n + 1]["k1"] if n + 1 < len(spans) else None
-        k3 = min([k for k in clean_keys(video, sp["k2"] + 0.01, sp["k2"] + 60) if k > sp["k2"] + 0.01], default=None)
+        # at least a second: a one-frame raw stream can't be re-wrapped (The Town, 2026-11-27)
+        k3 = min([k for k in clean_keys(video, sp["k2"] + 1.0, sp["k2"] + 60) if k >= sp["k2"] + 1.0], default=None)
         if nxt is not None and (k3 is None or k3 > nxt):
             k3 = nxt
         pieces.append(("restore", sp["k2"], k3))
@@ -340,7 +341,9 @@ def render(video, ranges, work, progress=None):
     for n, s in enumerate(spans):
         frames = round((s["k2"] - s["k1"]) * fps)
         enable = "+".join(f"between(t,{a},{b})" for a, b in s["blur"])
-        blur = (f"[0:v]split[a][b];[b]scale=iw/48:ih/48,scale={w}:{h}:flags=bilinear,gblur=sigma=30[bl];"
+        # a fixed 16x9 whatever the resolution, then a blur scaled to the height: 1/48 still left lingerie and a body
+        # outline readable on a 4K film (The Town 14:05, 2026-11-27); 16x9 leaves only soft colour
+        blur = (f"[0:v]split[a][b];[b]scale=16:9,scale={w}:{h}:flags=bilinear,gblur=sigma={max(20, h // 24)}[bl];"
                 f"[a][bl]overlay=enable='{enable}'[v]")
         raw = work / f"mid{n}.{'hevc' if info['codec_name'] == 'hevc' or hdr else 'h264'}"
         if info["codec_name"] == "hevc" or hdr:
@@ -400,15 +403,21 @@ def verify(src, out, spans):
     """Same number of frames; every join decodes cleanly; frames just outside each span are bit-identical."""
     if _count(src) != _count(out):
         raise RuntimeError("the edited film has a different number of frames")
-    for s in spans:
+    for n, s in enumerate(spans):
         r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(0, s['k1'] - 6)}", "-t", f"{s['k2'] - s['k1'] + 12}",
                             "-i", str(out), "-map", "0:v:0", "-f", "null", "-"], capture_output=True, text=True, creationflags=agent.NO_CF)
         if r.stderr.strip():
             raise RuntimeError("decode error at a join: " + r.stderr[-200:])
-        for a in (s["k1"] - 4, s["k2"] + 0.5):
+        # the untouched frames on each side, never reaching into a neighbouring edit (The Town: two edits 2.3 s apart)
+        prev_end = spans[n - 1]["k2"] if n else 0.0
+        next_start = spans[n + 1]["k1"] if n + 1 < len(spans) else None
+        for a, b in ((max(prev_end + 0.2, s["k1"] - 4), s["k1"] - 0.2),
+                     (s["k2"] + 0.2, min(s["k2"] + 3.5, next_start - 0.2) if next_start is not None else s["k2"] + 3.5)):
+            if b - a < 0.3:
+                continue                                   # no untouched stretch here (edits back to back)
             # by frame sequence, not by time: re-wrapped pieces round timestamps to the millisecond, which can move a
             # seek by one frame; the original frames must appear unchanged and in order in a slightly wider window
-            x, y = _md5(src, a, 3), _md5(out, a - 0.5, 4)
+            x, y = _md5(src, a, b - a), _md5(out, a - 0.5, b - a + 1)
             if not x or not any(y[i:i + len(x)] == x for i in range(len(y) - len(x) + 1)):
                 raise RuntimeError(f"frames changed outside the edit near {a:.1f}s")
 
@@ -424,13 +433,14 @@ def audit(folder, video, progress=None):
         a, b = shot_range(video, s["from"], s["to"])
         if widened and a <= widened[-1]["to"]:                 # two scenes in one shot: one review entry
             widened[-1].update(to=max(widened[-1]["to"], b), kinds=sorted(set(widened[-1]["kinds"]) | set(s["kinds"])),
-                               peak=max(widened[-1]["peak"], s["peak"]))
+                               peak=max(widened[-1]["peak"], s["peak"]), seen_to=s["to"])
         else:
-            widened.append(dict(s, **{"from": a, "to": b}))
+            widened.append(dict(s, **{"from": a, "to": b, "seen_from": s["from"], "seen_to": s["to"]}))
     found = []
     for n, s in enumerate(widened):
         shot = folder / f"scene{n}.jpg"
-        strip(video, s["from"], s["to"], shot)
+        # the strip shows the flagged moments (so the reason is visible); the blur still covers the whole shot
+        strip(video, max(s["from"], s["seen_from"] - 0.5), min(s["to"], s["seen_to"] + 0.5), shot)
         found.append({"id": n, "from": s["from"], "to": s["to"], "kinds": s["kinds"], "peak": round(float(s["peak"]), 3),
                       "decision": None, "image": shot.name})
     review = {"created": time.time(), "scenes": found, "added": [], "stage": "review"}
