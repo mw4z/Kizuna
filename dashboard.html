@@ -90,6 +90,12 @@ pre.log{margin:10px 0 0;background:var(--k-sunken);border:1px solid var(--k-line
     <ul class="k-rows" id="attentionList"></ul>
   </section>
 
+  <section class="k-section" id="familySec" aria-labelledby="hFamily" hidden>
+    <div class="k-section-head"><h2 class="k-h" id="hFamily">Family review<span class="k-count" id="familyCount"></span></h2>
+      <span class="k-meta">Not in Jellyfin until you approve</span></div>
+    <ul class="k-rows" id="familyList"></ul>
+  </section>
+
   <section class="k-section" id="pending" aria-labelledby="hPending" hidden>
     <div class="k-section-head"><h2 class="k-h" id="hPending">Waiting for subtitles<span class="k-count" id="pendingCount"></span></h2>
       <span class="k-meta">Checked again automatically</span></div>
@@ -168,6 +174,8 @@ async function tick(){
     cancel=keys=>keys.length?`<button type="button" class="k-btn k-btn-ghost cancel" data-key="${esc(keys.join(' '))}">${keys.length>1?'Cancel all':'Cancel'}</button>`:'',
     row=x=>`<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.reason)}</div></div><div class="pend-side"><span class="k-row-aside">${next(x)}</span>${check(x.key?[x.key]:[])}${cancel(x.key?[x.key]:[])}</div></li>`;
   put('attentionList',att.map(x=>{const [st,label]=KIND[x.kind]||KIND.failed;return `<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.reason)}</div></div><div class="pend-side"><span class="k-state" data-state="${st}">${label}</span>${x.key?check([x.key]):''}</div></li>`}).join(''));
+  const fam=d.family||[];$('familySec').hidden=!fam.length;$('familyCount').textContent=fam.length||'';
+  put('familyList',fam.map(x=>`<li class="k-row"><div class="k-row-main"><div class="k-row-title"><bdi>${esc(x.name)}</bdi></div><div class="why">${esc(x.stage)}</div></div><div class="pend-side">${x.phase==='review'||x.phase==='proof'?`<a class="k-btn k-btn-primary" href="/family?key=${esc(x.key)}">${x.phase==='proof'?'Check the result':'Review scenes'}</a>`:'<span class="k-row-aside">Working…</span>'}</div></li>`).join(''));
   $('pending').hidden=!pend.length;$('pendingCount').textContent=pend.length||'';
   put('pendingList',groupPending(pend).map(g=>g.items.length<2?row(g.items[0]):`<li class="k-row pgroup"><details data-g="${esc(g.id)}"${openGroups.has(g.id)?' open':''}><summary>
     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>

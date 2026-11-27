@@ -13,5 +13,9 @@ winrt-Windows.Globalization==3.2.1
 winrt-Windows.Graphics.Imaging==3.2.1
 winrt-Windows.Media.Ocr==3.2.1
 winrt-Windows.Storage.Streams==3.2.1
+# family.py (optional Family audit; only loaded when a download asks for it). torch is the CUDA build:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu130   (RTX GPU; CPU works, much slower)
+torch==2.14.1
+open_clip_torch==4.2.2   # CLIP ViT-B-32 laion2b: kissing / nudity / revealing against neutral decoys
 # Not on PyPI here: ccl_chromium_reader is vendored under work\stremio-storage-reader and only
 # used by `stremio_account.py --import-local`.
