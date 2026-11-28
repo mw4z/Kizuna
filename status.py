@@ -376,7 +376,10 @@ def make_handler(pending=None):
                     params = json.loads(self.rfile.read(length))
                 else:
                     params = {k: v[0] for k, v in parse_qs(path.query).items()}
-                if not isinstance(params, dict) or any(not isinstance(v, str) or len(v) > (12000 if k == "episodes" else 500) for k, v in params.items()):
+                # text, or a JSON true/false/number (the family checkbox and the added-scene times); never lists or objects
+                if not isinstance(params, dict) or any(not isinstance(v, (str, bool, int, float))
+                                                       or isinstance(v, str) and len(v) > (12000 if k == "episodes" else 500)
+                                                       for k, v in params.items()):
                     raise stremio.UserError("Invalid selection.")
                 action = path.path.removeprefix("/api/stremio/")
                 if not post and action == "connection":

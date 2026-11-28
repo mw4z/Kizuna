@@ -140,6 +140,42 @@ class HeldCycle(Sandbox):
         self.assertEqual(published, [b"prepared film"])
 
 
+class Api(unittest.TestCase):
+    """Through the real status server: the pages send JSON true/false and numbers, which must reach the code."""
+    def setUp(self):
+        import threading
+        import status
+        from http.server import ThreadingHTTPServer
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), status.make_handler())
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.base = f"http://127.0.0.1:{self.server.server_address[1]}/api/stremio/"
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+
+    def post(self, action, data):
+        import urllib.request
+        req = urllib.request.Request(self.base + action, data=json.dumps(data).encode(), method="POST",
+                                     headers={"Content-Type": "application/json", "X-MyAnimeWatcher": s.TOKEN})
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:                                      # refusals carry {"error": ...}
+            return json.loads(e.read())
+
+    def test_family_checkbox_and_scene_times_get_through(self):
+        with patch.object(s, "start_download", return_value={"ok": True}) as download:
+            self.assertNotIn("error", self.post("download", {"key": "k", "audio": "0", "subtitle": "", "library": "Movies",
+                                                             "family": True}))
+        self.assertIs(download.call_args.kwargs["family"], True)
+        with patch.object(lp, "family_add", return_value={"ok": True}) as add:
+            self.assertNotIn("error", self.post("family-add", {"key": "a" * 64, "start": 2984.5, "end": 2993}))
+        self.assertEqual(add.call_args.args[1:], (2984.5, 2993))
+        for bad in ([1, 2], {"x": 1}):                                           # lists and objects stay refused
+            self.assertEqual(self.post("download", {"key": bad})["error"], "Invalid selection.")
+
+
 class RealRender(unittest.TestCase):
     """ffmpeg + mkvmerge on a 12 s synthetic film: only the keyframe span is re-encoded; everything else is identical."""
     def test_blur_is_inside_the_range_and_the_rest_is_bit_identical(self):
